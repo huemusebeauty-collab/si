@@ -1,0 +1,26 @@
+{
+  "name": "hue-muse-beauty-ecommerce",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Hue Muse Beauty E-commerce Website — monorepo root",
+  "engines": {
+    "node": ">=20.14.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "dev": "bash scripts/dev.sh",
+    "setup": "bash scripts/setup.sh",
+    "lint": "bash scripts/lint.sh",
+    "test": "bash scripts/test.sh",
+    "format": "prettier --config config/prettier/.prettierrc.json --write .",
+    "format:check": "prettier --config config/prettier/.prettierrc.json --check ."
+  },
+  "devDependencies": {
+    "prettier": "^3.3.0",
+    "eslint": "^9.0.0",
+    "husky": "^9.0.0",
+    "lint-staged": "^15.0.0",
+    "@commitlint/cli": "^19.0.0",
+    "@commitlint/config-conventional": "^19.0.0"
+  }
+}
