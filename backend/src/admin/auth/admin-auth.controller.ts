@@ -1,4 +1,4 @@
-import { Body, Controller, Headers, HttpCode, HttpStatus, Post } from "@nestjs/common";
+import { Body, Controller, Headers, HttpCode, HttpStatus, Post, UnauthorizedException } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { Throttle } from "@nestjs/throttler";
 import { AdminAuthService } from "./admin-auth.service";
@@ -36,7 +36,7 @@ export class AdminAuthController {
 
   private extractBearer(authorization?: string): string {
     const match = authorization?.match(/^Bearer\s+(.+)$/i);
-    if (!match) throw new Error("Missing admin login challenge.");
+    if (!match) throw new UnauthorizedException("Missing admin login challenge.");
     return match[1];
   }
 }
