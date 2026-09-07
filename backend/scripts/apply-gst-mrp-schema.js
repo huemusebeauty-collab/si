@@ -17,6 +17,10 @@ const statements = [
   `ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "discountAmount" numeric(10,2) NOT NULL DEFAULT 0`,
   `ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "taxableAmount" numeric(10,2) NOT NULL DEFAULT 0`,
   `ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "taxAmount" numeric(10,2) NOT NULL DEFAULT 0`,
+  `ALTER TABLE "admin_users" ADD COLUMN IF NOT EXISTS "phoneNumber" varchar(32)`,
+  `ALTER TABLE "admin_users" ADD COLUMN IF NOT EXISTS "otpHash" varchar(128)`,
+  `ALTER TABLE "admin_users" ADD COLUMN IF NOT EXISTS "otpExpiresAt" timestamptz`,
+  `ALTER TABLE "admin_users" ADD COLUMN IF NOT EXISTS "otpAttempts" integer NOT NULL DEFAULT 0`,
   `UPDATE "orders" SET "subtotal" = "total" WHERE "subtotal" = 0 AND "total" <> 0`,
 ];
 
