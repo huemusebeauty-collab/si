@@ -1,18 +1,9 @@
 // Sprint 6B — mirrors backend `src/admin/common/admin-role.ts` exactly
-// (Phase 6 §12). This is UI-visibility enforcement only — per the
-// sprint's own constraint ("Enforce RBAC through both UI visibility
-// AND backend authorization"), the backend's PermissionsGuard remains
-// the actual security boundary. A user could bypass a hidden nav item
-// via direct URL/API call and would still be correctly rejected by the
-// backend — this file only controls what's *shown*, never what's
-// *allowed*. Kept as a hand-mirrored constant rather than a shared npm
-// package (no monorepo package-sharing infrastructure exists — see
-// Known Issues) — a real risk if the two drift, flagged explicitly.
 export type AdminRole = "super_admin" | "store_manager" | "product_manager" | "content_manager" | "customer_support";
 export type PermissionLevel = "full" | "edit" | "view" | "none";
 export type AdminModule =
   | "dashboard" | "products" | "categories" | "orders" | "customers"
-  | "reviews" | "coupons" | "content" | "settings" | "reports" | "userRoles";
+  | "reviews" | "coupons" | "content" | "settings" | "reports" | "userRoles" | "billing";
 
 export const PERMISSION_MATRIX: Record<AdminModule, Record<AdminRole, PermissionLevel>> = {
   dashboard: { super_admin: "full", store_manager: "full", product_manager: "view", content_manager: "view", customer_support: "view" },
@@ -26,6 +17,7 @@ export const PERMISSION_MATRIX: Record<AdminModule, Record<AdminRole, Permission
   settings: { super_admin: "full", store_manager: "none", product_manager: "none", content_manager: "none", customer_support: "none" },
   reports: { super_admin: "full", store_manager: "full", product_manager: "view", content_manager: "none", customer_support: "none" },
   userRoles: { super_admin: "full", store_manager: "none", product_manager: "none", content_manager: "none", customer_support: "none" },
+  billing: { super_admin: "full", store_manager: "full", product_manager: "none", content_manager: "none", customer_support: "view" },
 };
 
 const LEVEL_RANK: Record<PermissionLevel, number> = { none: 0, view: 1, edit: 2, full: 3 };
