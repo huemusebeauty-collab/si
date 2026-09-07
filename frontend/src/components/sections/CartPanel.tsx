@@ -65,7 +65,7 @@ export function CartPanel({
           <span className="font-semibold">{formatCurrency(subtotal)}</span>
         </div>
         <p className="mt-1 text-[13px] leading-[18px] text-stone">Shipping and taxes calculated at checkout.</p>
-        <Button variant="primary" fullWidth className="mt-4">
+        <Button variant="primary" fullWidth className="mt-4" onClick={() => { window.location.href = "/checkout"; }}>
           Checkout
         </Button>
       </div>
