@@ -8,6 +8,7 @@ export interface JwtPayload {
   sub: string; // customerId or adminId
   email: string;
   role: string;
+  purpose?: string;
 }
 
 // Sprint 3.3 — Authentication Foundation: JWT validation strategy.
@@ -31,6 +32,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   validate(payload: JwtPayload): AuthenticatedUser {
     if (!payload.sub) {
       throw new UnauthorizedException("Invalid token payload.");
+    }
+    // Admin password-step challenges are intentionally not valid session
+    // credentials. They may only be used by the dedicated OTP endpoints.
+    if (payload.purpose === "admin_2fa") {
+      throw new UnauthorizedException("Complete admin phone verification first.");
     }
     return { id: payload.sub, email: payload.email, role: payload.role };
   }
