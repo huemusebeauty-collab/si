@@ -3,9 +3,6 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { TransactionService } from "./transaction.service";
 
-// Sprint 3.2/3.4 — Core Infrastructure + Database Foundation. Registers
-// the app-managed PostgreSQL connection. `synchronize: false` always —
-// schema changes only via the migration framework (Sprint 3.4).
 @Module({
   imports: [
     TypeOrmModule.forRootAsync({
@@ -15,11 +12,10 @@ import { TransactionService } from "./transaction.service";
         type: "postgres",
         url: config.get<string>("database.url"),
         autoLoadEntities: true,
-        synchronize: false,
+        // One-time bootstrap switch for the currently empty Neon database.
+        // Keep false by default; production schema changes should use migrations.
+        synchronize: config.get<string>("DB_SYNCHRONIZE") === "true",
         logging: config.get<string>("env") === "development",
-        // Sprint 3.2 — Graceful shutdown: TypeORM closes its pool on
-        // Nest's onApplicationShutdown hook automatically when this flag
-        // is set and app.enableShutdownHooks() is called in main.ts.
       }),
     }),
   ],
