@@ -1,5 +1,6 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/v1";
 const CART_STORAGE_KEY = "silku-cart-id";
+const SESSION_STORAGE_KEY = "silku-session-id";
 
 interface ApiEnvelope<T> { data: T; }
 
@@ -15,6 +16,15 @@ export interface ApiCart {
   lineItems: ApiCartLineItem[];
   couponCode?: string;
   discountAmount?: string;
+}
+
+export interface ApiOrder {
+  id: string;
+  customerId: string;
+  status: string;
+  total: string;
+  currency: string;
+  shippingAddress: Record<string, unknown>;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -33,6 +43,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export function getStoredCartId(): string | null {
   if (typeof window === "undefined") return null;
   return window.localStorage.getItem(CART_STORAGE_KEY);
+}
+
+export function getStoredSessionId(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(SESSION_STORAGE_KEY);
 }
 
 function storeCartId(id: string): void {
@@ -55,11 +70,10 @@ export async function getOrCreateGuestCart(): Promise<ApiCart> {
 }
 
 function getOrCreateSessionId(): string {
-  const key = "silku-session-id";
-  const current = window.localStorage.getItem(key);
+  const current = window.localStorage.getItem(SESSION_STORAGE_KEY);
   if (current) return current;
   const id = crypto.randomUUID();
-  window.localStorage.setItem(key, id);
+  window.localStorage.setItem(SESSION_STORAGE_KEY, id);
   return id;
 }
 
@@ -90,4 +104,14 @@ export async function getCartTotals(): Promise<{ subtotal: number; discountAmoun
   const cartId = getStoredCartId();
   if (!cartId) return { subtotal: 0, discountAmount: 0, total: 0, itemCount: 0 };
   return request(`/carts/${cartId}/totals`);
+}
+
+export async function createOrder(shippingAddress: Record<string, string>): Promise<ApiOrder> {
+  const cartId = getStoredCartId();
+  const sessionId = getStoredSessionId();
+  if (!cartId || !sessionId) throw new Error("Your cart session could not be found. Please return to cart and try again.");
+  return request<ApiOrder>("/orders", {
+    method: "POST",
+    body: JSON.stringify({ customerId: sessionId, cartId, shippingAddress }),
+  });
 }
