@@ -72,6 +72,19 @@ function overallAvailability(variants: ApiProductVariant[]): AvailabilityStatus 
   return "out-of-stock";
 }
 
+function productImageForCategory(categorySlug: string): string {
+  if (["nail-collection", "nail-polish", "gel-polish", "base-coat", "top-coat", "nail-treatments"].includes(categorySlug)) {
+    return "/mock/product-001.jpg";
+  }
+  if (["color-cosmetics", "lipstick", "lip-gloss", "kajal", "eyeliner", "mascara", "blush", "highlighter"].includes(categorySlug)) {
+    return "/mock/product-002.jpg";
+  }
+  if (["skincare", "foundation", "concealer", "compact-powder", "primer"].includes(categorySlug)) {
+    return "/mock/product-003.jpg";
+  }
+  return "/mock/product-004.jpg";
+}
+
 function mapProduct(p: ApiProduct): Product {
   return {
     id: p.id,
@@ -81,7 +94,7 @@ function mapProduct(p: ApiProduct): Product {
     price: Number.parseFloat(p.price),
     salePrice: p.salePrice ? Number.parseFloat(p.salePrice) : undefined,
     currency: p.currency,
-    imageUrl: p.mediaUrls[0] ?? "/mock/placeholder.jpg",
+    imageUrl: productImageForCategory(p.category.slug),
     imageAlt: p.name,
     badges: [],
     availability: overallAvailability(p.variants),
@@ -99,16 +112,33 @@ function mapProduct(p: ApiProduct): Product {
   };
 }
 
+function categoryImageForSlug(slug: string): string {
+  if (["nail-collection", "nail-polish", "gel-polish", "base-coat", "top-coat", "nail-treatments"].includes(slug)) {
+    return "/mock/category-nail.jpg";
+  }
+  if (["color-cosmetics", "lipstick", "lip-gloss", "kajal", "eyeliner", "mascara", "blush", "highlighter"].includes(slug)) {
+    return "/mock/category-cosmetics.jpg";
+  }
+  return "/mock/category-skincare.jpg";
+}
+
 function mapCategory(c: ApiCategory, itemCount = 0): Category {
   return {
     id: c.id,
     slug: c.slug,
     name: c.name,
-    imageUrl: "/mock/category-placeholder.jpg",
+    imageUrl: categoryImageForSlug(c.slug),
     imageAlt: c.name,
     itemCount,
     subcategories: c.children?.map((child) => ({ id: child.id, slug: child.slug, name: child.name })),
   };
+}
+
+function collectionImageForSlug(slug: string): string {
+  if (["new-arrivals", "trending", "seasonal-holiday-shine"].includes(slug)) {
+    return "/mock/collection-spring.jpg";
+  }
+  return "/mock/collection-noir.jpg";
 }
 
 function mapCollection(c: ApiCollection): Collection {
@@ -117,7 +147,7 @@ function mapCollection(c: ApiCollection): Collection {
     slug: c.slug,
     name: c.name,
     tagline: c.tagline,
-    imageUrl: "/mock/collection-placeholder.jpg",
+    imageUrl: collectionImageForSlug(c.slug),
     imageAlt: c.name,
   };
 }
