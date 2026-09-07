@@ -8,6 +8,7 @@ import { CartService } from "@/modules/cart/cart.service";
 import { ProductsService } from "@/modules/products/products.service";
 import { TransactionService } from "@/database/transaction.service";
 import { DomainErrorCode, DomainException } from "@/common/exceptions/domain.exception";
+import { resolveInvoiceLayout, type InvoiceFormat, type InvoiceSize } from "./invoice.types";
 
 const CANCELLABLE_BEFORE: OrderStatus[] = ["pending_payment", "confirmed", "processing"];
 const RETURNABLE_AFTER: OrderStatus[] = ["delivered"];
@@ -199,9 +200,24 @@ export class OrdersService {
     return { eligible: false, reason: `Orders in "${order.status}" status are not refund-eligible.` };
   }
 
-  async generateInvoice(orderId: string): Promise<{ orderId: string; lineItems: unknown[]; total: string; issuedAt: string }> {
+  async generateInvoice(orderId: string, size?: string, format?: string): Promise<{
+    orderId: string;
+    lineItems: unknown[];
+    total: string;
+    currency: string;
+    issuedAt: string;
+    layout: { size: InvoiceSize; format: InvoiceFormat; width: "full" | "compact" | "80mm" | "58mm" };
+  }> {
     const order = await this.getOrder(orderId);
-    return { orderId: order.id, lineItems: order.lineItems, total: order.total, issuedAt: new Date().toISOString() };
+    const layout = resolveInvoiceLayout(size, format);
+    return {
+      orderId: order.id,
+      lineItems: order.lineItems,
+      total: order.total,
+      currency: order.currency,
+      issuedAt: new Date().toISOString(),
+      layout,
+    };
   }
 
   async getTrackingStatus(orderId: string): Promise<{ orderId: string; timeline: OrderStatusHistoryEntity[] }> {
