@@ -37,11 +37,13 @@ export const adminApi = {
   getDashboardOverview: () => request<DashboardOverview>("/admin/dashboard/overview"),
   listProducts: (params: URLSearchParams) => request<Paginated<AdminProduct>>(`/products?${params}`),
   createProduct: (body: CreateProductInput) => request<AdminProduct>("/products/admin", { method: "POST", body: JSON.stringify(body) }),
+  getProductTax: (productId: string) => request<ProductTaxConfig>(`/products/admin/${productId}/tax`),
   updateProductTax: (productId: string, body: UpdateProductTaxInput) => request<ProductTaxConfig>(`/products/admin/${productId}/tax`, { method: "PATCH", body: JSON.stringify(body) }),
   activateProduct: (id: string) => request<AdminProduct>(`/products/${id}/activate`, { method: "POST" }),
   deactivateProduct: (id: string) => request<AdminProduct>(`/products/${id}/deactivate`, { method: "POST" }),
   bulkActivateProducts: (productIds: string[]) => request<{ succeeded: string[]; failed: { id: string; reason: string }[] }>("/products/admin/bulk-activate", { method: "POST", body: JSON.stringify({ productIds }) }),
-  bulkDeactivateProducts: (productIds: string[]) => request<{ succeeded: string[]; failed: { id: string; reason: string }[] }>("/products/admin/bulk-deactivate", { method: "POST", body: JSON.stringify({ productIds }) }),
+  bulkDeactivateProducts: (productIds: string[]) => request<{ succeeded: string[]; failed: { id: string; reason: string }[] }>("/products/admin/bulk-deactivate", { method: "POST", body: JSON.stringify({ productIds }),
+  }),
   listInventory: () => request<AdminInventoryItem[]>("/products/admin/inventory"),
   setInventoryStock: (variantId: string, quantity: number, expectedVersion: number) => request<AdminInventoryItem>(`/products/admin/inventory/${variantId}`, { method: "PATCH", body: JSON.stringify({ quantity, expectedVersion }) }),
   listCategories: () => request<AdminCategory[]>("/categories"),
@@ -51,7 +53,7 @@ export const adminApi = {
   setCollectionFeatured: (id: string, featured: boolean) => request<AdminCollection>(`/collections/${id}/featured`, { method: "PATCH", body: JSON.stringify({ featured }) }),
   listOrders: (params: URLSearchParams) => request<SimpleList<AdminOrder>>(`/orders/admin/search?${params}`),
   getOrder: (id: string) => request<AdminOrder>(`/orders/${id}`),
-  updateOrderStatus: (id: string, status: string) => request<AdminOrder>(`/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
+  updateOrderStatus: (id: string, status: string) => request<AdminOrder>(`/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status })),
   searchCustomers: (params: URLSearchParams) => request<SimpleList<AdminCustomer>>(`/admin/customers?${params}`),
   getCustomer: (id: string) => request<AdminCustomer>(`/admin/customers/${id}`),
   getCustomerOrders: (id: string) => request<AdminOrder[]>(`/orders/admin/customer/${id}`),
@@ -93,7 +95,7 @@ export interface CreateProductInput {
   variants: { sku: string; name: string; hexColor?: string; stockQuantity: number; mrp?: number }[];
 }
 export interface UpdateProductTaxInput { hsnCode?: string; gstRate?: number; taxInclusiveMrp?: boolean; variants?: { variantId: string; mrp: number }[] }
-export interface ProductTaxConfig { id: string; hsnCode?: string; gstRate?: string; taxInclusiveMrp: boolean; variants: { id: string; sku: string; mrp: string }[] }
+export interface ProductTaxConfig { productId: string; productName: string; hsnCode?: string; gstRate?: string; taxInclusiveMrp: boolean; variants: { variantId: string; sku: string; name: string; mrp?: string }[] }
 export interface Paginated<T> { items: T[]; meta: { page: number; pageSize: number; totalItems: number; totalPages: number } }
 export interface SimpleList<T> { items: T[]; totalItems: number }
 export interface DashboardOverview { kpis: { todaysOrders: number; todaysRevenue: number; lowStockCount: number; pendingReviews: number }; pendingTasks: { type: string; count: number; label: string }[]; recentActivity: AuditLogEntry[] }
