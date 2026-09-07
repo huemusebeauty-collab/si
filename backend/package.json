@@ -5,7 +5,7 @@
   "scripts": {
     "build": "nest build",
     "dev": "nest start --watch",
-    "start": "node dist/database/seeds/run-seed.js && node dist/main",
+    "start": "node dist/main",
     "lint": "eslint . --config ../config/eslint/.eslintrc.base.json",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -61,7 +61,7 @@
     "@nestjs/cli": "^10.4.0",
     "@nestjs/schematics": "^10.2.0",
     "@nestjs/testing": "^10.4.0",
-    "@types/bcrypt": "^5.0.0",
+    "@types/bcrypt": "^5.1.0",
     "@types/compression": "^1.7.0",
     "@types/express": "^4.17.0",
     "@types/jest": "^29.5.0",
