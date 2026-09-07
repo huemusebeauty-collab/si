@@ -16,6 +16,7 @@ const NAV_ITEMS: { href: string; label: string; module: AdminModule }[] = [
   { href: "/admin/categories", label: "Categories", module: "categories" },
   { href: "/admin/collections", label: "Collections", module: "categories" },
   { href: "/admin/orders", label: "Orders", module: "orders" },
+  { href: "/admin/billing", label: "Billing", module: "billing" },
   { href: "/admin/customers", label: "Customers", module: "customers" },
   { href: "/admin/reviews", label: "Reviews", module: "reviews" },
   { href: "/admin/coupons", label: "Coupons", module: "coupons" },
