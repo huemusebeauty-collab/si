@@ -1,4 +1,5 @@
 const { Client } = require("pg");
+const bcrypt = require("bcrypt");
 
 const statements = [
   `ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "hsnCode" varchar(32)`,
@@ -31,6 +32,19 @@ async function main() {
   try {
     await client.query("BEGIN");
     for (const statement of statements) await client.query(statement);
+
+    // One-time emergency admin password reset. The secret is supplied only via
+    // Render environment variables and is intentionally never logged.
+    if (process.env.ADMIN_PASSWORD_RESET) {
+      const passwordHash = await bcrypt.hash(process.env.ADMIN_PASSWORD_RESET, 12);
+      const result = await client.query(
+        `UPDATE "admin_users" SET "passwordHash" = $1 WHERE "email" = $2`,
+        [passwordHash, "admin@huemusebeauty.local"],
+      );
+      if (result.rowCount !== 1) throw new Error("Admin password reset target was not found.");
+      console.log("Admin password reset completed.");
+    }
+
     await client.query("COMMIT");
     console.log("GST/MRP schema is ready.");
   } catch (error) {
