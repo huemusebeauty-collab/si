@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Patch, Post, Body, Query } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { ProductsService } from "./products.service";
 import { ListProductsQueryDto } from "./dto/list-products-query.dto";
@@ -23,6 +23,7 @@ export class ProductsController {
   @Get("availability/:sku")
   checkAvailability(@Param("sku") sku: string) { return this.products.checkAvailability(sku); }
 
+  // Fixed admin routes MUST stay above :productId / :slug routes.
   @RequirePermission("products", "edit")
   @Post("admin")
   async createProduct(@Body() body: {
