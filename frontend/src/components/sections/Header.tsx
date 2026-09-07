@@ -29,7 +29,7 @@ export function Header({ categories }: { categories: Category[] }) {
           </button>
 
           <Link href={ROUTES.home} className="font-display text-[24px] font-semibold text-primary-plum">
-            Hue Muse Beauty
+            Silku
           </Link>
 
           <nav aria-label="Main" className="hidden gap-6 sm:flex" onMouseLeave={() => setMegaMenuCategoryId(null)}>
