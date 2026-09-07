@@ -55,7 +55,8 @@
     "nodemailer": "^8.0.5",
     "@aws-sdk/s3-request-presigner": "^3.632.0",
     "@nestjs/schedule": "^4.1.0",
-    "tsconfig-paths": "^4.2.0"
+    "tsconfig-paths": "^4.2.0",
+    "ts-node": "^10.9.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.4.0",
