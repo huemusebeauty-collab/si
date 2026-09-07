@@ -8,8 +8,8 @@ interface AdminAuthState {
   role: AdminRole | null;
   email: string | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<{ phoneNumber?: string }>;
-  sendOtp: (phoneNumber?: string) => Promise<{ devOtp?: string; phoneNumber?: string }>;
+  login: (email: string, password: string) => Promise<void>;
+  sendOtp: (phoneNumber: string) => Promise<{ devOtp?: string }>;
   loginWithOtp: (phoneNumber: string, code: string) => Promise<void>;
   logout: () => void;
 }
@@ -34,21 +34,23 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(async (loginEmail: string, password: string) => {
     const result = await adminApi.login(loginEmail, password);
     setToken(result.sessionToken);
-    return { phoneNumber: result.phoneNumber };
+    window.localStorage.setItem("hmb_admin_pending_email", loginEmail);
   }, []);
 
-  const sendOtp = useCallback(async (phoneNumber?: string) => {
+  const sendOtp = useCallback(async (phoneNumber: string) => {
     const result = await adminApi.sendOtp(phoneNumber);
-    return { devOtp: result.devOtp, phoneNumber: result.phoneNumber };
+    return { devOtp: result.devOtp };
   }, []);
 
   const loginWithOtp = useCallback(async (phoneNumber: string, code: string) => {
     const result = await adminApi.verifyOtp(phoneNumber, code);
+    const loginEmail = window.localStorage.getItem("hmb_admin_pending_email") ?? "admin";
     setToken(result.sessionToken);
     window.localStorage.setItem("hmb_admin_role", result.role);
-    window.localStorage.setItem("hmb_admin_email", result.email);
+    window.localStorage.setItem("hmb_admin_email", loginEmail);
+    window.localStorage.removeItem("hmb_admin_pending_email");
     setRole(result.role as AdminRole);
-    setEmail(result.email);
+    setEmail(loginEmail);
     router.push("/admin/dashboard");
   }, [router]);
 
@@ -56,6 +58,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null);
     window.localStorage.removeItem("hmb_admin_role");
     window.localStorage.removeItem("hmb_admin_email");
+    window.localStorage.removeItem("hmb_admin_pending_email");
     setRole(null);
     setEmail(null);
     router.push("/admin/login");
