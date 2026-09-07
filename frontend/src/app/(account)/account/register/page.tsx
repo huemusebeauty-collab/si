@@ -54,7 +54,7 @@ export default function RegisterPage() {
   return (
     <div className="mx-auto max-w-md py-12 sm:py-16">
       <div className="rounded-2xl border border-fog bg-white p-6 shadow-sm sm:p-8">
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary-rose">Join Hue Muse</p>
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary-rose">Join Silku</p>
         <h1 className="mt-2 font-display text-3xl font-semibold text-ink">Create your account</h1>
         <p className="mt-2 text-sm text-ink/70">Save your wishlist and keep your orders in one place.</p>
 
