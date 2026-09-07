@@ -1,5 +1,5 @@
 import { plainToInstance } from "class-transformer";
-import { IsEnum, IsInt, IsString, Min, validateSync } from "class-validator";
+import { IsEnum, IsInt, IsOptional, IsString, Min, validateSync } from "class-validator";
 
 // Sprint 3.1 — Configuration validation. App fails fast at boot with a
 // clear error if a required environment variable is missing, per Sprint
@@ -31,17 +31,21 @@ class EnvironmentVariables {
   @IsString()
   SESSION_SECRET!: string;
 
+  @IsOptional()
   @IsString()
-  STORAGE_ENDPOINT!: string;
+  STORAGE_ENDPOINT?: string;
 
+  @IsOptional()
   @IsString()
-  STORAGE_ACCESS_KEY!: string;
+  STORAGE_ACCESS_KEY?: string;
 
+  @IsOptional()
   @IsString()
-  STORAGE_SECRET_KEY!: string;
+  STORAGE_SECRET_KEY?: string;
 
+  @IsOptional()
   @IsString()
-  STORAGE_BUCKET!: string;
+  STORAGE_BUCKET?: string;
 }
 
 export function validateEnv(config: Record<string, unknown>) {
