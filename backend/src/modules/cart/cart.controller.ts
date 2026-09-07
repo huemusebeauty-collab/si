@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post } from "@nestjs/common";
+import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { CartService } from "./cart.service";
 import { AddCartItemDto } from "./dto/add-cart-item.dto";
@@ -73,8 +73,8 @@ export class CartController {
 
   @Public()
   @Get(":cartId/shipping-estimate")
-  estimateShipping(@Param("cartId") cartId: string, @Body("postalCode") postalCode: string) {
-    return this.cart.estimateShipping(cartId, postalCode);
+  estimateShipping(@Param("cartId") cartId: string, @Query("postalCode") postalCode?: string) {
+    return this.cart.estimateShipping(cartId, postalCode ?? "");
   }
 
   @Public()
