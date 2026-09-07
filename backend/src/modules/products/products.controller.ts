@@ -40,6 +40,12 @@ export class ProductsController {
     return this.products.upsertFullProduct({ ...body, category });
   }
 
+  @RequirePermission("products", "view")
+  @Get("admin/:productId/tax")
+  getTaxConfig(@Param("productId") productId: string) {
+    return this.productTax.getTaxConfig(productId);
+  }
+
   @RequirePermission("products", "edit")
   @Patch("admin/:productId/tax")
   updateTaxConfig(@Param("productId") productId: string, @Body() body: {
