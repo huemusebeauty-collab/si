@@ -36,6 +36,7 @@ export const adminApi = {
   verifyOtp: (phoneNumber: string, code: string) => request<{ sessionToken: string; role: string; expiresAt: string }>("/admin/auth/otp/verify", { method: "POST", body: JSON.stringify({ phoneNumber, code }) }),
   getDashboardOverview: () => request<DashboardOverview>("/admin/dashboard/overview"),
   listProducts: (params: URLSearchParams) => request<Paginated<AdminProduct>>(`/products?${params}`),
+  createProduct: (body: CreateProductInput) => request<AdminProduct>("/products/admin", { method: "POST", body: JSON.stringify(body) }),
   activateProduct: (id: string) => request<AdminProduct>(`/products/${id}/activate`, { method: "POST" }),
   deactivateProduct: (id: string) => request<AdminProduct>(`/products/${id}/deactivate`, { method: "POST" }),
   bulkActivateProducts: (productIds: string[]) => request<{ succeeded: string[]; failed: { id: string; reason: string }[] }>("/products/admin/bulk-activate", { method: "POST", body: JSON.stringify({ productIds }) }),
@@ -84,6 +85,12 @@ export const adminApi = {
   getDeadLetterJobs: (queueName: string) => request<DeadLetterJob[]>(`/integrations/dead-letter/${queueName}`),
 };
 
+export interface CreateProductInput {
+  slug: string; name: string; categorySlug: string; price: number; salePrice?: number; description: string;
+  content: { shortDescription: string; keyBenefits: string[]; features: string[]; ingredients: string; usageInstructions: string[]; warnings: string; storageInstructions: string; specifications: Record<string, string>; faqs: { question: string; answer: string }[] };
+  metaTitle: string; metaDescription: string; mediaUrls: string[];
+  variants: { sku: string; name: string; hexColor?: string; stockQuantity: number }[];
+}
 export interface Paginated<T> { items: T[]; meta: { page: number; pageSize: number; totalItems: number; totalPages: number } }
 export interface SimpleList<T> { items: T[]; totalItems: number }
 export interface DashboardOverview { kpis: { todaysOrders: number; todaysRevenue: number; lowStockCount: number; pendingReviews: number }; pendingTasks: { type: string; count: number; label: string }[]; recentActivity: AuditLogEntry[] }
