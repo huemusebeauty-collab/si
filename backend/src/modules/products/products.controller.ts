@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { ProductsService } from "./products.service";
+import { ProductTaxService } from "./product-tax.service";
 import { ListProductsQueryDto } from "./dto/list-products-query.dto";
 import { Public } from "@/common/decorators/public.decorator";
 import { Roles } from "@/common/decorators/roles.decorator";
@@ -12,7 +13,11 @@ import { CategoriesService } from "@/modules/categories/categories.service";
 @ApiTags("products")
 @Controller({ path: "products", version: "1" })
 export class ProductsController {
-  constructor(private readonly products: ProductsService, private readonly categories: CategoriesService) {}
+  constructor(
+    private readonly products: ProductsService,
+    private readonly productTax: ProductTaxService,
+    private readonly categories: CategoriesService,
+  ) {}
 
   @Public()
   @Cacheable({ ttlSeconds: 60, keyPrefix: "products" })
@@ -23,7 +28,6 @@ export class ProductsController {
   @Get("availability/:sku")
   checkAvailability(@Param("sku") sku: string) { return this.products.checkAvailability(sku); }
 
-  // Fixed admin routes MUST stay above :productId / :slug routes.
   @RequirePermission("products", "edit")
   @Post("admin")
   async createProduct(@Body() body: {
@@ -34,6 +38,17 @@ export class ProductsController {
   }) {
     const category = await this.categories.getCategory(body.categorySlug);
     return this.products.upsertFullProduct({ ...body, category });
+  }
+
+  @RequirePermission("products", "edit")
+  @Patch("admin/:productId/tax")
+  updateTaxConfig(@Param("productId") productId: string, @Body() body: {
+    hsnCode?: string | null;
+    gstRate?: number | null;
+    taxInclusiveMrp?: boolean;
+    variants?: Array<{ variantId: string; mrp: number }>;
+  }) {
+    return this.productTax.updateTaxConfig(productId, body);
   }
 
   @RequirePermission("products", "view")
