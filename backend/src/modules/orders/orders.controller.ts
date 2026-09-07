@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { OrdersService } from "./orders.service";
 import type { OrderStatus } from "./entities/order.entity";
@@ -6,7 +6,6 @@ import { CurrentUser, type AuthenticatedUser } from "@/common/decorators/current
 import { Public } from "@/common/decorators/public.decorator";
 import { DomainErrorCode, DomainException } from "@/common/exceptions/domain.exception";
 import { RequirePermission } from "@/admin/common/require-permission.decorator";
-import { Query } from "@nestjs/common";
 
 @ApiTags("orders")
 @ApiBearerAuth()
@@ -30,8 +29,12 @@ export class OrdersController {
   }
 
   @Get(":orderId/invoice")
-  invoice(@Param("orderId") orderId: string) {
-    return this.orders.generateInvoice(orderId);
+  invoice(
+    @Param("orderId") orderId: string,
+    @Query("size") size?: string,
+    @Query("format") format?: string,
+  ) {
+    return this.orders.generateInvoice(orderId, size, format);
   }
 
   @Patch(":orderId/status")
@@ -97,9 +100,6 @@ export class OrdersController {
     return this.orders.checkRefundEligibility(orderId);
   }
 
-  // Sprint 6B — Admin Order Management: search/filter (Phase 6 §14),
-  // completing the gap Sprint 6A left service-layer only
-  // (OrdersService.searchOrders existed with no HTTP endpoint).
   @RequirePermission("orders", "view")
   @Get("admin/customer/:customerId")
   adminOrdersForCustomer(@Param("customerId") customerId: string) {
