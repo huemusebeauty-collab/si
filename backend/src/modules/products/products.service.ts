@@ -184,6 +184,17 @@ export class ProductsService {
   }): Promise<{ entity: ProductEntity; wasCreated: boolean }> {
     this.validateProductInput(data);
     const existing = await this.products.findOne({ where: { slug: data.slug }, relations: ["variants"] });
+    const existingSkus = new Set((existing?.variants ?? []).map((v) => v.sku));
+
+    // Validate every incoming SKU before saving the product. This prevents a
+    // product update from being partially applied when a new SKU conflicts
+    // with another product's unique SKU.
+    for (const variantSeed of data.variants) {
+      if (!existingSkus.has(variantSeed.sku) && await this.skuExists(variantSeed.sku)) {
+        throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, `SKU ${variantSeed.sku} is already assigned to another product.`);
+      }
+    }
+
     const entity = existing ?? this.products.create({ slug: data.slug, status: "draft", visibility: "hidden" });
     entity.name = data.name;
     entity.category = data.category;
@@ -195,13 +206,8 @@ export class ProductsService {
     entity.metaDescription = data.metaDescription;
     entity.mediaUrls = data.mediaUrls;
     const saved = await this.products.save(entity);
-    const existingSkus = new Set((existing?.variants ?? []).map((v) => v.sku));
     for (const variantSeed of data.variants) {
-      if (existingSkus.has(variantSeed.sku)) continue;
-      if (await this.skuExists(variantSeed.sku)) {
-        throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, `SKU ${variantSeed.sku} is already assigned to another product.`);
-      }
-      await this.addVariant(saved.id, variantSeed);
+      if (!existingSkus.has(variantSeed.sku)) await this.addVariant(saved.id, variantSeed);
     }
     await this.cacheInvalidation.invalidatePrefix("products");
     return { entity: saved, wasCreated: !existing };
