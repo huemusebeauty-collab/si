@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import "./tokens/colors.css";
+@import "./tokens/typography.css";
+@import "./tokens/spacing.css";
+@import "./tokens/misc.css";
+@import "./themes/essential.css";
+@import "./themes/luxe.css";
+@import "./themes/elite.css";
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-neutral-ink);
+    font-family: var(--font-interface);
+    font-size: var(--type-body-size);
+    line-height: var(--type-body-line);
+  }
+
+  h1 {
+    font-family: var(--font-display);
+    font-size: var(--type-h1-size);
+    line-height: var(--type-h1-line);
+    font-weight: 600;
+  }
+  h2 {
+    font-family: var(--font-display);
+    font-size: var(--type-h2-size);
+    line-height: var(--type-h2-line);
+    font-weight: 600;
+  }
+  h3 {
+    font-family: var(--font-display);
+    font-size: var(--type-h3-size);
+    line-height: var(--type-h3-line);
+    font-weight: 500;
+  }
+  h4 {
+    font-family: var(--font-interface);
+    font-size: var(--type-h4-size);
+    line-height: var(--type-h4-line);
+    font-weight: 600;
+  }
+
+  /* Sprint 2.7 — Accessibility: visible focus ring, never suppressed. */
+  :focus-visible {
+    outline: var(--border-focus);
+    outline-offset: 2px;
+  }
+
+  /* Sprint 2.7 — Accessibility: skip-to-content target. */
+  .skip-link {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    z-index: 100;
+    background: var(--color-neutral-white);
+    color: var(--color-primary-rose);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-sm);
+  }
+  .skip-link:focus {
+    left: var(--space-4);
+    top: var(--space-4);
+  }
+
+  /* Body line length cap — Phase 4 §3 (approx. 70-75ch on desktop) */
+  .prose-copy {
+    max-width: 75ch;
+  }
+}

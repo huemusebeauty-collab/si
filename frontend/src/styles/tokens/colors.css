@@ -1,0 +1,35 @@
+/* Design Tokens — Colors (Phase 4 §2, §18). Names match the frozen
+   reference exactly: color-<role>-<name>. Never hard-code a hex value
+   in a component — reference these custom properties instead. */
+:root {
+  /* Primary */
+  --color-primary-plum: #6B2247;
+  --color-primary-rose: #B5486B;
+
+  /* Secondary */
+  --color-secondary-gold: #9C7A3C;
+  --color-secondary-blush: #F2E4E0;
+
+  /* Accent (tier expression) */
+  --color-accent-elite: #4A1030;   /* Deep Berry */
+  --color-accent-essential: #E8DCC8; /* Champagne */
+
+  /* Neutral */
+  --color-neutral-ink: #231F20;
+  --color-neutral-charcoal: #3D3A38;
+  --color-neutral-stone: #6E6660;
+  --color-neutral-mist: #A8A29B;
+  --color-neutral-fog: #D9CFC7;
+  --color-neutral-paper: #FBF7F4;
+  --color-neutral-white: #FFFFFF;
+
+  /* Semantic */
+  --color-success: #3F7D58;
+  --color-warning: #C97A2B;
+  --color-error: #B3261E;
+  --color-information: #3B6E91;
+
+  /* Background / surface (Phase 4 §2) */
+  --color-background: var(--color-neutral-paper);
+  --color-surface: var(--color-neutral-white);
+}

@@ -1,0 +1,39 @@
+/* Design Tokens — Borders, Radius, Shadow, Opacity, Elevation, Animation,
+   Breakpoints (Phase 4 §18). */
+:root {
+  /* Borders */
+  --border-default: 1px solid var(--color-neutral-fog);
+  --border-focus: 2px solid var(--color-primary-rose);
+
+  /* Radius */
+  --radius-sm: 4px;  /* inputs */
+  --radius-md: 8px;  /* cards/buttons */
+  --radius-lg: 16px; /* modals */
+
+  /* Shadow */
+  --shadow-rest: 0 1px 2px rgba(35, 31, 32, 0.08);
+  --shadow-hover: 0 4px 12px rgba(35, 31, 32, 0.12);
+  --shadow-modal: 0 12px 32px rgba(35, 31, 32, 0.24);
+
+  /* Opacity */
+  --opacity-disabled: 0.4;
+  --opacity-overlay: 0.6;
+
+  /* Elevation (expressed as background, per Phase 4 §2 — elevation via
+     color shift Paper -> White, plus shadow, never a new color) */
+  --elevation-0-bg: var(--color-neutral-paper);
+  --elevation-1-bg: var(--color-neutral-white);
+  --elevation-1-shadow: var(--shadow-rest);
+  --elevation-2-shadow: var(--shadow-modal);
+
+  /* Animation */
+  --duration-fast: 150ms;
+  --duration-base: 250ms;
+  --easing-standard: ease-in-out;
+}
+
+/* Breakpoints (Phase 4 §4, §18) are expressed as Tailwind screens in
+   tailwind.config.ts (bp-mobile <600px, bp-tablet 600-1024px,
+   bp-desktop 1024-1440px, bp-large >1440px) rather than CSS custom
+   properties, since media query breakpoints can't be referenced via
+   var() — this comment documents the mapping for traceability. */

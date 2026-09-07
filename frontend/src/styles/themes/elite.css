@@ -1,0 +1,6 @@
+/* Hue Muse Élite theme (Phase 4 §1 — luxury tier). Deep Berry accent for
+   luxury tier surfaces and highlights. Same grid, iconography, and
+   component structure as the base system — theme is a token remap only. */
+[data-theme="elite"] {
+  --color-tier-accent: var(--color-accent-elite);
+}

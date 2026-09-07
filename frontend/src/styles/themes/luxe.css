@@ -1,0 +1,7 @@
+/* Hue Muse Luxe theme (Phase 4 §1 — default/core tier). Core Plum/Rose
+   palette. This is the default theme; no override needed beyond the
+   base tokens, but the selector is defined explicitly for symmetry with
+   essential.css and elite.css. */
+[data-theme="luxe"] {
+  --color-tier-accent: var(--color-primary-rose);
+}

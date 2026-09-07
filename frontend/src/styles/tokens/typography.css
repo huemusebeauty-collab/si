@@ -1,0 +1,32 @@
+/* Design Tokens — Typography (Phase 4 §3, §18).
+   Display: Fraunces (serif). Interface: Inter (sans-serif).
+   Loaded via next/font/google in src/app/layout.tsx (Sprint 2.8 —
+   Performance: self-hosted, zero layout shift font loading). */
+:root {
+  --font-display: var(--font-fraunces), Georgia, serif;
+  --font-interface: var(--font-inter), system-ui, sans-serif;
+
+  /* type-<style>: size / line-height */
+  --type-h1-size: 2.5rem;    /* 40px */
+  --type-h1-line: 3rem;      /* 48px */
+  --type-h2-size: 2rem;      /* 32px */
+  --type-h2-line: 2.5rem;    /* 40px */
+  --type-h3-size: 1.5rem;    /* 24px */
+  --type-h3-line: 2rem;      /* 32px */
+  --type-h4-size: 1.25rem;   /* 20px */
+  --type-h4-line: 1.75rem;   /* 28px */
+  --type-body-lg-size: 1.125rem; /* 18px */
+  --type-body-lg-line: 1.75rem;  /* 28px */
+  --type-body-size: 1rem;    /* 16px */
+  --type-body-line: 1.5rem;  /* 24px */
+  --type-caption-size: 0.8125rem; /* 13px — minimum text size, Phase 4 §3 */
+  --type-caption-line: 1.125rem;  /* 18px */
+  --type-label-size: 0.75rem;     /* 12px */
+  --type-label-line: 1rem;        /* 16px */
+  --type-button-size: 0.9375rem;  /* 15px */
+  --type-button-line: 1.25rem;    /* 20px */
+  --type-product-title-size: 1rem;    /* 16px */
+  --type-product-title-line: 1.375rem; /* 22px */
+  --type-price-size: 1.25rem;   /* 20px */
+  --type-price-line: 1.5rem;    /* 24px */
+}

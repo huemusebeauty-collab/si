@@ -1,0 +1,6 @@
+/* Hue Muse Essential theme (Phase 4 §1 — brand tiers). Lighter neutrals,
+   Champagne accent, brighter product presentation. Same typography,
+   spacing, and grid as the base system — theme is a token remap only. */
+[data-theme="essential"] {
+  --color-tier-accent: var(--color-accent-essential);
+}
