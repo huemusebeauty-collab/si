@@ -11,5 +11,7 @@ export const ROUTES = {
   cart: "/cart",
   account: "/account",
   accountOrders: "/account/orders",
+  login: "/account/login",
+  register: "/account/register",
   staticPage: (slug: string) => `/pages/${slug}`,
 } as const;
