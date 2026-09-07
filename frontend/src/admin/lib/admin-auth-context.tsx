@@ -8,8 +8,8 @@ interface AdminAuthState {
   role: AdminRole | null;
   email: string | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  sendOtp: (phoneNumber: string) => Promise<{ devOtp?: string }>;
+  login: (email: string, password: string) => Promise<{ phoneNumber?: string }>;
+  sendOtp: (phoneNumber?: string) => Promise<{ devOtp?: string; phoneNumber?: string }>;
   loginWithOtp: (phoneNumber: string, code: string) => Promise<void>;
   logout: () => void;
 }
@@ -25,33 +25,30 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const storedRole = window.localStorage.getItem("hmb_admin_role") as AdminRole | null;
     const storedEmail = window.localStorage.getItem("hmb_admin_email");
-    if (storedRole) setRole(storedRole);
-    if (storedEmail) setEmail(storedEmail);
+    const token = window.localStorage.getItem("hmb_admin_token");
+    if (storedRole && token) setRole(storedRole);
+    if (storedEmail && token) setEmail(storedEmail);
     setIsLoading(false);
   }, []);
 
   const login = useCallback(async (loginEmail: string, password: string) => {
     const result = await adminApi.login(loginEmail, password);
     setToken(result.sessionToken);
-    window.localStorage.setItem("hmb_admin_role", result.role);
-    window.localStorage.setItem("hmb_admin_email", loginEmail);
-    setRole(result.role as AdminRole);
-    setEmail(loginEmail);
-    router.push("/admin/dashboard");
-  }, [router]);
+    return { phoneNumber: result.phoneNumber };
+  }, []);
 
-  const sendOtp = useCallback(async (phoneNumber: string) => {
+  const sendOtp = useCallback(async (phoneNumber?: string) => {
     const result = await adminApi.sendOtp(phoneNumber);
-    return { devOtp: result.devOtp };
+    return { devOtp: result.devOtp, phoneNumber: result.phoneNumber };
   }, []);
 
   const loginWithOtp = useCallback(async (phoneNumber: string, code: string) => {
     const result = await adminApi.verifyOtp(phoneNumber, code);
     setToken(result.sessionToken);
     window.localStorage.setItem("hmb_admin_role", result.role);
-    window.localStorage.setItem("hmb_admin_email", phoneNumber);
+    window.localStorage.setItem("hmb_admin_email", result.email);
     setRole(result.role as AdminRole);
-    setEmail(phoneNumber);
+    setEmail(result.email);
     router.push("/admin/dashboard");
   }, [router]);
 
