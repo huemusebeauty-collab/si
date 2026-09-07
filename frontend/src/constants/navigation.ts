@@ -37,7 +37,7 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
   {
     heading: "Company",
     links: [
-      { label: "About Hue Muse Beauty", href: "/pages/about" },
+      { label: "About Silku", href: "/pages/about" },
       { label: "Brand Story", href: "/pages/brand-story" },
       { label: "Sustainability", href: "/pages/sustainability" },
       { label: "Press", href: "/pages/press" },
