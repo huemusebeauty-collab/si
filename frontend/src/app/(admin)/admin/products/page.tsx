@@ -29,7 +29,7 @@ function ProductsContent() {
     { header: "Price", render: (p) => `$${p.price}` },
     { header: "Status", render: (p) => <Badge tone={p.status === "active" ? "success" : "information"}>{p.status}</Badge> },
     { header: "Visibility", render: (p) => p.visibility },
-    { header: "Actions", render: (p) => <RoleGate module="products" level="edit"><div className="flex gap-2">{p.status !== "active" ? <Button variant="text" onClick={() => handleActivate(p.id)}>Activate</Button> : <Button variant="text" onClick={() => handleDeactivate(p.id)}>Deactivate</Button>}</div></RoleGate> },
+    { header: "Actions", render: (p) => <RoleGate module="products" level="edit"><div className="flex flex-wrap gap-2">{p.status !== "active" ? <Button variant="text" onClick={() => handleActivate(p.id)}>Activate</Button> : <Button variant="text" onClick={() => handleDeactivate(p.id)}>Deactivate</Button>}<Link href={`/admin/products/${p.id}/tax`}><Button variant="text">GST / MRP</Button></Link></div></RoleGate> },
   ];
 
   return (
