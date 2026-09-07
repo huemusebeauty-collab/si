@@ -8,26 +8,20 @@ import { Cacheable } from "@/cache/cacheable.decorator";
 import { CreateVariantDto } from "./dto/create-variant.dto";
 import { RequirePermission } from "@/admin/common/require-permission.decorator";
 
-// Sprint 3.6 — resource-oriented, versioned, public (guest browsing per
-// Phase 8 §5's "customer-facing endpoints support guest ... access").
 @ApiTags("products")
 @Controller({ path: "products", version: "1" })
 export class ProductsController {
   constructor(private readonly products: ProductsService) {}
 
   @Public()
-  @Cacheable({ ttlSeconds: 60, keyPrefix: "products" }) // Phase 8 §8 — frequently-read, rarely-changed listing data
+  @Cacheable({ ttlSeconds: 60, keyPrefix: "products" })
   @Get()
-  list(@Query() query: ListProductsQueryDto) {
-    return this.products.listProducts(query);
-  }
+  list(@Query() query: ListProductsQueryDto) { return this.products.listProducts(query); }
 
   @Public()
   @Cacheable({ ttlSeconds: 60, keyPrefix: "products" })
   @Get(":slug")
-  getBySlug(@Param("slug") slug: string) {
-    return this.products.getProduct(slug);
-  }
+  getBySlug(@Param("slug") slug: string) { return this.products.getProduct(slug); }
 
   @Public()
   @Get(":productId/variants/:variantId")
@@ -37,24 +31,30 @@ export class ProductsController {
 
   @Public()
   @Get("availability/:sku")
-  checkAvailability(@Param("sku") sku: string) {
-    return this.products.checkAvailability(sku);
+  checkAvailability(@Param("sku") sku: string) { return this.products.checkAvailability(sku); }
+
+  // Admin inventory endpoints. These are intentionally before the dynamic
+  // :slug route so /admin/inventory is resolved as a fixed resource.
+  @RequirePermission("products", "view")
+  @Get("admin/inventory")
+  listInventory() { return this.products.listInventory(); }
+
+  @RequirePermission("products", "edit")
+  @Patch("admin/inventory/:variantId")
+  setStock(
+    @Param("variantId") variantId: string,
+    @Body() body: { quantity: number; expectedVersion?: number },
+  ) {
+    return this.products.setStock(variantId, body.quantity, body.expectedVersion);
   }
 
-  // Sprint 4.2 — Product Domain: activation/deactivation and shade
-  // (variant) management. Admin-gated since there's no storefront use
-  // case for a customer to call these directly.
   @Roles("admin")
   @Post(":productId/activate")
-  activate(@Param("productId") productId: string) {
-    return this.products.activate(productId);
-  }
+  activate(@Param("productId") productId: string) { return this.products.activate(productId); }
 
   @Roles("admin")
   @Post(":productId/deactivate")
-  deactivate(@Param("productId") productId: string) {
-    return this.products.deactivate(productId);
-  }
+  deactivate(@Param("productId") productId: string) { return this.products.deactivate(productId); }
 
   @Roles("admin")
   @Post(":productId/variants")
@@ -62,18 +62,11 @@ export class ProductsController {
     return this.products.addVariant(productId, dto);
   }
 
-  // Sprint 6B — Bulk operations (completing the gap Sprint 6A left
-  // service-layer only: ProductsService.bulkActivate/bulkDeactivate
-  // existed with no HTTP endpoint).
   @RequirePermission("products", "full")
   @Post("admin/bulk-activate")
-  bulkActivate(@Body("productIds") productIds: string[]) {
-    return this.products.bulkActivate(productIds);
-  }
+  bulkActivate(@Body("productIds") productIds: string[]) { return this.products.bulkActivate(productIds); }
 
   @RequirePermission("products", "full")
   @Post("admin/bulk-deactivate")
-  bulkDeactivate(@Body("productIds") productIds: string[]) {
-    return this.products.bulkDeactivate(productIds);
-  }
+  bulkDeactivate(@Body("productIds") productIds: string[]) { return this.products.bulkDeactivate(productIds); }
 }
