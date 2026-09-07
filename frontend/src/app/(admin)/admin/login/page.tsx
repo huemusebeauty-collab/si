@@ -5,38 +5,26 @@ import { Input } from "@/components/basic/Input";
 import { Alert } from "@/components/composite/Alert";
 import { useAdminAuth, AdminApiError } from "@/admin/lib/admin-auth-context";
 
-type Mode = "password" | "otp";
-type OtpStep = "phone" | "code";
+type Step = "credentials" | "phone" | "otp";
 
 export default function AdminLoginPage() {
   const { login, sendOtp, loginWithOtp } = useAdminAuth();
-  const [mode, setMode] = useState<Mode>("password");
-
+  const [step, setStep] = useState<Step>("credentials");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
-  const [otpStep, setOtpStep] = useState<OtpStep>("phone");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [code, setCode] = useState("");
   const [devOtp, setDevOtp] = useState<string | null>(null);
-
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function switchMode(next: Mode) {
-    setMode(next);
-    setError(null);
-    setOtpStep("phone");
-    setCode("");
-    setDevOtp(null);
-  }
-
-  async function handlePasswordSubmit(e: React.FormEvent) {
+  async function handleCredentials(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setIsSubmitting(true);
     try {
       await login(email, password);
+      setStep("phone");
     } catch (err) {
       setError(err instanceof AdminApiError ? err.message : "Login failed. Please try again.");
     } finally {
@@ -51,7 +39,7 @@ export default function AdminLoginPage() {
     try {
       const result = await sendOtp(phoneNumber);
       setDevOtp(result.devOtp ?? null);
-      setOtpStep("code");
+      setStep("otp");
     } catch (err) {
       setError(err instanceof AdminApiError ? err.message : "Couldn't send code. Please try again.");
     } finally {
@@ -75,106 +63,50 @@ export default function AdminLoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-paper px-4">
       <div className="w-full max-w-sm rounded-md bg-white p-8 shadow-rest">
-        <h1 className="font-display text-[24px] font-semibold text-primary-plum">Hue Muse Admin</h1>
-        <p className="mt-1 text-[13px] text-stone">Sign in to the admin dashboard.</p>
+        <h1 className="font-display text-[24px] font-semibold text-primary-plum">Silku Admin</h1>
+        <p className="mt-1 text-[13px] text-stone">
+          {step === "credentials" && "Step 1 of 2 — Sign in with your admin credentials."}
+          {step === "phone" && "Step 2 of 2 — Confirm your admin phone number."}
+          {step === "otp" && "Step 2 of 2 — Enter the phone verification code."}
+        </p>
 
-        <div className="mt-6 flex rounded-md border border-fog p-1">
-          <button
-            type="button"
-            onClick={() => switchMode("password")}
-            className={`flex-1 rounded py-2 text-[13px] font-semibold ${mode === "password" ? "bg-primary-plum text-white" : "text-charcoal"}`}
-          >
-            Password
-          </button>
-          <button
-            type="button"
-            onClick={() => switchMode("otp")}
-            className={`flex-1 rounded py-2 text-[13px] font-semibold ${mode === "otp" ? "bg-primary-plum text-white" : "text-charcoal"}`}
-          >
-            Phone OTP
-          </button>
+        <div className="mt-5 flex items-center gap-2 text-[12px] font-semibold">
+          <span className={`rounded-full px-3 py-1 ${step === "credentials" ? "bg-primary-plum text-white" : "bg-fog text-charcoal"}`}>1 Password</span>
+          <span className={`rounded-full px-3 py-1 ${step !== "credentials" ? "bg-primary-plum text-white" : "bg-fog text-charcoal"}`}>2 Phone OTP</span>
         </div>
 
-        {error && (
-          <div className="mt-4">
-            <Alert tone="error">{error}</Alert>
-          </div>
-        )}
+        {error && <div className="mt-4"><Alert tone="error">{error}</Alert></div>}
 
-        {devOtp && (
+        {devOtp && step === "otp" && (
           <div className="mt-4">
             <Alert tone="information">
-              Dev mode (no SMS gateway configured): your code is <strong>{devOtp}</strong>
+              Dev mode — SMS gateway is not live yet. Your OTP is <strong>{devOtp}</strong>.
             </Alert>
           </div>
         )}
 
-        {mode === "password" && (
-          <form onSubmit={handlePasswordSubmit} className="mt-6 flex flex-col gap-4">
-            <Input
-              label="Email"
-              type="email"
-              autoComplete="username"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-            <Input
-              label="Password"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-            <Button type="submit" variant="primary" fullWidth isLoading={isSubmitting}>
-              Sign In
-            </Button>
+        {step === "credentials" && (
+          <form onSubmit={handleCredentials} className="mt-6 flex flex-col gap-4">
+            <Input label="Email" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <Input label="Password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <Button type="submit" variant="primary" fullWidth isLoading={isSubmitting}>Continue</Button>
           </form>
         )}
 
-        {mode === "otp" && otpStep === "phone" && (
+        {step === "phone" && (
           <form onSubmit={handleSendOtp} className="mt-6 flex flex-col gap-4">
-            <Input
-              label="Phone number"
-              type="tel"
-              autoComplete="tel"
-              placeholder="+919999999999"
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
-              required
-            />
-            <Button type="submit" variant="primary" fullWidth isLoading={isSubmitting}>
-              Send Code
-            </Button>
+            <Input label="Admin phone number" type="tel" autoComplete="tel" placeholder="+919999999999" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} required />
+            <Button type="submit" variant="primary" fullWidth isLoading={isSubmitting}>Send OTP</Button>
+            <button type="button" onClick={() => { setStep("credentials"); setError(null); }} className="text-[13px] text-stone underline">Back to password</button>
           </form>
         )}
 
-        {mode === "otp" && otpStep === "code" && (
+        {step === "otp" && (
           <form onSubmit={handleVerifyOtp} className="mt-6 flex flex-col gap-4">
-            <p className="text-[13px] text-stone">Enter the 6-digit code sent to {phoneNumber}.</p>
-            <Input
-              label="Code"
-              type="text"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              required
-            />
-            <Button type="submit" variant="primary" fullWidth isLoading={isSubmitting}>
-              Verify & Sign In
-            </Button>
-            <button
-              type="button"
-              onClick={() => {
-                setOtpStep("phone");
-                setDevOtp(null);
-              }}
-              className="text-[13px] text-stone underline"
-            >
-              Use a different number
-            </button>
+            <p className="text-[13px] text-stone">Enter the 6-digit OTP for {phoneNumber}.</p>
+            <Input label="OTP" type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} required />
+            <Button type="submit" variant="primary" fullWidth isLoading={isSubmitting}>Verify & Sign In</Button>
+            <button type="button" onClick={() => { setStep("phone"); setDevOtp(null); setError(null); }} className="text-[13px] text-stone underline">Use another phone number</button>
           </form>
         )}
       </div>
