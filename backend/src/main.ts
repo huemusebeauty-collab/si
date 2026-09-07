@@ -5,7 +5,7 @@ import { ValidationPipe, VersioningType } from "@nestjs/common";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { Logger } from "nestjs-pino";
 import helmet from "helmet";
-import compression from "compression";
+import compression = require("compression");
 import { AppModule } from "./app.module";
 
 // Sprint 3.1/3.2/3.6/3.7/3.10 — application bootstrap: everything that
