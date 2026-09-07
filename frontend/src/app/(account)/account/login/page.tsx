@@ -51,7 +51,7 @@ export default function LoginPage() {
     <div className="mx-auto max-w-md py-12 sm:py-16">
       <div className="rounded-2xl border border-fog bg-white p-6 shadow-sm sm:p-8">
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary-rose">Welcome back</p>
-        <h1 className="mt-2 font-display text-3xl font-semibold text-ink">Sign in to Hue Muse</h1>
+        <h1 className="mt-2 font-display text-3xl font-semibold text-ink">Sign in to Silku</h1>
         <p className="mt-2 text-sm text-ink/70">Access your orders, wishlist and account.</p>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-5">
@@ -91,7 +91,7 @@ export default function LoginPage() {
         </form>
 
         <p className="mt-6 text-center text-sm text-ink/70">
-          New to Hue Muse?{" "}
+          New to Silku?{" "}
           <Link href={ROUTES.register} className="font-semibold text-primary-plum underline-offset-4 hover:underline">
             Create an account
           </Link>
