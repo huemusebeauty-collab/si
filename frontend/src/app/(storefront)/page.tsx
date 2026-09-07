@@ -7,9 +7,9 @@ import { TrustSignalStrip } from "@/components/patterns/TrustSignalStrip";
 import { getAllCategories, getAllCollections, getAllProducts } from "@/services/api/products";
 
 export const metadata: Metadata = {
-  title: "Premium Nail Polish & Color Cosmetics",
+  title: "Premium Nail Polish & Color Cosmetics | Silku",
   description:
-    "Discover Hue Muse Beauty — luxury nail lacquers, color cosmetics, and skincare crafted for every shade story.",
+    "Discover Silku — luxury nail lacquers, color cosmetics, and skincare crafted for every shade story.",
   alternates: { canonical: "/" },
 };
 
@@ -28,8 +28,8 @@ export default async function HomePage() {
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "Organization",
-            name: "Hue Muse Beauty",
-            url: "https://www.huemusebeauty.com",
+            name: "Silku",
+            url: "https://silku.in",
           }),
         }}
       />
@@ -39,7 +39,7 @@ export default async function HomePage() {
         ctaLabel="Shop New Arrivals"
         ctaHref="/shop"
         imageUrl="/mock/hero-home.jpg"
-        imageAlt="Hue Muse Beauty product lineup on a marble surface"
+        imageAlt="Silku product lineup on a marble surface"
       />
       <CategoryDiscoveryGrid categories={categories} />
       <section aria-label="Collections" className="py-8">
