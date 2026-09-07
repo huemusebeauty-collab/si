@@ -12,8 +12,6 @@ import { TransactionService } from "./transaction.service";
         type: "postgres",
         url: config.get<string>("database.url"),
         autoLoadEntities: true,
-        // One-time bootstrap switch for the currently empty Neon database.
-        // Keep false by default; production schema changes should use migrations.
         synchronize: config.get<string>("DB_SYNCHRONIZE") === "true",
         logging: config.get<string>("env") === "development",
       }),
