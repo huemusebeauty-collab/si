@@ -182,6 +182,7 @@ export class ProductsService {
     description: string; content: ProductContent; metaTitle: string; metaDescription: string;
     mediaUrls: string[]; variants: { sku: string; name: string; hexColor?: string; stockQuantity: number }[];
   }): Promise<{ entity: ProductEntity; wasCreated: boolean }> {
+    this.validateProductInput(data);
     const existing = await this.products.findOne({ where: { slug: data.slug }, relations: ["variants"] });
     const entity = existing ?? this.products.create({ slug: data.slug, status: "draft", visibility: "hidden" });
     entity.name = data.name;
@@ -195,7 +196,13 @@ export class ProductsService {
     entity.mediaUrls = data.mediaUrls;
     const saved = await this.products.save(entity);
     const existingSkus = new Set((existing?.variants ?? []).map((v) => v.sku));
-    for (const variantSeed of data.variants) if (!existingSkus.has(variantSeed.sku)) await this.addVariant(saved.id, variantSeed);
+    for (const variantSeed of data.variants) {
+      if (existingSkus.has(variantSeed.sku)) continue;
+      if (await this.skuExists(variantSeed.sku)) {
+        throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, `SKU ${variantSeed.sku} is already assigned to another product.`);
+      }
+      await this.addVariant(saved.id, variantSeed);
+    }
     await this.cacheInvalidation.invalidatePrefix("products");
     return { entity: saved, wasCreated: !existing };
   }
@@ -235,11 +242,50 @@ export class ProductsService {
   }
 
   async addVariant(productId: string, data: { sku: string; name: string; hexColor?: string; stockQuantity: number }): Promise<ProductVariantEntity> {
+    this.validateVariantInput(data);
     const product = await this.findProductOrThrow(productId);
+    if (await this.skuExists(data.sku)) {
+      throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, `SKU ${data.sku} is already assigned to another product.`);
+    }
     const variant = this.variants.create({ product, sku: data.sku, name: data.name, hexColor: data.hexColor, stockQuantity: data.stockQuantity, stockState: this.computeStockState(data.stockQuantity) });
     const saved = await this.variants.save(variant);
     await this.cacheInvalidation.invalidatePrefix("products");
     return saved;
+  }
+
+  private validateProductInput(data: {
+    slug: string; name: string; price: number; salePrice?: number;
+    mediaUrls: string[]; variants: { sku: string; name: string; stockQuantity: number }[];
+  }): void {
+    if (!data.slug?.trim() || !data.name?.trim()) {
+      throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Product name and slug are required.");
+    }
+    if (!Number.isFinite(data.price) || data.price <= 0) {
+      throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Product price must be greater than zero.");
+    }
+    if (data.salePrice !== undefined && (!Number.isFinite(data.salePrice) || data.salePrice < 0 || data.salePrice > data.price)) {
+      throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Sale price must be between zero and the regular price.");
+    }
+    if (!Array.isArray(data.mediaUrls) || data.mediaUrls.some((url) => typeof url !== "string" || !url.trim())) {
+      throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Product media URLs must be non-empty strings.");
+    }
+    const seenSkus = new Set<string>();
+    for (const variant of data.variants) {
+      this.validateVariantInput(variant);
+      if (seenSkus.has(variant.sku)) {
+        throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, `Duplicate SKU ${variant.sku} in product variants.`);
+      }
+      seenSkus.add(variant.sku);
+    }
+  }
+
+  private validateVariantInput(data: { sku: string; name: string; stockQuantity: number }): void {
+    if (!data.sku?.trim() || !data.name?.trim()) {
+      throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Variant SKU and name are required.");
+    }
+    if (!Number.isInteger(data.stockQuantity) || data.stockQuantity < 0) {
+      throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Stock quantity must be a non-negative integer.");
+    }
   }
 
   private computeStockState(quantity: number): StockState {
