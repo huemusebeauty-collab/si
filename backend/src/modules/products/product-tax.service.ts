@@ -11,6 +11,19 @@ export class ProductTaxService {
     @InjectRepository(ProductVariantEntity) private readonly variants: Repository<ProductVariantEntity>,
   ) {}
 
+  async getTaxConfig(productId: string) {
+    const product = await this.products.findOne({ where: { id: productId }, relations: ["variants"] });
+    if (!product) throw new NotFoundException("Product not found.");
+    return {
+      productId: product.id,
+      productName: product.name,
+      hsnCode: product.hsnCode,
+      gstRate: product.gstRate,
+      taxInclusiveMrp: product.taxInclusiveMrp,
+      variants: product.variants.map((variant) => ({ variantId: variant.id, sku: variant.sku, name: variant.name, mrp: variant.mrp })),
+    };
+  }
+
   async updateTaxConfig(productId: string, input: {
     hsnCode?: string | null;
     gstRate?: number | null;
