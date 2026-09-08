@@ -49,7 +49,7 @@ export class ConversionIntelligenceEngine {
       const strongestStage = STAGES.reduce((best, stage) => count(stage) > count(best) ? stage : best, STAGES[0]);
       const hasTraffic = count("view") > 0 || count("impression") > 0;
       const hasClicks = clicks > 0;
-      const recommendation = purchases > 0 && conversionRate >= 0.03
+      const recommendation: ConversionInsight["recommendation"] = purchases > 0 && conversionRate >= 0.03
         ? "scale"
         : hasTraffic && !hasClicks
           ? "fix_funnel"
