@@ -1,14 +1,18 @@
 import assert from "node:assert/strict";
 import { MarketingControlApi } from "../src/marketing-control-api";
 import { MarketingDomainStore } from "../src/marketing-domain-store";
+import { MarketingSecurityLayer } from "../src/marketing-security";
 import type { MarketingCampaign, MarketingContent, MarketingDecisionRecord, MarketingJob } from "../src/contracts";
-import type { MarketingDomainPersistence } from "../src/marketing-persistence";
+import type { ApprovalRequest, AuditEvent } from "../src/marketing-security";
+import type { MarketingPersistence, MarketingDomainPersistence } from "../src/marketing-persistence";
 
-class FakePersistence implements MarketingDomainPersistence {
+class FakePersistence implements MarketingPersistence, MarketingDomainPersistence {
   content: MarketingContent[] = [];
   campaigns: MarketingCampaign[] = [];
   jobs: MarketingJob[] = [];
   decisions: MarketingDecisionRecord[] = [];
+  approvals: ApprovalRequest[] = [];
+  audit: AuditEvent[] = [];
   loadContent() { return Promise.resolve([...this.content]); }
   saveContent(item: MarketingContent) { this.content = [item, ...this.content.filter((current) => current.contentId !== item.contentId)]; return Promise.resolve(); }
   loadCampaigns() { return Promise.resolve([...this.campaigns]); }
@@ -18,24 +22,17 @@ class FakePersistence implements MarketingDomainPersistence {
   loadDecisions() { return Promise.resolve([...this.decisions]); }
   saveDecision(item: MarketingDecisionRecord) { this.decisions = [item, ...this.decisions.filter((current) => current.decisionId !== item.decisionId)]; return Promise.resolve(); }
   cleanupE2EDomain() { return Promise.resolve(); }
-}
-
-class FakeApprovalPersistence {
-  approvals: any[] = [];
-  audit: any[] = [];
   loadApprovals() { return Promise.resolve([...this.approvals]); }
+  saveApproval(item: ApprovalRequest) { this.approvals = [item, ...this.approvals.filter((current) => current.requestId !== item.requestId)]; return Promise.resolve(); }
   loadAudit() { return Promise.resolve([...this.audit]); }
-  saveApproval(item: any) { this.approvals = [item, ...this.approvals.filter((current) => current.requestId !== item.requestId)]; return Promise.resolve(); }
-  saveAudit(item: any) { this.audit.push(item); return Promise.resolve(); }
+  saveAudit(item: AuditEvent) { this.audit = [...this.audit, item]; return Promise.resolve(); }
   cleanupE2E() { return Promise.resolve(); }
 }
 
 async function main() {
-  const domainPersistence = new FakePersistence();
-  const approvalPersistence = new FakeApprovalPersistence();
-  const persistence = Object.assign(domainPersistence, approvalPersistence);
+  const persistence = new FakePersistence();
   const store = new MarketingDomainStore(persistence);
-  const api = new MarketingControlApi(undefined, new (require("../src/marketing-security").MarketingSecurityLayer)(persistence), store);
+  const api = new MarketingControlApi(undefined, new MarketingSecurityLayer(persistence), store);
   const result = await api.prepareDirectorActionDurable({ action: "launch_ads", reason: "Durable lifecycle test", confidence: 0.88, requiresApproval: true, evidence: [], target: "campaign:test" });
   assert.equal(result.ok, true);
   assert.equal(result.data?.status, "approval_required");
