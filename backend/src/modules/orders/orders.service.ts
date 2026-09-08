@@ -14,6 +14,7 @@ import { calculateGstWithinMrp, roundMoney } from "./tax.utils";
 const CANCELLABLE_BEFORE: OrderStatus[] = ["pending_payment", "confirmed", "processing"];
 const RETURNABLE_AFTER: OrderStatus[] = ["delivered"];
 const RETURN_WINDOW_DAYS = 30;
+const REVENUE_STATUSES: OrderStatus[] = ["confirmed", "processing", "shipped", "delivered"];
 
 const VALID_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   pending_payment: ["confirmed", "payment_failed", "cancelled"],
@@ -55,6 +56,72 @@ export class OrdersService {
     return { count: todaysOrders.length, revenue: roundMoney(revenue) };
   }
 
+  async getMarketingCommerceIntelligence() {
+    const now = new Date();
+    const periodStart = new Date(now);
+    periodStart.setDate(periodStart.getDate() - 30);
+    const previousStart = new Date(periodStart);
+    previousStart.setDate(previousStart.getDate() - 30);
+
+    const orders = await this.orders
+      .createQueryBuilder("order")
+      .leftJoinAndSelect("order.lineItems", "lineItem")
+      .where("order.createdAt >= :previousStart", { previousStart })
+      .andWhere("order.createdAt < :now", { now })
+      .getMany();
+
+    const current = orders.filter((order) => order.createdAt >= periodStart && REVENUE_STATUSES.includes(order.status));
+    const previous = orders.filter((order) => order.createdAt < periodStart && REVENUE_STATUSES.includes(order.status));
+    const revenue = roundMoney(current.reduce((sum, order) => sum + Number(order.total), 0));
+    const previousRevenue = roundMoney(previous.reduce((sum, order) => sum + Number(order.total), 0));
+    const orderCount = current.length;
+    const previousOrderCount = previous.length;
+
+    const productTotals = new Map<string, { productName: string; units: number; revenue: number }>();
+    for (const order of current) {
+      for (const line of order.lineItems ?? []) {
+        const key = line.productName;
+        const existing = productTotals.get(key) ?? { productName: key, units: 0, revenue: 0 };
+        existing.units += line.quantity;
+        existing.revenue = roundMoney(existing.revenue + Number(line.unitPrice) * line.quantity);
+        productTotals.set(key, existing);
+      }
+    }
+
+    const topProducts = [...productTotals.values()]
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 8);
+
+    const inventory = await this.products.listInventory();
+    const inventoryRiskProducts = inventory
+      .filter((item) => item.stockState !== "in-stock")
+      .slice(0, 12)
+      .map((item) => ({
+        sku: item.sku,
+        name: item.product.name,
+        category: item.product.category,
+        stockQuantity: item.stockQuantity,
+        stockState: item.stockState,
+      }));
+
+    const revenueTrend = revenue > previousRevenue * 1.05 ? "up" : revenue < previousRevenue * 0.95 ? "down" : "flat";
+    return {
+      dataSource: "live",
+      windowDays: 30,
+      generatedAt: now.toISOString(),
+      revenue,
+      previousRevenue,
+      revenueTrend,
+      orders: orderCount,
+      previousOrders: previousOrderCount,
+      aov: orderCount ? roundMoney(revenue / orderCount) : 0,
+      topProducts,
+      risingCategories: [],
+      inventoryRiskProducts,
+      lowStockCount: inventoryRiskProducts.length,
+    };
+  }
+
   async searchOrders(filters: { status?: OrderStatus; dateFrom?: string; dateTo?: string; customerQuery?: string; page: number; pageSize: number }) {
     const qb = this.orders.createQueryBuilder("order").orderBy("order.createdAt", "DESC");
     if (filters.status) qb.andWhere("order.status = :status", { status: filters.status });
@@ -92,9 +159,7 @@ export class OrdersService {
         const variant = await this.products.findVariantById(line.variantId);
         const unitPrice = Number(variant.product.salePrice ?? variant.product.price);
         const mrp = variant.mrp == null ? null : Number(variant.mrp);
-        if (mrp != null && unitPrice > mrp + 0.005) {
-          throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, `Selling price for ${variant.sku} cannot exceed MRP.`);
-        }
+        if (mrp != null && unitPrice > mrp + 0.005) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, `Selling price for ${variant.sku} cannot exceed MRP.`);
         const lineSubtotal = roundMoney(unitPrice * line.quantity);
         subtotal = roundMoney(subtotal + lineSubtotal);
         pricedLines.push({ line, variant, unitPrice, lineSubtotal });
@@ -110,22 +175,17 @@ export class OrdersService {
 
       for (let index = 0; index < pricedLines.length; index += 1) {
         const { line, variant, unitPrice, lineSubtotal } = pricedLines[index];
-        const lineDiscount = index === pricedLines.length - 1
-          ? roundMoney(discountAmount - allocatedDiscount)
-          : roundMoney(discountAmount * lineSubtotal / subtotal);
+        const lineDiscount = index === pricedLines.length - 1 ? roundMoney(discountAmount - allocatedDiscount) : roundMoney(discountAmount * lineSubtotal / subtotal);
         allocatedDiscount = roundMoney(allocatedDiscount + lineDiscount);
-
         const tax = calculateGstWithinMrp({
           amountAfterDiscount: roundMoney(lineSubtotal - lineDiscount),
           mrp: variant.mrp == null ? null : Number(variant.mrp) * line.quantity,
           gstRate: variant.product.gstRate == null ? null : Number(variant.product.gstRate),
           taxInclusiveMrp: variant.product.taxInclusiveMrp,
         });
-
         taxableAmount = roundMoney(taxableAmount + tax.taxableAmount);
         taxAmount = roundMoney(taxAmount + tax.taxAmount);
         total = roundMoney(total + tax.grossAmount);
-
         snapshotLines.push({
           variantId: line.variantId,
           productName: variant.product.name,
@@ -142,21 +202,8 @@ export class OrdersService {
         await this.products.adjustStock(line.variantId, -line.quantity, manager);
       }
 
-      if (total < 0 || (subtotal > 0 && total > subtotal + 0.005 && discountAmount === 0)) {
-        throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Invalid tax calculation.");
-      }
-
-      const order = manager.create(OrderEntity, {
-        customerId,
-        status: "pending_payment",
-        subtotal: subtotal.toFixed(2),
-        discountAmount: discountAmount.toFixed(2),
-        taxableAmount: taxableAmount.toFixed(2),
-        taxAmount: taxAmount.toFixed(2),
-        total: total.toFixed(2),
-        currency: "INR",
-        shippingAddress,
-      });
+      if (total < 0 || (subtotal > 0 && total > subtotal + 0.005 && discountAmount === 0)) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Invalid tax calculation.");
+      const order = manager.create(OrderEntity, { customerId, status: "pending_payment", subtotal: subtotal.toFixed(2), discountAmount: discountAmount.toFixed(2), taxableAmount: taxableAmount.toFixed(2), taxAmount: taxAmount.toFixed(2), total: total.toFixed(2), currency: "INR", shippingAddress });
       const savedOrder = await manager.save(order);
       for (const snapshot of snapshotLines) await manager.save(manager.create(OrderLineItemEntity, { ...snapshot, order: savedOrder }));
       await manager.save(manager.create(OrderStatusHistoryEntity, { order: savedOrder, status: "pending_payment" }));
@@ -225,18 +272,7 @@ export class OrdersService {
   }> {
     const order = await this.getOrder(orderId);
     const layout = resolveInvoiceLayout(size, format);
-    return {
-      orderId: order.id,
-      lineItems: order.lineItems,
-      subtotal: order.subtotal,
-      discountAmount: order.discountAmount,
-      taxableAmount: order.taxableAmount,
-      taxAmount: order.taxAmount,
-      total: order.total,
-      currency: order.currency,
-      issuedAt: new Date().toISOString(),
-      layout,
-    };
+    return { orderId: order.id, lineItems: order.lineItems, subtotal: order.subtotal, discountAmount: order.discountAmount, taxableAmount: order.taxableAmount, taxAmount: order.taxAmount, total: order.total, currency: order.currency, issuedAt: new Date().toISOString(), layout };
   }
 
   async getTrackingStatus(orderId: string): Promise<{ orderId: string; timeline: OrderStatusHistoryEntity[] }> {
