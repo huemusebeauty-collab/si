@@ -44,3 +44,5 @@ export * from "./field-force-service";
 export * from "./field-force-api";
 export * from "./field-force-router";
 export * from "./marketing-persistence";
+export * from "./marketing-domain-store";
+export * from "./marketing-lifecycle";
