@@ -1,10 +1,12 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { FieldForceApi, type CheckInRequest, type RegisterDeviceRequest } from "./field-force-api";
+import { MarketingMonitor } from "./monitoring";
 
 const startedAt = new Date().toISOString();
 const port = Number(process.env.PORT ?? 10000);
 const hostname = process.env.HOSTNAME ?? "0.0.0.0";
 const fieldForce = new FieldForceApi();
+const monitor = new MarketingMonitor();
 
 function json(response: ServerResponse, statusCode: number, body: unknown) {
   response.writeHead(statusCode, { "content-type": "application/json" });
@@ -32,6 +34,40 @@ const server = createServer(async (request, response) => {
         uptimeSeconds: Math.floor(process.uptime()),
         timestamp: new Date().toISOString(),
       });
+      return;
+    }
+
+    if (method === "GET" && url.pathname === "/v1/monitoring/status") {
+      json(response, 200, { ok: true, ...monitor.inspect() });
+      return;
+    }
+
+    if (method === "POST" && url.pathname === "/v1/monitoring/jobs") {
+      const body = (await readJson(request)) as { jobKey?: string; expectedStartAt?: string; maxRetries?: number };
+      if (!body.jobKey) {
+        json(response, 400, { ok: false, error: "jobKey is required" });
+        return;
+      }
+      json(response, 201, { ok: true, job: monitor.register(body.jobKey, body.expectedStartAt, body.maxRetries) });
+      return;
+    }
+
+    const jobActionMatch = url.pathname.match(/^\/v1\/monitoring\/jobs\/([^/]+)\/(running|succeeded|failed)$/);
+    if (method === "POST" && jobActionMatch) {
+      const jobKey = decodeURIComponent(jobActionMatch[1]);
+      const action = jobActionMatch[2];
+      let job;
+      if (action === "running") job = monitor.markRunning(jobKey);
+      else if (action === "succeeded") job = monitor.markSucceeded(jobKey);
+      else {
+        const body = (await readJson(request)) as { errorCode?: string; errorMessage?: string };
+        job = monitor.markFailed(jobKey, body.errorCode ?? "JOB_FAILED", body.errorMessage ?? "Marketing job failed");
+      }
+      if (!job) {
+        json(response, 404, { ok: false, error: "Job not found" });
+        return;
+      }
+      json(response, 200, { ok: true, job });
       return;
     }
 
@@ -92,6 +128,8 @@ const server = createServer(async (request, response) => {
     json(response, 400, { ok: false, error: "Invalid request" });
   }
 });
+
+setInterval(() => monitor.inspect(), 60_000).unref();
 
 server.listen(port, hostname, () => {
   console.log(`Silku Marketing HQ listening on ${hostname}:${port}`);
