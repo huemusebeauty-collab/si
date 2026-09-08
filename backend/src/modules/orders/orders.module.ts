@@ -5,6 +5,7 @@ import { OrderLineItemEntity } from "./entities/order-line-item.entity";
 import { OrderStatusHistoryEntity } from "./entities/order-status-history.entity";
 import { OrdersService } from "./orders.service";
 import { OrdersController } from "./orders.controller";
+import { MarketingCommerceController } from "./marketing-commerce.controller";
 import { CartModule } from "@/modules/cart/cart.module";
 import { ProductsModule } from "@/modules/products/products.module";
 import { DatabaseModule } from "@/database/database.module";
@@ -16,7 +17,7 @@ import { DatabaseModule } from "@/database/database.module";
     ProductsModule,
     DatabaseModule, // Sprint 4.9 — TransactionService
   ],
-  controllers: [OrdersController],
+  controllers: [OrdersController, MarketingCommerceController],
   providers: [OrdersService],
   exports: [OrdersService],
 })
