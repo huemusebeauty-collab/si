@@ -11,7 +11,8 @@ export type { ContentObjective, ContentSource, ContentPlan } from "./content-int
 export * from "./growth-intelligence";
 export * from "./trend-radar";
 export * from "./conversion-intelligence";
-export * from "./campaign-autopilot";
+export { CampaignAutopilotEngine } from "./campaign-autopilot";
+export type { CampaignAutopilotInput, CampaignAutopilotDecision, CampaignAction } from "./campaign-autopilot";
 export * from "./audience-intelligence";
 export * from "./analytics-command-center";
 export * from "./analytics-revenue";
