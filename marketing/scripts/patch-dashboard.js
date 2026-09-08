@@ -26,7 +26,7 @@ if (!source.includes('function mapDirectorAction')) {
 }
 
 source = source.replace("fetch('/v1/approvals'", "fetch('/v1/control-plane/prepare'");
-source = source.replace("body:JSON.stringify({action:window.__silkuDirectorControlAction,actor:'marketing-hq'", "body:JSON.stringify({decision:window.__silkuDirectorDecision");
+source = source.replace(/body:JSON\.stringify\(\{action:window\.__silkuDirectorControlAction,[^}]*\}\)/, 'body:JSON.stringify({decision:window.__silkuDirectorDecision})');
 source = source.replace("async function doIt(){const b=$('#doIt');", "async function doIt(){if(!window.__silkuDirectorDecision){toast('Director decision is not ready. Refresh first.');return}const b=$('#doIt');");
 
 fs.writeFileSync(file, source);
