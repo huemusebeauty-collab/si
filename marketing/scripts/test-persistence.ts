@@ -11,18 +11,22 @@ class MemoryPersistence implements MarketingPersistence {
   async saveAudit(event: AuditEvent) { if (!this.audit.some((item) => item.eventId === event.eventId)) this.audit.push({ ...event }); }
 }
 
-const persistence = new MemoryPersistence();
-const first = new MarketingSecurityLayer(persistence);
-const created = first.requestApproval({ requestId: "approval_persist_1", action: "launch_ads", actor: "test", reason: "persistence test" });
-await new Promise((resolve) => setTimeout(resolve, 0));
-assert.equal(persistence.approvals.length, 1);
-assert.equal(persistence.audit.length, 1);
-first.decideApproval(created.requestId, "approved", "admin");
-await new Promise((resolve) => setTimeout(resolve, 0));
+async function main() {
+  const persistence = new MemoryPersistence();
+  const first = new MarketingSecurityLayer(persistence);
+  const created = first.requestApproval({ requestId: "approval_persist_1", action: "launch_ads", actor: "test", reason: "persistence test" });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(persistence.approvals.length, 1);
+  assert.equal(persistence.audit.length, 1);
+  first.decideApproval(created.requestId, "approved", "admin");
+  await new Promise((resolve) => setTimeout(resolve, 0));
 
-const second = new MarketingSecurityLayer(persistence);
-await second.hydrate();
-assert.equal(second.listApprovals()[0]?.decision, "approved");
-assert.equal(second.canExecute("launch_ads", created.requestId), true);
-assert.equal(second.listAudit().length, 2);
-console.log("Marketing HQ persistence tests passed");
+  const second = new MarketingSecurityLayer(persistence);
+  await second.hydrate();
+  assert.equal(second.listApprovals()[0]?.decision, "approved");
+  assert.equal(second.canExecute("launch_ads", created.requestId), true);
+  assert.equal(second.listAudit().length, 2);
+  console.log("Marketing HQ persistence tests passed");
+}
+
+void main();
