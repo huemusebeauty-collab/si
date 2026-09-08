@@ -1,12 +1,14 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { FieldForceApi, type CheckInRequest, type RegisterDeviceRequest } from "./field-force-api";
 import { MarketingMonitor } from "./monitoring";
+import { MarketingControlApi } from "./marketing-control-api";
 
 const startedAt = new Date().toISOString();
 const port = Number(process.env.PORT ?? 10000);
 const hostname = process.env.HOSTNAME ?? "0.0.0.0";
 const fieldForce = new FieldForceApi();
 const monitor = new MarketingMonitor();
+const marketing = new MarketingControlApi();
 
 function json(response: ServerResponse, statusCode: number, body: unknown) {
   response.writeHead(statusCode, { "content-type": "application/json" });
@@ -34,6 +36,47 @@ const server = createServer(async (request, response) => {
         uptimeSeconds: Math.floor(process.uptime()),
         timestamp: new Date().toISOString(),
       });
+      return;
+    }
+
+    if (method === "GET" && url.pathname === "/v1/marketing/health") {
+      json(response, 200, marketing.health());
+      return;
+    }
+
+    if (method === "POST" && url.pathname === "/v1/marketing/evaluate") {
+      json(response, 200, marketing.evaluate((await readJson(request)) as any));
+      return;
+    }
+
+    if (method === "GET" && url.pathname === "/v1/marketing/approvals") {
+      json(response, 200, marketing.approvals());
+      return;
+    }
+
+    if (method === "POST" && url.pathname === "/v1/marketing/approvals") {
+      const body = (await readJson(request)) as { action: any; actor?: string; reason?: string; target?: string };
+      if (!body.action || !body.actor || !body.reason) {
+        json(response, 400, { ok: false, error: "action, actor and reason are required" });
+        return;
+      }
+      json(response, 201, marketing.requestApproval(body.action, body.actor, body.reason, body.target));
+      return;
+    }
+
+    const approvalMatch = url.pathname.match(/^\/v1\/marketing\/approvals\/([^/]+)\/(approve|reject)$/);
+    if (method === "POST" && approvalMatch) {
+      const body = (await readJson(request)) as { actor?: string };
+      if (!body.actor) {
+        json(response, 400, { ok: false, error: "actor is required" });
+        return;
+      }
+      json(response, 200, marketing.decideApproval(decodeURIComponent(approvalMatch[1]), approvalMatch[2] === "approve" ? "approved" : "rejected", body.actor));
+      return;
+    }
+
+    if (method === "GET" && url.pathname === "/v1/marketing/audit") {
+      json(response, 200, marketing.audit());
       return;
     }
 
@@ -89,11 +132,7 @@ const server = createServer(async (request, response) => {
 
     const trackingMatch = url.pathname.match(/^\/v1\/field-force\/devices\/([^/]+)\/location-tracking$/);
     if (method === "GET" && trackingMatch) {
-      json(response, 200, {
-        ok: true,
-        deviceId: trackingMatch[1],
-        allowed: fieldForce.canTrackLocation(trackingMatch[1]),
-      });
+      json(response, 200, { ok: true, deviceId: trackingMatch[1], allowed: fieldForce.canTrackLocation(trackingMatch[1]) });
       return;
     }
 
