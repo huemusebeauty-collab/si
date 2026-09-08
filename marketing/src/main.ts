@@ -50,19 +50,21 @@ const fieldForce = new FieldForceApi();
 
 const server = createServer(async (request, response) => {
   const method = request.method ?? "GET";
-  const url = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
+  const rawUrl = request.url ?? "/";
+  const pathname = rawUrl.split("?", 1)[0] || "/";
+  const url = new URL(rawUrl, `http://${request.headers.host ?? "localhost"}`);
 
-  if (method === "GET" && (url.pathname === "/health" || url.pathname === "/v1/health")) {
+  if (method === "GET" && (pathname === "/health" || pathname === "/v1/health")) {
     json(response, 200, { ok: true, service: "silku-marketing-hq", startedAt });
     return;
   }
 
-  if (method === "GET" && url.pathname === "/") {
+  if (method === "GET" && pathname === "/") {
     html(response, 200, authorized(request) ? dashboardHtml() : loginHtml());
     return;
   }
 
-  if (method === "POST" && url.pathname === "/v1/hq/login") {
+  if (method === "POST" && pathname === "/v1/hq/login") {
     const chunks: Buffer[] = [];
     for await (const chunk of request) chunks.push(Buffer.from(chunk));
     const body = JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
@@ -84,7 +86,7 @@ const server = createServer(async (request, response) => {
     return;
   }
 
-  if (method === "GET" && url.pathname === "/dashboard") {
+  if (method === "GET" && pathname === "/dashboard") {
     if (!authorized(request)) {
       response.statusCode = 302;
       response.setHeader("location", "/");
@@ -95,9 +97,9 @@ const server = createServer(async (request, response) => {
     return;
   }
 
-  if (!url.pathname.startsWith("/v1/") || !requireAuth(request, response)) return;
+  if (!pathname.startsWith("/v1/") || !requireAuth(request, response)) return;
 
-  if (method === "GET" && url.pathname === "/v1/marketing/dashboard") {
+  if (method === "GET" && pathname === "/v1/marketing/dashboard") {
     const commerce = await fetchCommerceIntelligence();
     if (!commerce.ok) {
       json(response, 503, {
@@ -141,12 +143,12 @@ const server = createServer(async (request, response) => {
     return;
   }
 
-  if (method === "GET" && url.pathname === "/v1/approvals") { json(response, 200, marketing.approvals()); return; }
-  if (method === "GET" && url.pathname === "/v1/audit") { json(response, 200, marketing.audit()); return; }
-  if (method === "GET" && url.pathname === "/v1/monitoring/status") { json(response, 200, monitor.status()); return; }
-  if (method === "GET" && url.pathname.startsWith("/v1/field-force/")) { json(response, 200, fieldForce.handle(method, url.pathname, {})); return; }
+  if (method === "GET" && pathname === "/v1/approvals") { json(response, 200, marketing.approvals()); return; }
+  if (method === "GET" && pathname === "/v1/audit") { json(response, 200, marketing.audit()); return; }
+  if (method === "GET" && pathname === "/v1/monitoring/status") { json(response, 200, monitor.status()); return; }
+  if (method === "GET" && pathname.startsWith("/v1/field-force/")) { json(response, 200, fieldForce.handle(method, pathname, {})); return; }
 
-  if (method === "POST" && url.pathname === "/v1/evaluate") {
+  if (method === "POST" && pathname === "/v1/evaluate") {
     const chunks: Buffer[] = [];
     for await (const chunk of request) chunks.push(Buffer.from(chunk));
     const body = JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
@@ -154,7 +156,7 @@ const server = createServer(async (request, response) => {
     return;
   }
 
-  if (method === "POST" && url.pathname === "/v1/approvals") {
+  if (method === "POST" && pathname === "/v1/approvals") {
     const chunks: Buffer[] = [];
     for await (const chunk of request) chunks.push(Buffer.from(chunk));
     const body = JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
@@ -162,7 +164,7 @@ const server = createServer(async (request, response) => {
     return;
   }
 
-  const approvalMatch = url.pathname.match(/^\/v1\/approvals\/([^/]+)\/(approve|reject)$/);
+  const approvalMatch = pathname.match(/^\/v1\/approvals\/([^/]+)\/(approve|reject)$/);
   if (method === "POST" && approvalMatch) {
     const chunks: Buffer[] = [];
     for await (const chunk of request) chunks.push(Buffer.from(chunk));
