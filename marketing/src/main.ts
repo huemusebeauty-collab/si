@@ -68,7 +68,7 @@ const server = createServer(async (request, response) => {
     }
 
     if (method === "POST" && url.pathname === "/v1/hq/login") {
-      const configuredKey = process.env.MARKETING_HQ_ACCESS_KEY;
+      const configuredKey = process.env.MARKETING_HQ_ACCESS_KEY ?? process.env.MARKETING_HQ_ADMIN_TOKEN;
       const body = (await readJson(request)) as { key?: string };
       if (!configuredKey || !body.key) {
         json(response, 503, { ok: false, error: "HQ access is not configured" });
