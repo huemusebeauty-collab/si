@@ -1,4 +1,5 @@
-import type { MarketingDecision, MarketingDirectorContext } from "./marketing-director";
+import type { MarketingDecision } from "./contracts";
+import type { MarketingDirectorContext } from "./marketing-director";
 
 export interface NextBestActionInput extends MarketingDirectorContext {
   learningScore?: number;
@@ -29,6 +30,7 @@ export class NextBestActionEngine {
         reason: "Shift promotion away from inventory-risk products and toward safe-stock products.",
         confidence: 0.9,
         requiresApproval: true,
+        evidence: context.evidence ?? [],
       };
     }
     if (context.revenueTrend === "down" && context.b2bOpportunities > 0) {
@@ -37,6 +39,7 @@ export class NextBestActionEngine {
         reason: "Revenue is down while qualified B2B opportunities are available.",
         confidence: 0.88,
         requiresApproval: true,
+        evidence: context.evidence ?? [],
       };
     }
     if (context.risingCategories.length > 0) {
@@ -45,6 +48,7 @@ export class NextBestActionEngine {
         reason: `Promote rising category: ${context.risingCategories[0]}.`,
         confidence: 0.82,
         requiresApproval: true,
+        evidence: context.evidence ?? [],
       };
     }
     if (context.creatorOpportunities > 0 && context.topProducts.length > 0) {
@@ -53,6 +57,7 @@ export class NextBestActionEngine {
         reason: `Match creators to top product: ${context.topProducts[0]}.`,
         confidence: 0.79,
         requiresApproval: true,
+        evidence: context.evidence ?? [],
       };
     }
     return {
@@ -60,6 +65,7 @@ export class NextBestActionEngine {
       reason: "No stronger signal is available; test content before increasing spend.",
       confidence: Math.max(0.5, context.learningScore ?? 0.55),
       requiresApproval: true,
+      evidence: context.evidence ?? [],
     };
   }
 
