@@ -47,16 +47,13 @@ const server = createServer(async (request, response) => {
     if (!persistence) { json(response, 503, { ok: false, error: "Persistence is not configured" }); return; }
     const id = randomUUID();
     const target = `e2e:${id}`;
-    const requestId = `e2e_${id}`;
-    const testSecurity = new MarketingSecurityLayer(persistence);
-    const testMarketing = new MarketingControlApi(undefined, testSecurity);
+    let durableRequestId: string | undefined;
     try {
+      const testSecurity = new MarketingSecurityLayer(persistence);
+      const testMarketing = new MarketingControlApi(undefined, testSecurity);
       const requested = await testMarketing.requestApprovalDurable({ action: "launch_ads", actor: "e2e", target, reason: "Protected persistence round-trip test" });
       if (!requested.ok || !requested.data) throw new Error(requested.error ?? "E2E approval request failed");
-      if (requested.data.requestId !== requestId) {
-        // requestApprovalDurable generates its own request ID; keep the generated ID for cleanup.
-      }
-      const durableRequestId = requested.data.requestId;
+      durableRequestId = requested.data.requestId;
       const approved = await testMarketing.decideApprovalDurable(durableRequestId, "approved", "e2e");
       if (!approved.ok || !approved.data || approved.data.decision !== "approved") throw new Error(approved.error ?? "E2E approval decision failed");
       const recoveredSecurity = new MarketingSecurityLayer(persistence);
@@ -66,10 +63,10 @@ const server = createServer(async (request, response) => {
       if (!recovered || recovered.decision !== "approved") throw new Error("Fresh hydration did not recover approved request");
       if (recoveredAudit.length < 2) throw new Error("Fresh hydration did not recover approval audit events");
       if (!recoveredSecurity.canExecute("launch_ads", durableRequestId)) throw new Error("Recovered approved action is not executable");
-      await persistence.cleanupE2E(durableRequestId, target);
+      await persistence.cleanupE2E(target);
       return json(response, 200, { ok: true, test: "persistence-e2e", verified: { durableRequest: true, durableDecision: true, auditEvents: recoveredAudit.length, freshHydration: true, executionBoundary: true }, cleanedUp: true });
     } catch (error) {
-      try { await persistence.cleanupE2E(requestId, target); } catch (cleanupError) { console.error("[marketing-persistence] E2E cleanup failed", cleanupError); }
+      try { await persistence.cleanupE2E(target); } catch (cleanupError) { console.error("[marketing-persistence] E2E cleanup failed", cleanupError); }
       json(response, 500, { ok: false, test: "persistence-e2e", error: error instanceof Error ? error.message : "Persistence E2E failed", cleanedUp: false });
     }
     return;
