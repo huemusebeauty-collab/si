@@ -64,6 +64,8 @@ export class MarketingSecurityLayer {
   decideApproval(requestId: string, decision: Exclude<ApprovalDecision, "pending">, actor: string): ApprovalRequest {
     const request = this.approvals.find((item) => item.requestId === requestId);
     if (!request) throw new Error("approval request not found");
+    if (request.decision !== "pending") throw new Error("approval request already decided");
+    if (!actor) throw new Error("approval decision actor is required");
     request.decision = decision;
     request.decidedAt = new Date().toISOString();
     request.decidedBy = actor;
