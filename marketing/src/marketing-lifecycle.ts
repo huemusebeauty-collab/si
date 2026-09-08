@@ -57,4 +57,10 @@ export class MarketingLifecycleService {
     const now = new Date().toISOString();
     return this.store.saveDecision({ ...current, status, decidedAt: ["approved", "rejected", "cancelled"].includes(status) ? now : current.decidedAt, executedAt: status === "executed" ? now : current.executedAt });
   }
+
+  async updateDecisionByApprovalRequest(approvalRequestId: string, status: Extract<MarketingDecisionStatus, "approved" | "rejected">): Promise<MarketingDecisionRecord | undefined> {
+    const current = this.store.listDecisions().find((item) => item.approvalRequestId === approvalRequestId);
+    if (!current) return undefined;
+    return this.updateDecision(current.decisionId, status);
+  }
 }
