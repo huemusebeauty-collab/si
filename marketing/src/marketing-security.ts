@@ -81,13 +81,8 @@ export class MarketingSecurityLayer {
       decision: "pending",
     };
     this.approvals.push(request);
-    const audit = this.recordAudit("approval", input.actor, input.target, `Approval requested for ${input.action}.`);
-    if (this.persistence) {
-      this.enqueuePersistence(async () => {
-        await this.persistence!.saveApproval(request);
-        await this.persistence!.saveAudit(audit);
-      });
-    }
+    this.recordAudit("approval", input.actor, input.target, `Approval requested for ${input.action}.`);
+    if (this.persistence) this.enqueuePersistence(() => this.persistence!.saveApproval(request));
     return request;
   }
 
@@ -99,13 +94,8 @@ export class MarketingSecurityLayer {
     request.decision = decision;
     request.decidedAt = new Date().toISOString();
     request.decidedBy = actor;
-    const audit = this.recordAudit("approval", actor, request.target, `Approval ${decision} for ${request.action}.`);
-    if (this.persistence) {
-      this.enqueuePersistence(async () => {
-        await this.persistence!.saveApproval(request);
-        await this.persistence!.saveAudit(audit);
-      });
-    }
+    this.recordAudit("approval", actor, request.target, `Approval ${decision} for ${request.action}.`);
+    if (this.persistence) this.enqueuePersistence(() => this.persistence!.saveApproval(request));
     return request;
   }
 
@@ -125,9 +115,7 @@ export class MarketingSecurityLayer {
       occurredAt: new Date().toISOString(),
     };
     this.audit.push(event);
-    if (this.persistence) {
-      this.enqueuePersistence(() => this.persistence!.saveAudit(event));
-    }
+    if (this.persistence) this.enqueuePersistence(() => this.persistence!.saveAudit(event));
     return event;
   }
 
