@@ -1,3 +1,5 @@
+import type { MarketingPersistence } from "./marketing-persistence";
+
 export type MarketingAction =
   | "publish_content"
   | "send_message"
@@ -43,6 +45,18 @@ export class MarketingSecurityLayer {
   private readonly approvals: ApprovalRequest[] = [];
   private readonly audit: AuditEvent[] = [];
 
+  constructor(private readonly persistence?: MarketingPersistence) {}
+
+  async hydrate(): Promise<void> {
+    if (!this.persistence) return;
+    const [approvals, audit] = await Promise.all([
+      this.persistence.loadApprovals(),
+      this.persistence.loadAudit(),
+    ]);
+    this.approvals.splice(0, this.approvals.length, ...approvals);
+    this.audit.splice(0, this.audit.length, ...audit);
+  }
+
   requiresApproval(action: MarketingAction): boolean {
     return SENSITIVE_ACTIONS.has(action);
   }
@@ -58,6 +72,7 @@ export class MarketingSecurityLayer {
     };
     this.approvals.push(request);
     this.recordAudit("approval", input.actor, input.target, `Approval requested for ${input.action}.`);
+    if (this.persistence) void this.persistence.saveApproval(request).catch((error) => console.error("[marketing-persistence] approval save failed", error));
     return request;
   }
 
@@ -70,6 +85,7 @@ export class MarketingSecurityLayer {
     request.decidedAt = new Date().toISOString();
     request.decidedBy = actor;
     this.recordAudit("approval", actor, request.target, `Approval ${decision} for ${request.action}.`);
+    if (this.persistence) void this.persistence.saveApproval(request).catch((error) => console.error("[marketing-persistence] approval update failed", error));
     return request;
   }
 
@@ -80,14 +96,16 @@ export class MarketingSecurityLayer {
   }
 
   recordAudit(action: AuditEvent["action"], actor: string, target: string | undefined, details: string): void {
-    this.audit.push({
+    const event: AuditEvent = {
       eventId: `audit_${Date.now()}_${this.audit.length + 1}`,
       action,
       actor,
       target,
       details,
       occurredAt: new Date().toISOString(),
-    });
+    };
+    this.audit.push(event);
+    if (this.persistence) void this.persistence.saveAudit(event).catch((error) => console.error("[marketing-persistence] audit save failed", error));
   }
 
   listApprovals(): ApprovalRequest[] {
