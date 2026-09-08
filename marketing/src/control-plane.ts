@@ -15,6 +15,7 @@ export interface ControlPlaneResult {
   confidence: number;
   requiresApproval: boolean;
   approvalRequestId?: string;
+  decisionId?: string;
 }
 
 const ACTION_KEYWORDS: Array<[MarketingAction, string[]]> = [
