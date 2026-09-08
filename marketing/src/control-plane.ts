@@ -17,22 +17,37 @@ export interface ControlPlaneResult {
   approvalRequestId?: string;
 }
 
+const ACTION_KEYWORDS: Array<[MarketingAction, string[]]> = [
+  ["contact_creator", ["creator"]],
+  ["b2b_outreach", ["b2b", "wholesale", "retail", "business opportunity"]],
+  ["launch_ads", ["ad", "ads", "advertising", "campaign"]],
+  ["reply_comment", ["reply", "comment"]],
+  ["send_message", ["message", "dm", "direct message"]],
+  ["change_budget", ["budget"]],
+  ["publish_content", ["publish", "content", "experiment", "promote", "create"]],
+];
+
+export function normalizeDirectorAction(text: string): MarketingAction | null {
+  const value = String(text ?? "").trim().toLowerCase();
+  if (!value) return null;
+  for (const [action, keywords] of ACTION_KEYWORDS) {
+    if (keywords.some((keyword) => value.includes(keyword))) return action;
+  }
+  return null;
+}
+
 export class MarketingControlPlane {
-  constructor(private readonly security = new MarketingSecurityLayer()) {}
+  constructor(private readonly security: MarketingSecurityLayer) {}
 
   prepare(action: DirectorAction, actor = "marketing-director"): ControlPlaneResult {
-    if (!action.action || !action.reason) {
-      throw new Error("Director action and reason are required");
+    if (!action.action || !action.reason) throw new Error("Director action and reason are required");
+    if (!Number.isFinite(action.confidence) || action.confidence < 0 || action.confidence > 1) {
+      throw new Error("Director confidence must be between 0 and 1");
     }
 
-    if (!action.requiresApproval && !this.security.requiresApproval(action.action)) {
-      return {
-        status: "ready",
-        action: action.action,
-        reason: action.reason,
-        confidence: action.confidence,
-        requiresApproval: false,
-      };
+    const approvalRequired = action.requiresApproval || this.security.requiresApproval(action.action);
+    if (!approvalRequired) {
+      return { status: "ready", action: action.action, reason: action.reason, confidence: action.confidence, requiresApproval: false };
     }
 
     const approval = this.security.requestApproval({
@@ -51,6 +66,20 @@ export class MarketingControlPlane {
       requiresApproval: true,
       approvalRequestId: approval.requestId,
     };
+  }
+
+  prepareFromDirector(decision: { action: string; reason: string; confidence: number; requiresApproval: boolean; target?: string }, actor = "marketing-director"): ControlPlaneResult {
+    const action = normalizeDirectorAction(decision.action);
+    if (!action) {
+      return {
+        status: "blocked",
+        action: "publish_content",
+        reason: `No executable control-plane action mapping for Director action: ${decision.action}`,
+        confidence: decision.confidence,
+        requiresApproval: false,
+      };
+    }
+    return this.prepare({ ...decision, action }, actor);
   }
 
   canExecute(action: MarketingAction, approvalRequestId?: string): boolean {
