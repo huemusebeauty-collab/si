@@ -23,7 +23,7 @@ export class MarketingControlApi {
       decisionId: `decision_${randomUUID()}`,
       action: result.data.action,
       actor: "marketing-director",
-      target: decision.target,
+      target: result.data.target,
       reason: result.data.reason,
       confidence: result.data.confidence,
       requiresApproval: result.data.requiresApproval,
