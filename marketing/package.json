@@ -10,9 +10,12 @@
     "test:control-plane": "tsx scripts/test-control-plane.ts",
     "test:execution-center": "tsx scripts/test-execution-center.ts"
   },
-  "dependencies": {},
+  "dependencies": {
+    "pg": "^8.12.0"
+  },
   "devDependencies": {
     "@types/node": "^20.14.0",
+    "@types/pg": "^8.11.10",
     "tsx": "^4.19.1",
     "typescript": "^5.5.0"
   }
