@@ -115,7 +115,7 @@ export class MarketingSecurityLayer {
     return this.approvals.some((item) => item.requestId === requestId && item.action === action && item.decision === "approved");
   }
 
-  private recordAudit(action: AuditEvent["action"], actor: string, target: string | undefined, details: string): AuditEvent {
+  recordAudit(action: AuditEvent["action"], actor: string, target: string | undefined, details: string): AuditEvent {
     const event: AuditEvent = {
       eventId: `audit_${Date.now()}_${this.audit.length + 1}`,
       action,
@@ -125,6 +125,9 @@ export class MarketingSecurityLayer {
       occurredAt: new Date().toISOString(),
     };
     this.audit.push(event);
+    if (this.persistence) {
+      this.enqueuePersistence(() => this.persistence!.saveAudit(event));
+    }
     return event;
   }
 
