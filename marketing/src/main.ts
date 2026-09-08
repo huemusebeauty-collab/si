@@ -6,6 +6,7 @@ import { MarketingControlApi } from "./marketing-control-api";
 import { MarketingHqDashboard } from "./marketing-hq-dashboard";
 import { MarketingSecurityLayer } from "./marketing-security";
 import { NeonMarketingPersistence } from "./marketing-persistence";
+import { MarketingDomainStore } from "./marketing-domain-store";
 import { dashboardHtml, loginHtml } from "./dashboard-ui";
 import { fetchCommerceIntelligence } from "./commerce-data";
 
@@ -21,6 +22,7 @@ const requireAuth = (request: import("node:http").IncomingMessage, response: imp
 const readJson = async (request: import("node:http").IncomingMessage) => { const chunks: Buffer[] = []; for await (const chunk of request) chunks.push(Buffer.from(chunk)); return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}"); };
 const persistence = (process.env.MARKETING_HQ_DATABASE_URL ?? process.env.DATABASE_URL) ? new NeonMarketingPersistence() : undefined;
 const security = new MarketingSecurityLayer(persistence);
+const domainStore = new MarketingDomainStore(persistence);
 const marketing = new MarketingControlApi(undefined, security);
 const dashboard = new MarketingHqDashboard();
 const monitor = new MarketingMonitor();
@@ -36,7 +38,8 @@ const server = createServer(async (request, response) => {
   if (method === "GET" && pathname === "/dashboard") { if (!authorized(request)) { response.statusCode = 302; response.setHeader("location", "/"); response.end(); return; } html(response, 200, dashboardHtml()); return; }
   if (!pathname.startsWith("/v1/") || !requireAuth(request, response)) return;
   if (method === "GET" && pathname === "/v1/marketing/dashboard") { const commerce = await fetchCommerceIntelligence(); if (!commerce.ok) { json(response, 503, { ok: false, dataSource: "unavailable", error: commerce.error, message: "Marketing HQ is not showing placeholder commerce numbers." }); return; } const data = commerce.data; const capturedAt = new Date().toISOString(); const evidence = [{ source: "Silku commerce backend", capturedAt, confidence: 1, evidence: `Live commerce window: ${data.windowDays} days`, lastVerifiedAt: capturedAt }, { source: "Silku inventory", capturedAt, confidence: 1, evidence: `Low/out-of-stock variants: ${data.lowStockCount}`, lastVerifiedAt: capturedAt }]; const snapshot = marketing.evaluate({ revenueTrend: data.revenueTrend, topProducts: data.topProducts.map((product) => product.productName), risingCategories: data.risingCategories, creatorOpportunities: 0, b2bOpportunities: 0, learningScore: 0.5, availableBudget: 0, analytics: { revenue: data.revenue, orders: data.orders, conversions: data.orders }, inventoryRiskProducts: data.inventoryRiskProducts.map((product) => product.name), evidence }).data!; json(response, 200, { ok: true, dataSource: "live", commerce: data, data: dashboard.build(snapshot, marketing.approvals().data ?? [], marketing.audit().data ?? []) }); return; }
-  if (method === "POST" && pathname === "/v1/control-plane/prepare") { const body = await readJson(request); if (!body?.decision) { json(response, 400, { ok: false, error: "decision is required" }); return; } const result = marketing.prepareDirectorAction(body.decision); json(response, result.ok ? 200 : 400, result); return; }
+  if (method === "GET" && pathname === "/v1/persistence/domain") { json(response, 200, { ok: true, durable: Boolean(persistence), data: domainStore.summary() }); return; }
+  if (method === "POST" && pathname === "/v1/control-plane/prepare") { const body = await readJson(request); if (!body?.decision) { json(response, 400, { ok: false, error: "decision is required" }); return; } const result = marketing.prepareDirectorAction(body.decision); return json(response, result.ok ? 200 : 400, result); }
   if (method === "POST" && pathname === "/v1/control-plane/check") { const body = await readJson(request); if (!body?.action) { json(response, 400, { ok: false, error: "action is required" }); return; } const result = marketing.executionBoundary(body.action, body.approvalRequestId); json(response, result.ok ? 200 : 403, result); return; }
   if (method === "GET" && pathname === "/v1/approvals") { json(response, 200, marketing.approvals()); return; }
   if (method === "GET" && pathname === "/v1/audit") { json(response, 200, marketing.audit()); return; }
@@ -77,7 +80,7 @@ const server = createServer(async (request, response) => {
   json(response, 404, { ok: false, error: "Not found" });
 });
 
-security.hydrate().then(() => {
+Promise.all([security.hydrate(), domainStore.hydrate()]).then(() => {
   server.listen(port, hostname, () => { console.log(`Silku Marketing HQ listening on ${hostname}:${port}`); });
 }).catch((error) => {
   console.error("[marketing-persistence] startup hydration failed", error);
