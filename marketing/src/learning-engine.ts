@@ -43,7 +43,13 @@ export class LearningEngine {
       const roas = item.spend > 0 ? item.revenue / item.spend : item.revenue > 0 ? 4 : 0;
       const conversionRate = item.clicks > 0 ? item.conversions / item.clicks : 0;
       const score = Math.min(1, roas / 4 * 0.65 + Math.min(1, conversionRate / 0.05) * 0.35);
-      const recommendation = roas >= 3 && conversionRate >= 0.03 ? "scale" : roas < 1 || (item.clicks > 100 && conversionRate < 0.01) ? "pause" : score >= 0.45 ? "iterate" : "observe";
+      const recommendation: LearningInsight["recommendation"] = roas >= 3 && conversionRate >= 0.03
+        ? "scale"
+        : roas < 1 || (item.clicks > 100 && conversionRate < 0.01)
+          ? "pause"
+          : score >= 0.45
+            ? "iterate"
+            : "observe";
       return { key, score: Number(score.toFixed(3)), recommendation, reason: `ROAS ${roas.toFixed(2)}, conversion rate ${(conversionRate * 100).toFixed(2)}%.` };
     }).sort((a, b) => b.score - a.score);
   }
