@@ -1,8 +1,9 @@
-import { MarketingDirectorContext, MarketingDecision, MarketingDirector } from "./marketing-director";
-import { NextBestActionEngine, NextBestActionInput, NextBestAction } from "./next-best-action";
-import { LearningEngine, LearningInsight } from "./learning-engine";
-import { ConversionIntelligenceEngine, ConversionInsight } from "./conversion-intelligence";
-import { AnalyticsCommandCenter, AnalyticsInput, AnalyticsSnapshot } from "./analytics-command-center";
+import type { MarketingDecision } from "./contracts";
+import { MarketingDirector, type MarketingDirectorContext } from "./marketing-director";
+import { NextBestActionEngine, type NextBestActionInput, type NextBestAction } from "./next-best-action";
+import { LearningEngine, type LearningInsight } from "./learning-engine";
+import { ConversionIntelligenceEngine, type ConversionInsight } from "./conversion-intelligence";
+import { AnalyticsCommandCenter, type AnalyticsInput, type AnalyticsSnapshot } from "./analytics-command-center";
 
 export interface MarketingIntelligenceInput extends MarketingDirectorContext {
   learningScore: number;
