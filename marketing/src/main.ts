@@ -24,7 +24,7 @@ const readJson = async (request: import("node:http").IncomingMessage) => { const
 const persistence = (process.env.MARKETING_HQ_DATABASE_URL ?? process.env.DATABASE_URL) ? new NeonMarketingPersistence() : undefined;
 const security = new MarketingSecurityLayer(persistence);
 const domainStore = new MarketingDomainStore(persistence);
-const marketing = new MarketingControlApi(undefined, security);
+const marketing = new MarketingControlApi(undefined, security, domainStore);
 const dashboard = new MarketingHqDashboard();
 const monitor = new MarketingMonitor();
 const fieldForce = new FieldForceApi();
@@ -41,7 +41,7 @@ const server = createServer(async (request, response) => {
   if (method === "GET" && pathname === "/v1/marketing/dashboard") { const commerce = await fetchCommerceIntelligence(); if (!commerce.ok) { json(response, 503, { ok: false, dataSource: "unavailable", error: commerce.error, message: "Marketing HQ is not showing placeholder commerce numbers." }); return; } const data = commerce.data; const capturedAt = new Date().toISOString(); const evidence = [{ source: "Silku commerce backend", capturedAt, confidence: 1, evidence: `Live commerce window: ${data.windowDays} days`, lastVerifiedAt: capturedAt }, { source: "Silku inventory", capturedAt, confidence: 1, evidence: `Low/out-of-stock variants: ${data.lowStockCount}`, lastVerifiedAt: capturedAt }]; const snapshot = marketing.evaluate({ revenueTrend: data.revenueTrend, topProducts: data.topProducts.map((product) => product.productName), risingCategories: data.risingCategories, creatorOpportunities: 0, b2bOpportunities: 0, learningScore: 0.5, availableBudget: 0, analytics: { revenue: data.revenue, orders: data.orders, conversions: data.orders }, inventoryRiskProducts: data.inventoryRiskProducts.map((product) => product.name), evidence }).data!; json(response, 200, { ok: true, dataSource: "live", commerce: data, data: dashboard.build(snapshot, marketing.approvals().data ?? [], marketing.audit().data ?? []) }); return; }
   if (method === "GET" && pathname === "/v1/persistence/domain") { json(response, 200, { ok: true, durable: Boolean(persistence), data: domainStore.summary() }); return; }
   if (method === "POST" && pathname === "/v1/persistence/restart-recovery") { if (!persistence) { json(response, 503, { ok: false, error: "Persistence is not configured" }); return; } try { json(response, 200, await verifyRestartRecovery(persistence)); } catch (error) { json(response, 500, { ok: false, test: "restart-recovery", error: error instanceof Error ? error.message : "Restart recovery failed", cleanedUp: true }); } return; }
-  if (method === "POST" && pathname === "/v1/control-plane/prepare") { const body = await readJson(request); if (!body?.decision) { json(response, 400, { ok: false, error: "decision is required" }); return; } const result = marketing.prepareDirectorAction(body.decision); return json(response, result.ok ? 200 : 400, result); }
+  if (method === "POST" && pathname === "/v1/control-plane/prepare") { const body = await readJson(request); if (!body?.decision) { json(response, 400, { ok: false, error: "decision is required" }); return; } const result = await marketing.prepareDirectorActionDurable(body.decision); return json(response, result.ok ? 200 : 400, result); }
   if (method === "POST" && pathname === "/v1/control-plane/check") { const body = await readJson(request); if (!body?.action) { json(response, 400, { ok: false, error: "action is required" }); return; } const result = marketing.executionBoundary(body.action, body.approvalRequestId); json(response, result.ok ? 200 : 403, result); return; }
   if (method === "GET" && pathname === "/v1/approvals") { json(response, 200, marketing.approvals()); return; }
   if (method === "GET" && pathname === "/v1/audit") { json(response, 200, marketing.audit()); return; }
@@ -75,9 +75,9 @@ const server = createServer(async (request, response) => {
     }
     return;
   }
-  if (method === "POST" && pathname === "/v1/approvals") { json(response, 201, marketing.requestApproval(await readJson(request))); return; }
+  if (method === "POST" && pathname === "/v1/approvals") { json(response, 201, await marketing.requestApprovalDurable(await readJson(request))); return; }
   const approvalMatch = pathname.match(/^\/v1\/approvals\/([^/]+)\/(approve|reject)$/);
-  if (method === "POST" && approvalMatch) { const body = await readJson(request); const result = approvalMatch[2] === "approve" ? marketing.approve(approvalMatch[1], body) : marketing.reject(approvalMatch[1], body); json(response, result.ok ? 200 : 404, result); return; }
+  if (method === "POST" && approvalMatch) { const body = await readJson(request); const result = approvalMatch[2] === "approve" ? await marketing.decideApprovalDurable(approvalMatch[1], "approved", body.actor ?? "marketing-hq") : await marketing.decideApprovalDurable(approvalMatch[1], "rejected", body.actor ?? "marketing-hq"); json(response, result.ok ? 200 : 404, result); return; }
   json(response, 404, { ok: false, error: "Not found" });
 });
 
