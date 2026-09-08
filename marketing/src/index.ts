@@ -23,7 +23,13 @@ export * from "./marketing-security";
 export * from "./marketing-control-api";
 export * from "./marketing-hq-dashboard";
 export * from "./marketing-hq-server";
-export * from "./marketing-scheduler";
+export {
+  MarketingScheduler,
+} from "./marketing-scheduler";
+export type {
+  MarketingJob,
+  SchedulerAlert,
+} from "./marketing-scheduler";
 export * from "./monitoring";
 export * from "./platform-adapters";
 export * from "./social-community-agent";
