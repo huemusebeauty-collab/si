@@ -33,32 +33,33 @@ export class MarketingDomainStore {
   }
 
   async saveContent(item: MarketingContent): Promise<MarketingContent> {
-    this.content.set(item.contentId, item);
     if (this.persistence) await this.persistence.saveContent(item);
+    this.content.set(item.contentId, item);
     return item;
   }
 
   async saveCampaign(item: MarketingCampaign): Promise<MarketingCampaign> {
-    this.campaigns.set(item.campaignId, item);
     if (this.persistence) await this.persistence.saveCampaign(item);
+    this.campaigns.set(item.campaignId, item);
     return item;
   }
 
   async saveJob(item: MarketingJob): Promise<MarketingJob> {
-    this.jobs.set(item.jobId, item);
     if (this.persistence) await this.persistence.saveJob(item);
+    this.jobs.set(item.jobId, item);
     return item;
   }
 
   async saveDecision(item: MarketingDecisionRecord): Promise<MarketingDecisionRecord> {
-    this.decisions.set(item.decisionId, item);
     if (this.persistence) await this.persistence.saveDecision(item);
+    this.decisions.set(item.decisionId, item);
     return item;
   }
 
   getContent(contentId: string): MarketingContent | undefined { return this.content.get(contentId); }
   getCampaign(campaignId: string): MarketingCampaign | undefined { return this.campaigns.get(campaignId); }
   getJob(jobId: string): MarketingJob | undefined { return this.jobs.get(jobId); }
+  getJobByKey(jobKey: string): MarketingJob | undefined { return [...this.jobs.values()].find((item) => item.jobKey === jobKey); }
   getDecision(decisionId: string): MarketingDecisionRecord | undefined { return this.decisions.get(decisionId); }
 
   listContent(): MarketingContent[] { return [...this.content.values()]; }
