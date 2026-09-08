@@ -4,7 +4,8 @@ export * from "./market-intelligence";
 export * from "./competitor-radar";
 export * from "./creator-collaboration";
 export * from "./b2b-opportunity-radar";
-export * from "./content-campaign-engine";
+export { ContentCampaignEngine } from "./content-campaign-engine";
+export type { CampaignBrief, ContentVariant } from "./content-campaign-engine";
 export { ContentIntelligenceEngine } from "./content-intelligence";
 export type { ContentObjective, ContentSource, ContentPlan } from "./content-intelligence";
 export * from "./growth-intelligence";
@@ -27,7 +28,6 @@ export {
   MarketingScheduler,
 } from "./marketing-scheduler";
 export type {
-  MarketingJob,
   SchedulerAlert,
 } from "./marketing-scheduler";
 export * from "./monitoring";
@@ -42,3 +42,4 @@ export * from "./field-force-policy";
 export * from "./field-force-service";
 export * from "./field-force-api";
 export * from "./field-force-router";
+export * from "./marketing-persistence";
