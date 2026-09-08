@@ -8,7 +8,7 @@ import { dashboardHtml, loginHtml } from "./dashboard-ui";
 
 const startedAt = new Date().toISOString();
 const port = Number(process.env.PORT ?? 10000);
-const hostname = process.env.HOSTNAME ?? "0.0.0.0";
+const hostname = "0.0.0.0";
 const fieldForce = new FieldForceApi();
 const monitor = new MarketingMonitor();
 const marketing = new MarketingControlApi();
