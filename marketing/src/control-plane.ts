@@ -14,6 +14,7 @@ export interface ControlPlaneResult {
   reason: string;
   confidence: number;
   requiresApproval: boolean;
+  target?: string;
   approvalRequestId?: string;
   decisionId?: string;
 }
@@ -42,14 +43,14 @@ export class MarketingControlPlane {
     if (!action.action || !action.reason) throw new Error("Director action and reason are required");
     if (!Number.isFinite(action.confidence) || action.confidence < 0 || action.confidence > 1) throw new Error("Director confidence must be between 0 and 1");
     const approvalRequired = action.requiresApproval || this.security.requiresApproval(action.action);
-    if (!approvalRequired) return { status: "ready", action: action.action, reason: action.reason, confidence: action.confidence, requiresApproval: false };
+    if (!approvalRequired) return { status: "ready", action: action.action, reason: action.reason, confidence: action.confidence, requiresApproval: false, target: action.target };
     const approval = this.security.requestApproval({ requestId: `approval_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, action: action.action, actor, target: action.target, reason: action.reason });
-    return { status: "approval_required", action: action.action, reason: action.reason, confidence: action.confidence, requiresApproval: true, approvalRequestId: approval.requestId };
+    return { status: "approval_required", action: action.action, reason: action.reason, confidence: action.confidence, requiresApproval: true, target: action.target, approvalRequestId: approval.requestId };
   }
 
   prepareFromDirector(decision: { action: string; reason: string; confidence: number; requiresApproval: boolean; target?: string }, actor = "marketing-director"): ControlPlaneResult {
     const action = normalizeDirectorAction(decision.action);
-    if (!action) return { status: "blocked", action: "publish_content", reason: `No executable control-plane action mapping for Director action: ${decision.action}`, confidence: decision.confidence, requiresApproval: false };
+    if (!action) return { status: "blocked", action: "publish_content", reason: `No executable control-plane action mapping for Director action: ${decision.action}`, confidence: decision.confidence, requiresApproval: false, target: decision.target };
     return this.prepare({ action, reason: decision.reason, confidence: decision.confidence, requiresApproval: decision.requiresApproval, target: decision.target }, actor);
   }
 
