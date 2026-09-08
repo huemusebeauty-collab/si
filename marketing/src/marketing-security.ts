@@ -58,31 +58,24 @@ export class MarketingSecurityLayer {
     this.audit.splice(0, this.audit.length, ...audit);
   }
 
-  async flushPersistence(): Promise<void> {
-    await this.persistenceQueue;
-  }
+  async flushPersistence(): Promise<void> { await this.persistenceQueue; }
 
   private enqueuePersistence(work: () => Promise<void>): void {
     this.persistenceQueue = this.persistenceQueue.then(work);
     void this.persistenceQueue.catch((error) => console.error("[marketing-persistence] write failed", error));
   }
 
-  requiresApproval(action: MarketingAction): boolean {
-    return SENSITIVE_ACTIONS.has(action);
-  }
+  requiresApproval(action: MarketingAction): boolean { return SENSITIVE_ACTIONS.has(action); }
 
   requestApproval(input: Omit<ApprovalRequest, "createdAt" | "decision">): ApprovalRequest {
-    if (!input.requestId || !input.actor || !input.action || !input.reason) {
-      throw new Error("requestId, actor, action and reason are required");
-    }
-    const request: ApprovalRequest = {
-      ...input,
-      createdAt: new Date().toISOString(),
-      decision: "pending",
-    };
+    if (!input.requestId || !input.actor || !input.action || !input.reason) throw new Error("requestId, actor, action and reason are required");
+    const request: ApprovalRequest = { ...input, createdAt: new Date().toISOString(), decision: "pending" };
     this.approvals.push(request);
+    this.enqueuePersistence(async () => {
+      if (!this.persistence) return;
+      await this.persistence.saveApproval(request);
+    });
     this.recordAudit("approval", input.actor, input.target, `Approval requested for ${input.action}.`);
-    if (this.persistence) this.enqueuePersistence(() => this.persistence!.saveApproval(request));
     return request;
   }
 
@@ -94,8 +87,11 @@ export class MarketingSecurityLayer {
     request.decision = decision;
     request.decidedAt = new Date().toISOString();
     request.decidedBy = actor;
+    this.enqueuePersistence(async () => {
+      if (!this.persistence) return;
+      await this.persistence.saveApproval(request);
+    });
     this.recordAudit("approval", actor, request.target, `Approval ${decision} for ${request.action}.`);
-    if (this.persistence) this.enqueuePersistence(() => this.persistence!.saveApproval(request));
     return request;
   }
 
@@ -106,24 +102,12 @@ export class MarketingSecurityLayer {
   }
 
   recordAudit(action: AuditEvent["action"], actor: string, target: string | undefined, details: string): AuditEvent {
-    const event: AuditEvent = {
-      eventId: `audit_${Date.now()}_${this.audit.length + 1}`,
-      action,
-      actor,
-      target,
-      details,
-      occurredAt: new Date().toISOString(),
-    };
+    const event: AuditEvent = { eventId: `audit_${Date.now()}_${this.audit.length + 1}`, action, actor, target, details, occurredAt: new Date().toISOString() };
     this.audit.push(event);
     if (this.persistence) this.enqueuePersistence(() => this.persistence!.saveAudit(event));
     return event;
   }
 
-  listApprovals(): ApprovalRequest[] {
-    return [...this.approvals];
-  }
-
-  listAudit(): AuditEvent[] {
-    return [...this.audit];
-  }
+  listApprovals(): ApprovalRequest[] { return [...this.approvals]; }
+  listAudit(): AuditEvent[] { return [...this.audit]; }
 }
