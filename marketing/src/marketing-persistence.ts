@@ -6,6 +6,7 @@ export interface MarketingPersistence {
   loadAudit(): Promise<AuditEvent[]>;
   saveApproval(request: ApprovalRequest): Promise<void>;
   saveAudit(event: AuditEvent): Promise<void>;
+  cleanupE2E(requestId: string, target: string): Promise<void>;
 }
 
 export class NeonMarketingPersistence implements MarketingPersistence {
@@ -79,5 +80,19 @@ export class NeonMarketingPersistence implements MarketingPersistence {
       [event.eventId, "approval", undefined, event.action, event.actor,
         JSON.stringify({ message: event.details, target: event.target ?? null }), event.occurredAt],
     ).then(() => undefined));
+  }
+
+  async cleanupE2E(requestId: string, target: string): Promise<void> {
+    await this.withClient(async (client) => {
+      await client.query("BEGIN");
+      try {
+        await client.query("DELETE FROM marketing_hq_audit_events WHERE details->>'target' = $1", [target]);
+        await client.query("DELETE FROM marketing_hq_approvals WHERE request_id = $1", [requestId]);
+        await client.query("COMMIT");
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      }
+    });
   }
 }
