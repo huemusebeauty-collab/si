@@ -15,7 +15,7 @@ export default () => ({
 
   jwt: {
     secret: process.env.JWT_SECRET,
-    accessTokenTtl: "15m", // Sprint 3.3 — Authentication Foundation
+    accessTokenTtl: "15m",
     refreshTokenTtl: "30d",
   },
 
@@ -31,25 +31,18 @@ export default () => ({
   },
 
   cors: {
-    // Sprint 3.7 — Security: no wildcard origin; frontend dev server only
-    // in Sprint 3 (no deployed origin exists yet — Sprint 3 OUT OF SCOPE
-    // excludes production deployment).
-    origin: process.env.NODE_ENV === "production" ? [] : ["http://localhost:3000"],
+    // Phase 3A — allow only the real storefront origins to send tracking events.
+    origin:
+      process.env.NODE_ENV === "production"
+        ? ["https://silku.in", "https://www.silku.in"]
+        : ["http://localhost:3000"],
   },
 
   rateLimit: {
-    // Phase 8 §7 / Phase 16 §16.14 — applied to auth, search, checkout
-    // endpoints specifically (see ThrottlerGuard usage per-controller),
-    // this is the default/global fallback.
     ttlMs: 60_000,
     limit: 100,
   },
 
-  // Sprint 5.9 — Secrets & Configuration: every third-party provider
-  // selected here, config-driven, defaulting to "mock" everywhere since
-  // live credentials are out of scope this sprint. Changing a provider
-  // is a config change only — no code change, per Sprint 5.1's
-  // provider-abstraction requirement.
   payment: {
     provider: process.env.PAYMENT_PROVIDER ?? "mock",
     stripe: {
