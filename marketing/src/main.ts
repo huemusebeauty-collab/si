@@ -7,6 +7,7 @@ import { MarketingHqDashboard } from "./marketing-hq-dashboard";
 import { MarketingSecurityLayer } from "./marketing-security";
 import { NeonMarketingPersistence } from "./marketing-persistence";
 import { MarketingDomainStore } from "./marketing-domain-store";
+import { MarketingDomainApi, DomainKind } from "./marketing-domain-api";
 import { verifyRestartRecovery } from "./restart-recovery";
 import { dashboardHtml, loginHtml } from "./dashboard-ui";
 import { fetchCommerceIntelligence } from "./commerce-data";
@@ -24,10 +25,12 @@ const readJson = async (request: import("node:http").IncomingMessage) => { const
 const persistence = (process.env.MARKETING_HQ_DATABASE_URL ?? process.env.DATABASE_URL) ? new NeonMarketingPersistence() : undefined;
 const security = new MarketingSecurityLayer(persistence);
 const domainStore = new MarketingDomainStore(persistence);
+const domainApi = new MarketingDomainApi(domainStore);
 const marketing = new MarketingControlApi(undefined, security, domainStore);
 const dashboard = new MarketingHqDashboard();
 const monitor = new MarketingMonitor();
 const fieldForce = new FieldForceApi();
+const domainKinds = new Set<DomainKind>(["content", "campaigns", "jobs", "decisions"]);
 
 const server = createServer(async (request, response) => {
   const method = request.method ?? "GET";
@@ -43,6 +46,15 @@ const server = createServer(async (request, response) => {
   if (method === "POST" && pathname === "/v1/persistence/restart-recovery") { if (!persistence) { json(response, 503, { ok: false, error: "Persistence is not configured" }); return; } try { json(response, 200, await verifyRestartRecovery(persistence)); } catch (error) { json(response, 500, { ok: false, test: "restart-recovery", error: error instanceof Error ? error.message : "Restart recovery failed", cleanedUp: true }); } return; }
   if (method === "POST" && pathname === "/v1/control-plane/prepare") { const body = await readJson(request); if (!body?.decision) { json(response, 400, { ok: false, error: "decision is required" }); return; } const result = await marketing.prepareDirectorActionDurable(body.decision); return json(response, result.ok ? 200 : 400, result); }
   if (method === "POST" && pathname === "/v1/control-plane/check") { const body = await readJson(request); if (!body?.action) { json(response, 400, { ok: false, error: "action is required" }); return; } const result = marketing.executionBoundary(body.action, body.approvalRequestId); json(response, result.ok ? 200 : 403, result); return; }
+  const domainMatch = pathname.match(/^\/v1\/domain\/([^/]+)(?:\/([^/]+))?(?:\/status)?$/);
+  if (domainMatch && domainKinds.has(domainMatch[1] as DomainKind)) {
+    const kind = domainMatch[1] as DomainKind;
+    const id = domainMatch[2];
+    if (method === "GET" && !id) { json(response, 200, domainApi.list(kind)); return; }
+    if (method === "GET" && id) { const result = domainApi.get(kind, id); json(response, result.ok ? 200 : 404, result); return; }
+    if (method === "POST" && !id) { const result = await domainApi.create(kind, await readJson(request)); json(response, result.ok ? 201 : 400, result); return; }
+    if (method === "POST" && id && pathname.endsWith("/status")) { const body = await readJson(request); if (typeof body.status !== "string") { json(response, 400, { ok: false, error: "status is required" }); return; } const result = await domainApi.updateStatus(kind, id, body.status, typeof body.errorMessage === "string" ? body.errorMessage : undefined); json(response, result.ok ? 200 : 404, result); return; }
+  }
   if (method === "GET" && pathname === "/v1/approvals") { json(response, 200, marketing.approvals()); return; }
   if (method === "GET" && pathname === "/v1/audit") { json(response, 200, marketing.audit()); return; }
   if (method === "GET" && pathname === "/v1/monitoring/status") { json(response, 200, monitor.status()); return; }
