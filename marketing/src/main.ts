@@ -1,7 +1,10 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { randomBytes, timingSafeEqual } from "node:crypto";
 import { FieldForceApi, type CheckInRequest, type RegisterDeviceRequest } from "./field-force-api";
 import { MarketingMonitor } from "./monitoring";
 import { MarketingControlApi } from "./marketing-control-api";
+import { MarketingHqDashboard } from "./marketing-hq-dashboard";
+import { dashboardHtml, loginHtml } from "./dashboard-ui";
 
 const startedAt = new Date().toISOString();
 const port = Number(process.env.PORT ?? 10000);
@@ -9,10 +12,29 @@ const hostname = process.env.HOSTNAME ?? "0.0.0.0";
 const fieldForce = new FieldForceApi();
 const monitor = new MarketingMonitor();
 const marketing = new MarketingControlApi();
+const dashboard = new MarketingHqDashboard();
+const sessionToken = randomBytes(32).toString("hex");
 
 function json(response: ServerResponse, statusCode: number, body: unknown) {
   response.writeHead(statusCode, { "content-type": "application/json" });
   response.end(JSON.stringify(body));
+}
+
+function authorized(request: IncomingMessage): boolean {
+  const cookie = request.headers.cookie ?? "";
+  return cookie.split(";").some((item) => {
+    const [key, value] = item.trim().split("=");
+    if (key !== "silku_hq_session" || !value) return false;
+    const a = Buffer.from(value);
+    const b = Buffer.from(sessionToken);
+    return a.length === b.length && timingSafeEqual(a, b);
+  });
+}
+
+function requireAuth(request: IncomingMessage, response: ServerResponse): boolean {
+  if (authorized(request)) return true;
+  json(response, 401, { ok: false, error: "Marketing HQ authentication required" });
+  return false;
 }
 
 async function readJson(request: IncomingMessage): Promise<unknown> {
@@ -39,8 +61,60 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+    if (method === "GET" && url.pathname === "/") {
+      response.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
+      response.end(authorized(request) ? dashboardHtml() : loginHtml());
+      return;
+    }
+
+    if (method === "POST" && url.pathname === "/v1/hq/login") {
+      const configuredKey = process.env.MARKETING_HQ_ACCESS_KEY;
+      const body = (await readJson(request)) as { key?: string };
+      if (!configuredKey || !body.key) {
+        json(response, 503, { ok: false, error: "HQ access is not configured" });
+        return;
+      }
+      const a = Buffer.from(body.key);
+      const b = Buffer.from(configuredKey);
+      if (a.length !== b.length || !timingSafeEqual(a, b)) {
+        json(response, 401, { ok: false, error: "Invalid HQ access key" });
+        return;
+      }
+      response.writeHead(200, { "content-type": "application/json", "set-cookie": `silku_hq_session=${sessionToken}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=28800`, "cache-control": "no-store" });
+      response.end(JSON.stringify({ ok: true }));
+      return;
+    }
+
+    if (method === "GET" && url.pathname === "/dashboard") {
+      if (!authorized(request)) {
+        response.writeHead(302, { location: "/" });
+        response.end();
+        return;
+      }
+      response.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
+      response.end(dashboardHtml());
+      return;
+    }
+
+    if (url.pathname.startsWith("/v1/") && !requireAuth(request, response)) return;
+
     if (method === "GET" && url.pathname === "/v1/marketing/health") {
       json(response, 200, marketing.health());
+      return;
+    }
+
+    if (method === "GET" && url.pathname === "/v1/marketing/dashboard") {
+      const snapshot = marketing.evaluate({
+        revenueTrend: "flat",
+        topProducts: ["Strongest product"],
+        risingCategories: [],
+        creatorOpportunities: 0,
+        b2bOpportunities: 0,
+        learningScore: 0.5,
+        availableBudget: 0,
+        analytics: { revenue: 0, orders: 0, conversions: 0 },
+      }).data!;
+      json(response, 200, { ok: true, data: dashboard.build(snapshot, marketing.approvals().data ?? [], marketing.audit().data ?? []) });
       return;
     }
 
