@@ -1,6 +1,6 @@
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { createServer } from "node:http";
 import { randomBytes, timingSafeEqual } from "node:crypto";
-import { FieldForceApi, type CheckInRequest, type RegisterDeviceRequest } from "./field-force-api";
+import { FieldForceApi } from "./field-force-api";
 import { MarketingMonitor } from "./monitoring";
 import { MarketingControlApi } from "./marketing-control-api";
 import { MarketingHqDashboard } from "./marketing-hq-dashboard";
@@ -10,264 +10,170 @@ import { fetchCommerceIntelligence } from "./commerce-data";
 const startedAt = new Date().toISOString();
 const port = Number(process.env.PORT ?? 10000);
 const hostname = "0.0.0.0";
-const fieldForce = new FieldForceApi();
-const monitor = new MarketingMonitor();
-const marketing = new MarketingControlApi();
-const dashboard = new MarketingHqDashboard();
 const sessionToken = randomBytes(32).toString("hex");
 
-function json(response: ServerResponse, statusCode: number, body: unknown) {
-  response.writeHead(statusCode, { "content-type": "application/json" });
+const json = (response: import("node:http").ServerResponse, status: number, body: unknown) => {
+  response.statusCode = status;
+  response.setHeader("content-type", "application/json; charset=utf-8");
   response.end(JSON.stringify(body));
-}
+};
 
-function authorized(request: IncomingMessage): boolean {
-  const cookie = request.headers.cookie ?? "";
-  return cookie.split(";").some((item) => {
-    const [key, value] = item.trim().split("=");
-    if (key !== "silku_hq_session" || !value) return false;
-    const a = Buffer.from(value);
-    const b = Buffer.from(sessionToken);
-    return a.length === b.length && timingSafeEqual(a, b);
-  });
-}
+const html = (response: import("node:http").ServerResponse, status: number, body: string) => {
+  response.statusCode = status;
+  response.setHeader("content-type", "text/html; charset=utf-8");
+  response.end(body);
+};
 
-function requireAuth(request: IncomingMessage, response: ServerResponse): boolean {
+const parseCookies = (value: string | undefined): Record<string, string> => {
+  if (!value) return {};
+  return Object.fromEntries(value.split(";").map((part) => part.trim().split("=")).filter(([key, val]) => key && val).map(([key, val]) => [key, decodeURIComponent(val)]));
+};
+
+const authorized = (request: import("node:http").IncomingMessage): boolean => {
+  const token = parseCookies(request.headers.cookie).silku_hq_session;
+  if (!token) return false;
+  const expected = Buffer.from(sessionToken);
+  const actual = Buffer.from(token);
+  return expected.length === actual.length && timingSafeEqual(expected, actual);
+};
+
+const requireAuth = (request: import("node:http").IncomingMessage, response: import("node:http").ServerResponse): boolean => {
   if (authorized(request)) return true;
-  json(response, 401, { ok: false, error: "Marketing HQ authentication required" });
+  json(response, 401, { ok: false, error: "Unauthorized" });
   return false;
-}
+};
 
-async function readJson(request: IncomingMessage): Promise<unknown> {
-  const chunks: Buffer[] = [];
-  for await (const chunk of request) chunks.push(Buffer.from(chunk));
-  if (!chunks.length) return {};
-  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
-}
+const marketing = new MarketingControlApi();
+const dashboard = new MarketingHqDashboard();
+const monitor = new MarketingMonitor();
+const fieldForce = new FieldForceApi();
 
 const server = createServer(async (request, response) => {
-  try {
-    const method = request.method ?? "GET";
-    const url = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
+  const method = request.method ?? "GET";
+  const url = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
 
-    if (method === "GET" && (url.pathname === "/health" || url.pathname === "/v1/health")) {
-      json(response, 200, {
-        ok: true,
-        service: "silku-marketing-hq",
-        status: "healthy",
-        startedAt,
-        uptimeSeconds: Math.floor(process.uptime()),
-        timestamp: new Date().toISOString(),
-      });
-      return;
-    }
-
-    if (method === "GET" && url.pathname === "/") {
-      response.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
-      response.end(authorized(request) ? dashboardHtml() : loginHtml());
-      return;
-    }
-
-    if (method === "POST" && url.pathname === "/v1/hq/login") {
-      const configuredKey = process.env.MARKETING_HQ_ACCESS_KEY ?? process.env.MARKETING_HQ_ADMIN_TOKEN;
-      const body = (await readJson(request)) as { key?: string };
-      if (!configuredKey || !body.key) {
-        json(response, 503, { ok: false, error: "HQ access is not configured" });
-        return;
-      }
-      const a = Buffer.from(body.key);
-      const b = Buffer.from(configuredKey);
-      if (a.length !== b.length || !timingSafeEqual(a, b)) {
-        json(response, 401, { ok: false, error: "Invalid HQ access key" });
-        return;
-      }
-      response.writeHead(200, { "content-type": "application/json", "set-cookie": `silku_hq_session=${sessionToken}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=28800`, "cache-control": "no-store" });
-      response.end(JSON.stringify({ ok: true }));
-      return;
-    }
-
-    if (method === "GET" && url.pathname === "/dashboard") {
-      if (!authorized(request)) {
-        response.writeHead(302, { location: "/" });
-        response.end();
-        return;
-      }
-      response.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
-      response.end(dashboardHtml());
-      return;
-    }
-
-    if (url.pathname.startsWith("/v1/") && !requireAuth(request, response)) return;
-
-    if (method === "GET" && url.pathname === "/v1/marketing/health") {
-      json(response, 200, marketing.health());
-      return;
-    }
-
-    if (method === "GET" && url.pathname === "/v1/marketing/dashboard") {
-      const commerce = await fetchCommerceIntelligence();
-      if (!commerce.ok) {
-        json(response, 503, {
-          ok: false,
-          dataSource: "unavailable",
-          error: commerce.error,
-          message: "Marketing HQ is not showing placeholder commerce numbers.",
-        });
-        return;
-      }
-
-      const data = commerce.data;
-      const snapshot = marketing.evaluate({
-        revenueTrend: data.revenueTrend,
-        topProducts: data.topProducts.map((product) => product.productName),
-        risingCategories: data.risingCategories,
-        creatorOpportunities: 0,
-        b2bOpportunities: 0,
-        learningScore: 0.5,
-        availableBudget: 0,
-        analytics: {
-          revenue: data.revenue,
-          orders: data.orders,
-          conversions: data.orders,
-        },
-        inventoryRiskProducts: data.inventoryRiskProducts.map((product) => product.name),
-        evidence: [`Live commerce window: ${data.windowDays} days`, `Low/out-of-stock variants: ${data.lowStockCount}`],
-      }).data!;
-
-      json(response, 200, {
-        ok: true,
-        dataSource: "live",
-        commerce: data,
-        data: dashboard.build(snapshot, marketing.approvals().data ?? [], marketing.audit().data ?? []),
-      });
-      return;
-    }
-
-    if (method === "POST" && url.pathname === "/v1/marketing/evaluate") {
-      json(response, 200, marketing.evaluate((await readJson(request)) as any));
-      return;
-    }
-
-    if (method === "GET" && url.pathname === "/v1/marketing/approvals") {
-      json(response, 200, marketing.approvals());
-      return;
-    }
-
-    if (method === "POST" && url.pathname === "/v1/marketing/approvals") {
-      const body = (await readJson(request)) as { action: any; actor?: string; reason?: string; target?: string };
-      if (!body.action || !body.actor || !body.reason) {
-        json(response, 400, { ok: false, error: "action, actor and reason are required" });
-        return;
-      }
-      json(response, 201, marketing.requestApproval(body.action, body.actor, body.reason, body.target));
-      return;
-    }
-
-    const approvalMatch = url.pathname.match(/^\/v1\/marketing\/approvals\/([^/]+)\/(approve|reject)$/);
-    if (method === "POST" && approvalMatch) {
-      const body = (await readJson(request)) as { actor?: string };
-      if (!body.actor) {
-        json(response, 400, { ok: false, error: "actor is required" });
-        return;
-      }
-      json(response, 200, marketing.decideApproval(decodeURIComponent(approvalMatch[1]), approvalMatch[2] === "approve" ? "approved" : "rejected", body.actor));
-      return;
-    }
-
-    if (method === "GET" && url.pathname === "/v1/marketing/audit") {
-      json(response, 200, marketing.audit());
-      return;
-    }
-
-    if (method === "GET" && url.pathname === "/v1/monitoring/status") {
-      json(response, 200, { ok: true, ...monitor.inspect() });
-      return;
-    }
-
-    if (method === "POST" && url.pathname === "/v1/monitoring/jobs") {
-      const body = (await readJson(request)) as { jobKey?: string; expectedStartAt?: string; maxRetries?: number };
-      if (!body.jobKey) {
-        json(response, 400, { ok: false, error: "jobKey is required" });
-        return;
-      }
-      json(response, 201, { ok: true, job: monitor.register(body.jobKey, body.expectedStartAt, body.maxRetries) });
-      return;
-    }
-
-    const jobActionMatch = url.pathname.match(/^\/v1\/monitoring\/jobs\/([^/]+)\/(running|succeeded|failed)$/);
-    if (method === "POST" && jobActionMatch) {
-      const jobKey = decodeURIComponent(jobActionMatch[1]);
-      const action = jobActionMatch[2];
-      let job;
-      if (action === "running") job = monitor.markRunning(jobKey);
-      else if (action === "succeeded") job = monitor.markSucceeded(jobKey);
-      else {
-        const body = (await readJson(request)) as { errorCode?: string; errorMessage?: string };
-        job = monitor.markFailed(jobKey, body.errorCode ?? "JOB_FAILED", body.errorMessage ?? "Marketing job failed");
-      }
-      if (!job) {
-        json(response, 404, { ok: false, error: "Job not found" });
-        return;
-      }
-      json(response, 200, { ok: true, job });
-      return;
-    }
-
-    if (method === "POST" && url.pathname === "/v1/field-force/devices") {
-      const body = (await readJson(request)) as RegisterDeviceRequest;
-      if (!body.employee?.employeeId || !body.deviceId) {
-        json(response, 400, { ok: false, error: "employee and deviceId are required" });
-        return;
-      }
-      json(response, 201, { ok: true, registration: fieldForce.registerDevice(body) });
-      return;
-    }
-
-    const permissionMatch = url.pathname.match(/^\/v1\/field-force\/devices\/([^/]+)\/permissions$/);
-    if (method === "GET" && permissionMatch) {
-      json(response, 200, { ok: true, permissions: fieldForce.getPermissionStatus(permissionMatch[1]) });
-      return;
-    }
-
-    const trackingMatch = url.pathname.match(/^\/v1\/field-force\/devices\/([^/]+)\/location-tracking$/);
-    if (method === "GET" && trackingMatch) {
-      json(response, 200, { ok: true, deviceId: trackingMatch[1], allowed: fieldForce.canTrackLocation(trackingMatch[1]) });
-      return;
-    }
-
-    if (method === "POST" && url.pathname === "/v1/field-force/visits/check-in") {
-      const body = (await readJson(request)) as CheckInRequest;
-      if (!body.employeeId || !body.clientId) {
-        json(response, 400, { ok: false, error: "employeeId and clientId are required" });
-        return;
-      }
-      json(response, 201, { ok: true, visit: fieldForce.checkIn(body) });
-      return;
-    }
-
-    if (method === "POST" && url.pathname === "/v1/field-force/visits/check-out") {
-      const body = (await readJson(request)) as { employeeId?: string; clientId?: string };
-      if (!body.employeeId || !body.clientId) {
-        json(response, 400, { ok: false, error: "employeeId and clientId are required" });
-        return;
-      }
-      const visit = fieldForce.checkOut(body.employeeId, body.clientId);
-      if (!visit) {
-        json(response, 404, { ok: false, error: "Active visit not found" });
-        return;
-      }
-      json(response, 200, { ok: true, visit });
-      return;
-    }
-
-    json(response, 404, { ok: false, error: "Not Found" });
-  } catch (error) {
-    console.error("Marketing HQ request failed", error);
-    json(response, 400, { ok: false, error: "Invalid request" });
+  if (method === "GET" && (url.pathname === "/health" || url.pathname === "/v1/health")) {
+    json(response, 200, { ok: true, service: "silku-marketing-hq", startedAt });
+    return;
   }
-});
 
-setInterval(() => monitor.inspect(), 60_000).unref();
+  if (method === "GET" && url.pathname === "/") {
+    html(response, 200, authorized(request) ? dashboardHtml() : loginHtml());
+    return;
+  }
+
+  if (method === "POST" && url.pathname === "/v1/hq/login") {
+    const chunks: Buffer[] = [];
+    for await (const chunk of request) chunks.push(Buffer.from(chunk));
+    const body = JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
+    const expected = process.env.MARKETING_HQ_ACCESS_KEY ?? process.env.MARKETING_HQ_ADMIN_TOKEN;
+    const provided = typeof body.key === "string" ? body.key : "";
+    if (!expected || !provided) {
+      json(response, 401, { ok: false, error: "Invalid access key" });
+      return;
+    }
+    const expectedBuffer = Buffer.from(expected);
+    const providedBuffer = Buffer.from(provided);
+    if (expectedBuffer.length !== providedBuffer.length || !timingSafeEqual(expectedBuffer, providedBuffer)) {
+      json(response, 401, { ok: false, error: "Invalid access key" });
+      return;
+    }
+    response.statusCode = 204;
+    response.setHeader("set-cookie", `silku_hq_session=${encodeURIComponent(sessionToken)}; HttpOnly; Secure; SameSite=Strict; Path=/`);
+    response.end();
+    return;
+  }
+
+  if (method === "GET" && url.pathname === "/dashboard") {
+    if (!authorized(request)) {
+      response.statusCode = 302;
+      response.setHeader("location", "/");
+      response.end();
+      return;
+    }
+    html(response, 200, dashboardHtml());
+    return;
+  }
+
+  if (!url.pathname.startsWith("/v1/") || !requireAuth(request, response)) return;
+
+  if (method === "GET" && url.pathname === "/v1/marketing/dashboard") {
+    const commerce = await fetchCommerceIntelligence();
+    if (!commerce.ok) {
+      json(response, 503, {
+        ok: false,
+        dataSource: "unavailable",
+        error: commerce.error,
+        message: "Marketing HQ is not showing placeholder commerce numbers.",
+      });
+      return;
+    }
+
+    const data = commerce.data;
+    const capturedAt = new Date().toISOString();
+    const evidence = [
+      { source: "Silku commerce backend", capturedAt, confidence: 1, evidence: `Live commerce window: ${data.windowDays} days`, lastVerifiedAt: capturedAt },
+      { source: "Silku inventory", capturedAt, confidence: 1, evidence: `Low/out-of-stock variants: ${data.lowStockCount}`, lastVerifiedAt: capturedAt },
+    ];
+    const snapshot = marketing.evaluate({
+      revenueTrend: data.revenueTrend,
+      topProducts: data.topProducts.map((product) => product.productName),
+      risingCategories: data.risingCategories,
+      creatorOpportunities: 0,
+      b2bOpportunities: 0,
+      learningScore: 0.5,
+      availableBudget: 0,
+      analytics: {
+        revenue: data.revenue,
+        orders: data.orders,
+        conversions: data.orders,
+      },
+      inventoryRiskProducts: data.inventoryRiskProducts.map((product) => product.name),
+      evidence,
+    }).data!;
+
+    json(response, 200, {
+      ok: true,
+      dataSource: "live",
+      commerce: data,
+      data: dashboard.build(snapshot, marketing.approvals().data ?? [], marketing.audit().data ?? []),
+    });
+    return;
+  }
+
+  if (method === "GET" && url.pathname === "/v1/approvals") { json(response, 200, marketing.approvals()); return; }
+  if (method === "GET" && url.pathname === "/v1/audit") { json(response, 200, marketing.audit()); return; }
+  if (method === "GET" && url.pathname === "/v1/monitoring/status") { json(response, 200, monitor.status()); return; }
+  if (method === "GET" && url.pathname.startsWith("/v1/field-force/")) { json(response, 200, fieldForce.handle(method, url.pathname, {})); return; }
+
+  if (method === "POST" && url.pathname === "/v1/evaluate") {
+    const chunks: Buffer[] = [];
+    for await (const chunk of request) chunks.push(Buffer.from(chunk));
+    const body = JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
+    json(response, 200, marketing.evaluate(body));
+    return;
+  }
+
+  if (method === "POST" && url.pathname === "/v1/approvals") {
+    const chunks: Buffer[] = [];
+    for await (const chunk of request) chunks.push(Buffer.from(chunk));
+    const body = JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
+    json(response, 201, marketing.requestApproval(body));
+    return;
+  }
+
+  const approvalMatch = url.pathname.match(/^\/v1\/approvals\/([^/]+)\/(approve|reject)$/);
+  if (method === "POST" && approvalMatch) {
+    const chunks: Buffer[] = [];
+    for await (const chunk of request) chunks.push(Buffer.from(chunk));
+    const body = JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
+    const result = approvalMatch[2] === "approve" ? marketing.approve(approvalMatch[1], body) : marketing.reject(approvalMatch[1], body);
+    json(response, result.ok ? 200 : 404, result);
+    return;
+  }
+
+  json(response, 404, { ok: false, error: "Not found" });
+});
 
 server.listen(port, hostname, () => {
   console.log(`Silku Marketing HQ listening on ${hostname}:${port}`);
