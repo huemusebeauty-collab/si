@@ -24,8 +24,6 @@ export async function verifyRestartRecovery(persistence: MarketingDomainPersiste
     await writer.saveJob(job);
     await writer.saveDecision(decision);
 
-    // A fresh store represents a clean process after restart. It has no in-memory state
-    // until hydration reconstructs the domain state from durable Neon storage.
     const restarted = new MarketingDomainStore(persistence);
     await restarted.hydrate();
 
@@ -43,9 +41,8 @@ export async function verifyRestartRecovery(persistence: MarketingDomainPersiste
     );
     if (!verified) throw new Error("Restart recovery did not reconstruct all durable domain records");
 
-    return { ok: true, test: "restart-recovery", verified: { content: true, campaign: true, job: true, decision: true, freshHydration: true }, cleanedUp: false, target };
+    return { ok: true, test: "restart-recovery", verified: { content: true, campaign: true, job: true, decision: true, freshHydration: true }, cleanedUp: true };
   } finally {
-    const cleanup = (persistence as { cleanupE2EDomain?: (target: string) => Promise<void> }).cleanupE2EDomain;
-    if (cleanup) await cleanup.call(persistence, target);
+    await persistence.cleanupE2EDomain(target);
   }
 }
