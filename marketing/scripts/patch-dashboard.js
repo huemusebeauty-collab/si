@@ -29,5 +29,24 @@ source = source.replace("fetch('/v1/approvals'", "fetch('/v1/control-plane/prepa
 source = source.replace(/body:JSON\.stringify\(\{action:window\.__silkuDirectorControlAction,[^}]*\}\)/, 'body:JSON.stringify({decision:window.__silkuDirectorDecision})');
 source = source.replace("async function doIt(){const b=$('#doIt');", "async function doIt(){if(!window.__silkuDirectorDecision){toast('Director decision is not ready. Refresh first.');return}const b=$('#doIt');");
 
+const approvalLoader = "async function loadApprovals(){const r=await fetch('/v1/approvals',{credentials:'same-origin',cache:'no-store'});if(r.status===401){location.href='/';return}const j=await r.json();if(!j.ok)throw new Error(j.error||'Approvals unavailable');const items=(j.data||[]).slice().reverse();const el=$('#approvalList');el.innerHTML=items.length?items.map(x=>'<li><b>'+esc(x.action)+'</b> · '+esc(x.decision)+'<br><span class=\"muted\">'+esc(x.reason)+'</span>'+(x.decision==='pending'?'<div class=\"actions\"><button type=\"button\" class=\"btn primary\" data-approve=\"'+esc(x.requestId)+'\">Approve</button><button type=\"button\" class=\"btn secondary\" data-reject=\"'+esc(x.requestId)+'\">Reject</button></div>':'')+'</li>').join(''):'<li>No approval requests.</li>';$$('[data-approve]').forEach(b=>b.onclick=()=>decideApproval(b.dataset.approve,'approve').catch(e=>toast(e.message||'Approval update failed')));$$('[data-reject]').forEach(b=>b.onclick=()=>decideApproval(b.dataset.reject,'reject').catch(e=>toast(e.message||'Approval update failed')));$('#executionState').textContent=items.filter(x=>x.decision==='pending').length+' pending approval(s). Sensitive actions remain blocked until approved.';return true}\nasync function decideApproval(id,decision){const r=await fetch('/v1/approvals/'+encodeURIComponent(id)+'/'+decision,{method:'POST',headers:{'content-type':'application/json'},credentials:'same-origin',body:JSON.stringify({actor:'marketing-hq'})});const j=await r.json();if(!r.ok||!j.ok)throw new Error(j.error||'Approval update failed');toast(decision==='approve'?'Approval granted. Execution remains provider-gated.':'Approval rejected.');await loadApprovals();await load()}\n";
+if (!source.includes('async function loadApprovals')) {
+  source = source.replace('async function load(){', approvalLoader + 'async function load(){');
+}
+
+if (!source.includes('id="approvalList"')) {
+  const marker = '<aside class="card" id="approvals"><div class="eyebrow">🛡️ Approvals</div><h2>Approval Center</h2><p class="reason">Human approval remains the execution boundary for sensitive marketing actions.</p>';
+  if (!source.includes(marker)) throw new Error('HQ approval center marker not found');
+  source = source.replace(marker, marker + '<ul class="list" id="approvalList"><li>Loading approvals…</li></ul>');
+}
+if (!source.includes('id="executionState"')) {
+  const marker = '<aside class="card" id="approvals"><div class="eyebrow">🛡️ Approvals</div><h2>Approval Center</h2>';
+  if (!source.includes(marker)) throw new Error('HQ approval card marker not found');
+  source = source.replace(marker, marker + '<div class="muted" id="executionState" style="margin-top:12px">No action selected.</div>');
+}
+
+source = source.replace("await load();toast('Silku refreshed the latest intelligence.');", "await load();await loadApprovals();toast('Silku refreshed the latest intelligence.');");
+source = source.replace("load().catch(()=>toast('Dashboard opened, but live commerce data could not be loaded.'));", "Promise.all([load(),loadApprovals()]).catch(()=>toast('Dashboard opened, but live commerce or approval data could not be loaded.'));");
+
 fs.writeFileSync(file, source);
 console.log('HQ dashboard safe patch applied');
