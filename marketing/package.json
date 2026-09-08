@@ -5,10 +5,11 @@
   "scripts": {
     "start": "node dist/main.js",
     "dev": "tsx src/main.ts",
-    "build": "tsc -p tsconfig.json && node scripts/patch-dashboard.js && npm run test:control-plane && npm run test:execution-center",
+    "build": "tsc -p tsconfig.json && node scripts/patch-dashboard.js && npm run test:control-plane && npm run test:execution-center && npm run test:persistence",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test:control-plane": "tsx scripts/test-control-plane.ts",
-    "test:execution-center": "tsx scripts/test-execution-center.ts"
+    "test:execution-center": "tsx scripts/test-execution-center.ts",
+    "test:persistence": "tsx scripts/test-persistence.ts"
   },
   "dependencies": {
     "pg": "^8.12.0"
