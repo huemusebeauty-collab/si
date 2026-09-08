@@ -1,4 +1,5 @@
 import { Client } from "pg";
+import type { MarketingCampaign, MarketingContent, MarketingDecisionRecord, MarketingJob } from "./contracts";
 import type { ApprovalRequest, AuditEvent } from "./marketing-security";
 
 export interface MarketingPersistence {
@@ -7,6 +8,22 @@ export interface MarketingPersistence {
   saveApproval(request: ApprovalRequest): Promise<void>;
   saveAudit(event: AuditEvent): Promise<void>;
   cleanupE2E(target: string): Promise<void>;
+}
+
+/**
+ * Phase 2 domain persistence contract. Implementations are added in 2B;
+ * keeping this separate prevents the existing approval/audit adapter from
+ * pretending that content, campaigns, jobs, and decisions are already stored.
+ */
+export interface MarketingDomainPersistence {
+  loadContent(): Promise<MarketingContent[]>;
+  saveContent(content: MarketingContent): Promise<void>;
+  loadCampaigns(): Promise<MarketingCampaign[]>;
+  saveCampaign(campaign: MarketingCampaign): Promise<void>;
+  loadJobs(): Promise<MarketingJob[]>;
+  saveJob(job: MarketingJob): Promise<void>;
+  loadDecisions(): Promise<MarketingDecisionRecord[]>;
+  saveDecision(decision: MarketingDecisionRecord): Promise<void>;
 }
 
 export class NeonMarketingPersistence implements MarketingPersistence {
