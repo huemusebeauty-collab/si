@@ -7,6 +7,7 @@ import { MarketingHqDashboard } from "./marketing-hq-dashboard";
 import { MarketingSecurityLayer } from "./marketing-security";
 import { NeonMarketingPersistence } from "./marketing-persistence";
 import { MarketingDomainStore } from "./marketing-domain-store";
+import { verifyRestartRecovery } from "./restart-recovery";
 import { dashboardHtml, loginHtml } from "./dashboard-ui";
 import { fetchCommerceIntelligence } from "./commerce-data";
 
@@ -39,6 +40,7 @@ const server = createServer(async (request, response) => {
   if (!pathname.startsWith("/v1/") || !requireAuth(request, response)) return;
   if (method === "GET" && pathname === "/v1/marketing/dashboard") { const commerce = await fetchCommerceIntelligence(); if (!commerce.ok) { json(response, 503, { ok: false, dataSource: "unavailable", error: commerce.error, message: "Marketing HQ is not showing placeholder commerce numbers." }); return; } const data = commerce.data; const capturedAt = new Date().toISOString(); const evidence = [{ source: "Silku commerce backend", capturedAt, confidence: 1, evidence: `Live commerce window: ${data.windowDays} days`, lastVerifiedAt: capturedAt }, { source: "Silku inventory", capturedAt, confidence: 1, evidence: `Low/out-of-stock variants: ${data.lowStockCount}`, lastVerifiedAt: capturedAt }]; const snapshot = marketing.evaluate({ revenueTrend: data.revenueTrend, topProducts: data.topProducts.map((product) => product.productName), risingCategories: data.risingCategories, creatorOpportunities: 0, b2bOpportunities: 0, learningScore: 0.5, availableBudget: 0, analytics: { revenue: data.revenue, orders: data.orders, conversions: data.orders }, inventoryRiskProducts: data.inventoryRiskProducts.map((product) => product.name), evidence }).data!; json(response, 200, { ok: true, dataSource: "live", commerce: data, data: dashboard.build(snapshot, marketing.approvals().data ?? [], marketing.audit().data ?? []) }); return; }
   if (method === "GET" && pathname === "/v1/persistence/domain") { json(response, 200, { ok: true, durable: Boolean(persistence), data: domainStore.summary() }); return; }
+  if (method === "POST" && pathname === "/v1/persistence/restart-recovery") { if (!persistence) { json(response, 503, { ok: false, error: "Persistence is not configured" }); return; } try { json(response, 200, await verifyRestartRecovery(persistence)); } catch (error) { json(response, 500, { ok: false, test: "restart-recovery", error: error instanceof Error ? error.message : "Restart recovery failed", cleanedUp: true }); } return; }
   if (method === "POST" && pathname === "/v1/control-plane/prepare") { const body = await readJson(request); if (!body?.decision) { json(response, 400, { ok: false, error: "decision is required" }); return; } const result = marketing.prepareDirectorAction(body.decision); return json(response, result.ok ? 200 : 400, result); }
   if (method === "POST" && pathname === "/v1/control-plane/check") { const body = await readJson(request); if (!body?.action) { json(response, 400, { ok: false, error: "action is required" }); return; } const result = marketing.executionBoundary(body.action, body.approvalRequestId); json(response, result.ok ? 200 : 403, result); return; }
   if (method === "GET" && pathname === "/v1/approvals") { json(response, 200, marketing.approvals()); return; }
@@ -50,13 +52,12 @@ const server = createServer(async (request, response) => {
     if (!persistence) { json(response, 503, { ok: false, error: "Persistence is not configured" }); return; }
     const id = randomUUID();
     const target = `e2e:${id}`;
-    let durableRequestId: string | undefined;
     try {
       const testSecurity = new MarketingSecurityLayer(persistence);
       const testMarketing = new MarketingControlApi(undefined, testSecurity);
       const requested = await testMarketing.requestApprovalDurable({ action: "launch_ads", actor: "e2e", target, reason: "Protected persistence round-trip test" });
       if (!requested.ok || !requested.data) throw new Error(requested.error ?? "E2E approval request failed");
-      durableRequestId = requested.data.requestId;
+      const durableRequestId = requested.data.requestId;
       const approved = await testMarketing.decideApprovalDurable(durableRequestId, "approved", "e2e");
       if (!approved.ok || !approved.data || approved.data.decision !== "approved") throw new Error(approved.error ?? "E2E approval decision failed");
       const recoveredSecurity = new MarketingSecurityLayer(persistence);
