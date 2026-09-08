@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: silku-marketing-hq
+    runtime: node
+    plan: free
+    rootDir: marketing
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    autoDeploy: true
