@@ -15,10 +15,12 @@ export class MarketingControlApi {
   }
   health(): MarketingApiResponse<{ service: string; healthy: boolean }> { return this.gateway.status() as MarketingApiResponse<{ service: string; healthy: boolean }>; }
   evaluate(input: MarketingIntelligenceInput): MarketingApiResponse<MarketingIntelligenceSnapshot> { return this.gateway.evaluate(input); }
-  prepareDirectorAction(decision: MarketingIntelligenceSnapshot["decision"]): MarketingApiResponse<ControlPlaneResult> { try { return { ok: true, data: this.controlPlane.prepareFromDirector(decision), generatedAt: new Date().toISOString() }; } catch (error) { return { ok: false, error: error instanceof Error ? error.message : "Control-plane preparation failed", generatedAt: new Date().toISOString() }; } }
+  prepareDirectorAction(decision: MarketingIntelligenceSnapshot["decision"]): MarketingApiResponse<ControlPlaneResult> { try { return { ok: true, data: this.controlPlane.prepareFromDirector(decision), generatedAt: new Date().toISOString() }; } catch (error) { return { ok: false, error: error instanceof Error ? error.message : "Control-plane preparation failed", generatedAt: new Date().toISOString() }; }
+  }
   async prepareDirectorActionDurable(decision: MarketingIntelligenceSnapshot["decision"]): Promise<MarketingApiResponse<ControlPlaneResult>> {
     const result = this.prepareDirectorAction(decision);
     if (!result.ok || !result.data || !this.lifecycle) return result;
+    await this.security.flushPersistence();
     const durable = await this.lifecycle.recordDecision({
       decisionId: `decision_${randomUUID()}`,
       action: result.data.action,
