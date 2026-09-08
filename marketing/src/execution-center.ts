@@ -27,7 +27,6 @@ export class MarketingExecutionCenter {
   }
 
   recordExecutionResult(action: MarketingAction, actor: string, target: string | undefined, success: boolean, details: string): AuditEvent {
-    this.security.recordAudit(action, actor, target, `Execution ${success ? "succeeded" : "failed"}: ${details}`);
-    return this.security.listAudit().at(-1)!;
+    return this.security.recordAudit(action, actor, target, `Execution ${success ? "succeeded" : "failed"}: ${details}`);
   }
 }
