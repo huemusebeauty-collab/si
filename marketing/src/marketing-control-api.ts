@@ -34,6 +34,7 @@ export class MarketingControlApi {
       approvalRequestId: result.data.approvalRequestId,
     });
     result.data.decisionId = durable.decisionId;
+    await this.security.flushPersistence();
     return result;
   }
   executionBoundary(action: MarketingAction, approvalRequestId?: string): MarketingApiResponse<{ executable: boolean; action: MarketingAction; reason: string }> { const executable = this.controlPlane.canExecute(action, approvalRequestId); return { ok: executable, data: { executable, action, reason: executable ? "Action is authorized at the control-plane boundary." : "Action is blocked until the required approval is approved." }, generatedAt: new Date().toISOString() }; }
@@ -41,7 +42,7 @@ export class MarketingControlApi {
   async requestApprovalDurable(actionOrBody: MarketingAction | { action: MarketingAction; actor: string; reason: string; target?: string }, actor?: string, reason?: string, target?: string): Promise<MarketingApiResponse<ApprovalRequest>> { const result = this.requestApproval(actionOrBody, actor, reason, target); if (result.ok) await this.security.flushPersistence(); return result; }
   requestApprovalFromBody(body: { action: MarketingAction; actor: string; reason: string; target?: string }) { return this.requestApproval(body); }
   decideApproval(requestId: string, decision: "approved" | "rejected", actor: string): MarketingApiResponse<ApprovalRequest> { try { const request = this.security.decideApproval(requestId, decision, actor); return { ok: true, data: request, generatedAt: new Date().toISOString() }; } catch (error) { return { ok: false, error: error instanceof Error ? error.message : "Approval decision failed", generatedAt: new Date().toISOString() }; } }
-  async decideApprovalDurable(requestId: string, decision: "approved" | "rejected", actor: string): Promise<MarketingApiResponse<ApprovalRequest>> { const result = this.decideApproval(requestId, decision, actor); if (result.ok) { await this.security.flushPersistence(); if (this.lifecycle) await this.lifecycle.updateDecisionByApprovalRequest(requestId, decision); } return result; }
+  async decideApprovalDurable(requestId: string, decision: "approved" | "rejected", actor: string): Promise<MarketingApiResponse<ApprovalRequest>> { const result = this.decideApproval(requestId, decision, actor); if (result.ok) { await this.security.flushPersistence(); if (this.lifecycle) { await this.lifecycle.updateDecisionByApprovalRequest(requestId, decision); await this.security.flushPersistence(); } } return result; }
   approve(requestId: string, body: { actor?: string }) { return this.decideApproval(requestId, "approved", body.actor ?? "marketing-hq"); }
   reject(requestId: string, body: { actor?: string }) { return this.decideApproval(requestId, "rejected", body.actor ?? "marketing-hq"); }
   approvals(): MarketingApiResponse<ApprovalRequest[]> { return { ok: true, data: this.security.listApprovals(), generatedAt: new Date().toISOString() }; }
