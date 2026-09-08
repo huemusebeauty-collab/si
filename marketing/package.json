@@ -5,7 +5,7 @@
   "scripts": {
     "start": "node dist/main.js",
     "dev": "tsx src/main.ts",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && node scripts/patch-dashboard.js",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {},
