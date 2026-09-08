@@ -59,7 +59,7 @@ export class GrowthIntelligenceEngine {
       const revenueScore = Math.min(1, item.revenue > 0 ? 1 : 0);
       const growthScore = Number((engagementScore * 0.3 + clickScore * 0.2 + conversionScore * 0.3 + revenueScore * 0.2).toFixed(3));
 
-      const recommendation = conversionRate >= 0.05 && item.revenue > 0
+      const recommendation: GrowthInsight["recommendation"] = conversionRate >= 0.05 && item.revenue > 0
         ? "scale"
         : clickRate >= 0.03 && conversionRate < 0.03
           ? "conversion_focus"
