@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { FieldForceApi } from "./field-force-api";
 import { MarketingMonitor } from "./monitoring";
 import { MarketingControlApi } from "./marketing-control-api";
@@ -43,6 +43,37 @@ const server = createServer(async (request, response) => {
   if (method === "GET" && pathname === "/v1/monitoring/status") { json(response, 200, monitor.status()); return; }
   if (method === "GET" && pathname.startsWith("/v1/field-force/")) { json(response, 200, fieldForce.handle(method, pathname, {})); return; }
   if (method === "POST" && pathname === "/v1/evaluate") { json(response, 200, marketing.evaluate(await readJson(request))); return; }
+  if (method === "POST" && pathname === "/v1/persistence/e2e") {
+    if (!persistence) { json(response, 503, { ok: false, error: "Persistence is not configured" }); return; }
+    const id = randomUUID();
+    const target = `e2e:${id}`;
+    const requestId = `e2e_${id}`;
+    const testSecurity = new MarketingSecurityLayer(persistence);
+    const testMarketing = new MarketingControlApi(undefined, testSecurity);
+    try {
+      const requested = await testMarketing.requestApprovalDurable({ action: "launch_ads", actor: "e2e", target, reason: "Protected persistence round-trip test" });
+      if (!requested.ok || !requested.data) throw new Error(requested.error ?? "E2E approval request failed");
+      if (requested.data.requestId !== requestId) {
+        // requestApprovalDurable generates its own request ID; keep the generated ID for cleanup.
+      }
+      const durableRequestId = requested.data.requestId;
+      const approved = await testMarketing.decideApprovalDurable(durableRequestId, "approved", "e2e");
+      if (!approved.ok || !approved.data || approved.data.decision !== "approved") throw new Error(approved.error ?? "E2E approval decision failed");
+      const recoveredSecurity = new MarketingSecurityLayer(persistence);
+      await recoveredSecurity.hydrate();
+      const recovered = recoveredSecurity.listApprovals().find((item) => item.requestId === durableRequestId);
+      const recoveredAudit = recoveredSecurity.listAudit().filter((item) => item.target === target);
+      if (!recovered || recovered.decision !== "approved") throw new Error("Fresh hydration did not recover approved request");
+      if (recoveredAudit.length < 2) throw new Error("Fresh hydration did not recover approval audit events");
+      if (!recoveredSecurity.canExecute("launch_ads", durableRequestId)) throw new Error("Recovered approved action is not executable");
+      await persistence.cleanupE2E(durableRequestId, target);
+      return json(response, 200, { ok: true, test: "persistence-e2e", verified: { durableRequest: true, durableDecision: true, auditEvents: recoveredAudit.length, freshHydration: true, executionBoundary: true }, cleanedUp: true });
+    } catch (error) {
+      try { await persistence.cleanupE2E(requestId, target); } catch (cleanupError) { console.error("[marketing-persistence] E2E cleanup failed", cleanupError); }
+      json(response, 500, { ok: false, test: "persistence-e2e", error: error instanceof Error ? error.message : "Persistence E2E failed", cleanedUp: false });
+    }
+    return;
+  }
   if (method === "POST" && pathname === "/v1/approvals") { json(response, 201, marketing.requestApproval(await readJson(request))); return; }
   const approvalMatch = pathname.match(/^\/v1\/approvals\/([^/]+)\/(approve|reject)$/);
   if (method === "POST" && approvalMatch) { const body = await readJson(request); const result = approvalMatch[2] === "approve" ? marketing.approve(approvalMatch[1], body) : marketing.reject(approvalMatch[1], body); json(response, result.ok ? 200 : 404, result); return; }
