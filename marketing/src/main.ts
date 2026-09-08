@@ -5,6 +5,7 @@ import { MarketingMonitor } from "./monitoring";
 import { MarketingControlApi } from "./marketing-control-api";
 import { MarketingHqDashboard } from "./marketing-hq-dashboard";
 import { dashboardHtml, loginHtml } from "./dashboard-ui";
+import { fetchCommerceIntelligence } from "./commerce-data";
 
 const startedAt = new Date().toISOString();
 const port = Number(process.env.PORT ?? 10000);
@@ -104,17 +105,41 @@ const server = createServer(async (request, response) => {
     }
 
     if (method === "GET" && url.pathname === "/v1/marketing/dashboard") {
+      const commerce = await fetchCommerceIntelligence();
+      if (!commerce.ok) {
+        json(response, 503, {
+          ok: false,
+          dataSource: "unavailable",
+          error: commerce.error,
+          message: "Marketing HQ is not showing placeholder commerce numbers.",
+        });
+        return;
+      }
+
+      const data = commerce.data;
       const snapshot = marketing.evaluate({
-        revenueTrend: "flat",
-        topProducts: ["Strongest product"],
-        risingCategories: [],
+        revenueTrend: data.revenueTrend,
+        topProducts: data.topProducts.map((product) => product.productName),
+        risingCategories: data.risingCategories,
         creatorOpportunities: 0,
         b2bOpportunities: 0,
         learningScore: 0.5,
         availableBudget: 0,
-        analytics: { revenue: 0, orders: 0, conversions: 0 },
+        analytics: {
+          revenue: data.revenue,
+          orders: data.orders,
+          conversions: data.orders,
+        },
+        inventoryRiskProducts: data.inventoryRiskProducts.map((product) => product.name),
+        evidence: [`Live commerce window: ${data.windowDays} days`, `Low/out-of-stock variants: ${data.lowStockCount}`],
       }).data!;
-      json(response, 200, { ok: true, data: dashboard.build(snapshot, marketing.approvals().data ?? [], marketing.audit().data ?? []) });
+
+      json(response, 200, {
+        ok: true,
+        dataSource: "live",
+        commerce: data,
+        data: dashboard.build(snapshot, marketing.approvals().data ?? [], marketing.audit().data ?? []),
+      });
       return;
     }
 
