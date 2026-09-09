@@ -33,6 +33,7 @@ async function main() {
 
   const content = await api.create("content", { contentId: "content_api_test", format: "post", hook: "Test hook", body: "Test body", callToAction: "Shop now", status: "draft", requiresApproval: false });
   assert.equal(content.ok, true);
+  assert.equal((await api.updateStatus("content", "content_api_test", "qa_passed")).ok, true);
   assert.equal((await api.updateStatus("content", "content_api_test", "approved")).ok, true);
   assert.equal((await api.updateStatus("content", "content_api_test", "approved")).data?.status, "approved", "same status must be idempotent");
 
