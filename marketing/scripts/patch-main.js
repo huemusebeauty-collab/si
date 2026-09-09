@@ -11,5 +11,18 @@ for (const [from, to] of replacements) {
   if (source.includes(from)) source = source.replace(from, to);
   else if (!source.includes(to)) throw new Error(`HQ durable route marker not found: ${from}`);
 }
+const importsMarker = 'const dashboard = new marketing_hq_dashboard_1.MarketingHqDashboard();';
+if (!source.includes('const media_api_1 = require("./media-api");')) {
+  source = source.replace(/"use strict";\n/, '"use strict";\nconst media_api_1 = require("./media-api");\nconst media_repository_1 = require("./media-repository");\nconst media_storage_1 = require("./media-storage");\n');
+}
+const mediaInit = 'const mediaApi = new media_api_1.MediaApi(new media_repository_1.NeonMediaRepository(), new media_storage_1.MemoryMediaStorageAdapter());';
+if (!source.includes(mediaInit)) {
+  if (!source.includes(importsMarker)) throw new Error('HQ media initialization marker not found');
+  source = source.replace(importsMarker, `${importsMarker}\n${mediaInit}`);
+}
+const routeMarker = 'json(response, 404, { ok: false, error: "Not found" });';
+const routePatch = 'if (method === "POST" && pathname === "/v1/media") { const result = await mediaApi.upload(await readJson(request)); json(response, result.ok ? 201 : 400, result); return; }\n    if (method === "GET" && pathname === "/v1/media") { json(response, 200, mediaApi.list()); return; }\n    const mediaMatch = pathname.match(/^\\/v1\\/media\\/([^/]+)(?:\\/(preview|archive))?$/);\n    if (mediaMatch) { if (method === "GET" && mediaMatch[2] === "preview") { const result = await mediaApi.preview(mediaMatch[1]); json(response, result.ok ? 200 : 404, result); return; } if (method === "POST" && mediaMatch[2] === "archive") { const result = await mediaApi.archive(mediaMatch[1]); json(response, result.ok ? 200 : 404, result); return; } if (method === "GET") { const result = mediaApi.get(mediaMatch[1]); json(response, result.ok ? 200 : 404, result); return; } }\n  ';
+if (source.includes(routeMarker) && !source.includes('pathname === "/v1/media"')) source = source.replace(routeMarker, `${routePatch}${routeMarker}`);
+else if (!source.includes('pathname === "/v1/media"')) throw new Error('HQ media route marker not found');
 fs.writeFileSync(file, source);
-console.log('HQ durable approval route patch applied');
+console.log('HQ durable approval and media route patches applied');
