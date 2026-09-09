@@ -1,9 +1,13 @@
 import { buildWebsiteActionRecommendations } from "../src/website-opportunity-actions";
 
-describe("website action recommendations", () => {
-  it("returns a safe monitor recommendation when intelligence is unavailable", async () => {
-    const result = await buildWebsiteActionRecommendations();
-    expect(Array.isArray(result)).toBe(true);
-    expect(result[0]).toHaveProperty("action");
-  });
+async function main() {
+  const result = await buildWebsiteActionRecommendations();
+  if (!Array.isArray(result)) throw new Error("Website action recommendations must be an array");
+  if (!result[0] || typeof result[0].action !== "string") throw new Error("Website action recommendation is missing action");
+  console.log("Website opportunity action tests passed");
+}
+
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
 });
