@@ -21,7 +21,22 @@ export class NeonContentVersionRepository implements ContentVersionRepository {
 
   async create(version: ContentVersion): Promise<ContentVersion> {
     if (this.databaseUrl) {
-      await this.withClient((client) => client.query(`INSERT INTO marketing_hq_content_versions (version_id, content_id, version_number, format, title, hook, body, call_to_action, platform, change_note, created_by, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`, [version.versionId, version.contentId, version.versionNumber, version.format, version.title ?? null, version.hook, version.body, version.callToAction, version.platform ?? null, version.changeNote ?? null, version.createdBy ?? null, version.createdAt]).then(() => undefined));
+      return this.withClient(async (client) => {
+        await client.query("BEGIN");
+        try {
+          await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [version.contentId]);
+          const latest = await client.query("SELECT COALESCE(MAX(version_number), 0) AS max_version FROM marketing_hq_content_versions WHERE content_id = $1", [version.contentId]);
+          const nextVersion = Number(latest.rows[0]?.max_version ?? 0) + 1;
+          const persisted = nextVersion === version.versionNumber ? version : { ...version, versionNumber: nextVersion };
+          await client.query(`INSERT INTO marketing_hq_content_versions (version_id, content_id, version_number, format, title, hook, body, call_to_action, platform, change_note, created_by, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`, [persisted.versionId, persisted.contentId, persisted.versionNumber, persisted.format, persisted.title ?? null, persisted.hook, persisted.body, persisted.callToAction, persisted.platform ?? null, persisted.changeNote ?? null, persisted.createdBy ?? null, persisted.createdAt]);
+          await client.query("COMMIT");
+          this.versions.set(persisted.versionId, persisted);
+          return persisted;
+        } catch (error) {
+          await client.query("ROLLBACK");
+          throw error;
+        }
+      });
     }
     this.versions.set(version.versionId, version);
     return version;
