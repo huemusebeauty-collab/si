@@ -15,6 +15,7 @@
     "test:website-product": "jest src/modules/website-events/product-conversion.service.spec.ts --runInBand",
     "test:website-journey": "jest src/modules/website-events/customer-journey.service.spec.ts --runInBand",
     "test:website-changes": "jest src/modules/website-events/website-change-intelligence.service.spec.ts --runInBand",
+    "test:website-opportunities": "jest src/modules/website-events/customer-product-opportunity.service.spec.ts --runInBand",
     "migration:generate": "node -r ts-node/register -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:generate -d src/database/data-source.ts",
     "migration:run": "node -r ts-node/register -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:run -d src/database/data-source.ts",
     "migration:revert": "node -r ts-node/register -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:revert -d src/database/data-source.ts",
