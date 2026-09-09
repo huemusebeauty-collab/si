@@ -7,11 +7,13 @@ import { WebsiteFunnelController } from "./website-funnel.controller";
 import { WebsiteFunnelService } from "./website-funnel.service";
 import { ProductConversionController } from "./product-conversion.controller";
 import { ProductConversionService } from "./product-conversion.service";
+import { CustomerJourneyController } from "./customer-journey.controller";
+import { CustomerJourneyService } from "./customer-journey.service";
 
 @Module({
   imports: [TypeOrmModule.forFeature([WebsiteEventEntity])],
-  controllers: [WebsiteEventsController, WebsiteFunnelController, ProductConversionController],
-  providers: [WebsiteEventsService, WebsiteFunnelService, ProductConversionService],
-  exports: [WebsiteEventsService, WebsiteFunnelService, ProductConversionService],
+  controllers: [WebsiteEventsController, WebsiteFunnelController, ProductConversionController, CustomerJourneyController],
+  providers: [WebsiteEventsService, WebsiteFunnelService, ProductConversionService, CustomerJourneyService],
+  exports: [WebsiteEventsService, WebsiteFunnelService, ProductConversionService, CustomerJourneyService],
 })
 export class WebsiteEventsModule {}
