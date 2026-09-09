@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { MediaRepository } from "./media-repository";
 import type { MediaStorageAdapter } from "./media-storage";
+import { ContentVersioningService, type ContentVersionRepository } from "./content-versioning";
 
 export type MediaAssetStatus = "active" | "archived" | "deleted";
 export interface MediaAsset {
@@ -31,7 +32,7 @@ const requireString = (body: Record<string, unknown>, key: string) => {
 };
 
 export class MediaApi {
-  constructor(private readonly repository: MediaRepository, private readonly storage: MediaStorageAdapter) {}
+  constructor(private readonly repository: MediaRepository, private readonly storage: MediaStorageAdapter, private readonly contentVersions?: ContentVersionRepository) {}
 
   async upload(body: Record<string, unknown>) {
     try {
@@ -43,25 +44,25 @@ export class MediaApi {
       if (!data.byteLength) throw new Error("dataBase64 must contain non-empty data");
       const mediaId = String(body.mediaId ?? `media_${randomUUID()}`);
       const storageKey = String(body.storageKey ?? `marketing/${mediaId}/${originalName.replace(/[^a-zA-Z0-9._-]/g, "_")}`);
+      const contentId = typeof body.contentId === "string" ? body.contentId.trim() : undefined;
+      const versionId = typeof body.versionId === "string" ? body.versionId.trim() : undefined;
+      if (versionId) {
+        if (!this.contentVersions) throw new Error("Content version validation is not configured");
+        if (!contentId) throw new Error("contentId is required when versionId is provided");
+        const version = this.contentVersions.get(versionId);
+        if (!version) throw new Error("Content version not found");
+        ContentVersioningService.prototype.validateMediaLink.call(new ContentVersioningService(this.contentVersions), version, { mediaId, contentId, versionId } as MediaAsset);
+      }
       const stored = await this.storage.put(storageKey, data, mimeType);
       const now = new Date().toISOString();
       const asset: MediaAsset = {
-        mediaId,
-        contentId: typeof body.contentId === "string" ? body.contentId : undefined,
-        versionId: typeof body.versionId === "string" ? body.versionId : undefined,
-        kind,
-        storageKey: stored.storageKey,
-        originalName,
-        mimeType,
-        byteSize: stored.byteSize,
-        checksumSha256: stored.checksumSha256,
+        mediaId, contentId, versionId, kind, storageKey: stored.storageKey, originalName, mimeType,
+        byteSize: stored.byteSize, checksumSha256: stored.checksumSha256,
         width: typeof body.width === "number" ? body.width : undefined,
         height: typeof body.height === "number" ? body.height : undefined,
         durationSeconds: typeof body.durationSeconds === "number" ? body.durationSeconds : undefined,
         metadata: body.metadata && typeof body.metadata === "object" && !Array.isArray(body.metadata) ? body.metadata as Record<string, unknown> : {},
-        status: "active",
-        createdAt: now,
-        updatedAt: now,
+        status: "active", createdAt: now, updatedAt: now,
       };
       await this.repository.save(asset);
       return ok(asset);
