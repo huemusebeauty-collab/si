@@ -11,11 +11,34 @@ import { CustomerJourneyController } from "./customer-journey.controller";
 import { CustomerJourneyService } from "./customer-journey.service";
 import { WebsiteChangeIntelligenceController } from "./website-change-intelligence.controller";
 import { WebsiteChangeIntelligenceService } from "./website-change-intelligence.service";
+import { CustomerProductOpportunityController } from "./customer-product-opportunity.controller";
+import { CustomerProductOpportunityService } from "./customer-product-opportunity.service";
 
 @Module({
   imports: [TypeOrmModule.forFeature([WebsiteEventEntity])],
-  controllers: [WebsiteEventsController, WebsiteFunnelController, ProductConversionController, CustomerJourneyController, WebsiteChangeIntelligenceController],
-  providers: [WebsiteEventsService, WebsiteFunnelService, ProductConversionService, CustomerJourneyService, WebsiteChangeIntelligenceService],
-  exports: [WebsiteEventsService, WebsiteFunnelService, ProductConversionService, CustomerJourneyService, WebsiteChangeIntelligenceService],
+  controllers: [
+    WebsiteEventsController,
+    WebsiteFunnelController,
+    ProductConversionController,
+    CustomerJourneyController,
+    WebsiteChangeIntelligenceController,
+    CustomerProductOpportunityController,
+  ],
+  providers: [
+    WebsiteEventsService,
+    WebsiteFunnelService,
+    ProductConversionService,
+    CustomerJourneyService,
+    WebsiteChangeIntelligenceService,
+    CustomerProductOpportunityService,
+  ],
+  exports: [
+    WebsiteEventsService,
+    WebsiteFunnelService,
+    ProductConversionService,
+    CustomerJourneyService,
+    WebsiteChangeIntelligenceService,
+    CustomerProductOpportunityService,
+  ],
 })
 export class WebsiteEventsModule {}
