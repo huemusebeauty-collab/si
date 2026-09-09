@@ -53,7 +53,6 @@ export class WebsiteIntelligenceE2eController {
 
       await event("page_view");
       for (let i = 0; i < 6; i += 1) await event("product_view", productId);
-      await event("add_to_cart", productId);
 
       const [funnel, productConversion, journey, changes, opportunities] = await Promise.all([
         this.funnel.getFunnel(1),
@@ -70,7 +69,7 @@ export class WebsiteIntelligenceE2eController {
         productConversionObserved: productConversion.some((item) => item.productId === productId && item.views >= 6),
         journeyObserved: journey.sessions >= 1 && journey.topJourneys.some((item) => item.path.includes("product_view")),
         websiteChangeObserved: changes.signals.some((signal) => signal.metric === "product_views" && signal.recent >= 6),
-        opportunityRadarObserved: Boolean(opportunity && opportunity.score >= 70 && opportunity.recommendedAction === "improve_product_page"),
+        opportunityRadarObserved: Boolean(opportunity && opportunity.score >= 70 && opportunity.priority === "high" && opportunity.recommendedAction === "improve_product_page"),
       };
 
       return {
