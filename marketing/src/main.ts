@@ -12,6 +12,7 @@ import { verifyRestartRecovery } from "./restart-recovery";
 import { dashboardHtml, loginHtml } from "./dashboard-ui";
 import { fetchCommerceIntelligence } from "./commerce-data";
 import { fetchWebsiteChangeIntelligence } from "./website-intelligence";
+import { buildWebsiteActionRecommendations } from "./website-opportunity-actions";
 
 const startedAt = new Date().toISOString();
 const port = Number(process.env.PORT ?? 10000);
@@ -43,7 +44,7 @@ const server = createServer(async (request, response) => {
   if (method === "GET" && pathname === "/dashboard") { if (!authorized(request)) { response.statusCode = 302; response.setHeader("location", "/"); response.end(); return; } html(response, 200, dashboardHtml()); return; }
   if (!pathname.startsWith("/v1/") || !requireAuth(request, response)) return;
   if (method === "GET" && pathname === "/v1/marketing/dashboard") {
-    const [commerce, website] = await Promise.all([fetchCommerceIntelligence(), fetchWebsiteChangeIntelligence(7)]);
+    const [commerce, website, websiteActions] = await Promise.all([fetchCommerceIntelligence(), fetchWebsiteChangeIntelligence(7), buildWebsiteActionRecommendations()]);
     if (!commerce.ok) { json(response, 503, { ok: false, dataSource: "unavailable", error: commerce.error, message: "Marketing HQ is not showing placeholder commerce numbers." }); return; }
     const data = commerce.data;
     const capturedAt = new Date().toISOString();
@@ -53,9 +54,10 @@ const server = createServer(async (request, response) => {
       { source: "Silku commerce backend", capturedAt, confidence: 1, evidence: `Live commerce window: ${data.windowDays} days`, lastVerifiedAt: capturedAt },
       { source: "Silku inventory", capturedAt, confidence: 1, evidence: `Low/out-of-stock variants: ${data.lowStockCount}`, lastVerifiedAt: capturedAt },
       ...(strongestWebsiteSignal ? [{ source: "Silku website intelligence", capturedAt, confidence: 1, evidence: `${strongestWebsiteSignal.metric}: ${strongestWebsiteSignal.direction} ${Math.abs(strongestWebsiteSignal.changePercent)}% vs previous window`, lastVerifiedAt: capturedAt }] : []),
+      ...(websiteActions[0] ? [{ source: "Silku website action radar", capturedAt, confidence: websiteActions[0].priority === "high" ? 0.9 : 0.7, evidence: `${websiteActions[0].action}: ${websiteActions[0].reason}`, lastVerifiedAt: capturedAt }] : []),
     ];
     const snapshot = marketing.evaluate({ revenueTrend: data.revenueTrend, topProducts: data.topProducts.map((product) => product.productName), risingCategories: data.risingCategories, creatorOpportunities: 0, b2bOpportunities: 0, learningScore: 0.5, availableBudget: 0, analytics: { revenue: data.revenue, orders: data.orders, conversions: data.orders }, inventoryRiskProducts: data.inventoryRiskProducts.map((product) => product.name), evidence }).data!;
-    json(response, 200, { ok: true, dataSource: "live", commerce: data, websiteIntelligence: website.ok ? website.data : { available: false, error: website.error }, data: dashboard.build(snapshot, marketing.approvals().data ?? [], marketing.audit().data ?? []) });
+    json(response, 200, { ok: true, dataSource: "live", commerce: data, websiteIntelligence: website.ok ? website.data : { available: false, error: website.error }, websiteActions, data: dashboard.build(snapshot, marketing.approvals().data ?? [], marketing.audit().data ?? []) });
     return;
   }
   if (method === "GET" && pathname === "/v1/persistence/domain") { json(response, 200, { ok: true, durable: Boolean(persistence), data: domainStore.summary() }); return; }
