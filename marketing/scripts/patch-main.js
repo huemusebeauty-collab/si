@@ -15,12 +15,12 @@ const importsMarker = 'const dashboard = new marketing_hq_dashboard_1.MarketingH
 if (!source.includes('const media_api_1 = require("./media-api");')) {
   source = source.replace(/"use strict";\n/, '"use strict";\nconst media_api_1 = require("./media-api");\nconst media_repository_1 = require("./media-repository");\nconst media_storage_1 = require("./media-storage");\n');
 }
-const mediaInit = 'const mediaRepository = new media_repository_1.NeonMediaRepository();\nconst mediaApi = new media_api_1.MediaApi(mediaRepository, new media_storage_1.MemoryMediaStorageAdapter());';
+const mediaInit = 'const mediaRepository = new media_repository_1.NeonMediaRepository();\nconst mediaApi = new media_api_1.MediaApi(mediaRepository, (0, media_storage_1.createMediaStorageAdapter)());';
 if (!source.includes('const mediaRepository = new media_repository_1.NeonMediaRepository();')) {
   if (!source.includes(importsMarker)) throw new Error('HQ media initialization marker not found');
   source = source.replace(importsMarker, `${importsMarker}\n${mediaInit}`);
 } else {
-  source = source.replace('const mediaApi = new media_api_1.MediaApi(new media_repository_1.NeonMediaRepository(), new media_storage_1.MemoryMediaStorageAdapter());', 'const mediaApi = new media_api_1.MediaApi(mediaRepository, new media_storage_1.MemoryMediaStorageAdapter());');
+  source = source.replace(/const mediaApi = new media_api_1\.MediaApi\(mediaRepository, new media_storage_1\.MemoryMediaStorageAdapter\(\)\);/, 'const mediaApi = new media_api_1.MediaApi(mediaRepository, (0, media_storage_1.createMediaStorageAdapter)());');
 }
 const startupMarker = 'Promise.all([security.hydrate(), domainStore.hydrate()])';
 if (source.includes(startupMarker) && !source.includes('mediaRepository.hydrate()')) source = source.replace(startupMarker, 'Promise.all([security.hydrate(), domainStore.hydrate(), mediaRepository.hydrate()])');
