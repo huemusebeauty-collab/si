@@ -1,5 +1,13 @@
 import type { MarketingDecision, SourceEvidence } from "./contracts";
 
+export interface WebsiteDirectorOpportunity {
+  action: string;
+  reason: string;
+  priority: "high" | "medium" | "low";
+  score: number;
+  productId?: string;
+}
+
 export interface MarketingDirectorContext {
   revenueTrend: "up" | "flat" | "down";
   topProducts: string[];
@@ -8,6 +16,7 @@ export interface MarketingDirectorContext {
   b2bOpportunities: number;
   campaignPerformance?: Record<string, number>;
   inventoryRiskProducts?: string[];
+  websiteOpportunities?: WebsiteDirectorOpportunity[];
   evidence?: SourceEvidence[];
 }
 
@@ -21,6 +30,17 @@ export class MarketingDirector {
         reason: "Avoid driving demand toward products that may not be fulfillable.",
         confidence: 0.9,
         requiresApproval: false,
+        evidence,
+      };
+    }
+
+    const websiteOpportunity = context.websiteOpportunities?.find((item) => item.priority === "high") ?? context.websiteOpportunities?.[0];
+    if (websiteOpportunity) {
+      return {
+        action: websiteOpportunity.productId ? `${websiteOpportunity.action} for ${websiteOpportunity.productId}` : websiteOpportunity.action,
+        reason: websiteOpportunity.reason,
+        confidence: Math.min(0.95, Math.max(0.65, websiteOpportunity.score / 100)),
+        requiresApproval: true,
         evidence,
       };
     }
