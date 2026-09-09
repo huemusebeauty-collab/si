@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { MediaApi, type MediaAsset } from "../src/media-api";
-import { MemoryMediaStorageAdapter } from "../src/media-storage";
+import { createMediaStorageAdapter, MemoryMediaStorageAdapter } from "../src/media-storage";
 import type { MediaRepository } from "../src/media-repository";
 
 class FakeMediaRepository implements MediaRepository {
@@ -10,6 +10,12 @@ class FakeMediaRepository implements MediaRepository {
   get(id: string) { return this.assets.get(id); }
   list() { return [...this.assets.values()]; }
 }
+
+const previousMode = process.env.MEDIA_STORAGE_MODE;
+delete process.env.MEDIA_STORAGE_MODE;
+const safeAdapter = createMediaStorageAdapter();
+await assert.rejects(() => safeAdapter.put("unsafe/key", Buffer.from("x"), "text/plain"), /Durable media object storage is not configured/);
+if (previousMode !== undefined) process.env.MEDIA_STORAGE_MODE = previousMode;
 
 const repository = new FakeMediaRepository();
 const storage = new MemoryMediaStorageAdapter();
