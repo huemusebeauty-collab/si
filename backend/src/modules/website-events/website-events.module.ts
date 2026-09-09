@@ -13,6 +13,7 @@ import { WebsiteChangeIntelligenceController } from "./website-change-intelligen
 import { WebsiteChangeIntelligenceService } from "./website-change-intelligence.service";
 import { CustomerProductOpportunityController } from "./customer-product-opportunity.controller";
 import { CustomerProductOpportunityService } from "./customer-product-opportunity.service";
+import { WebsiteIntelligenceE2eController } from "./website-intelligence-e2e.controller";
 
 @Module({
   imports: [TypeOrmModule.forFeature([WebsiteEventEntity])],
@@ -23,6 +24,7 @@ import { CustomerProductOpportunityService } from "./customer-product-opportunit
     CustomerJourneyController,
     WebsiteChangeIntelligenceController,
     CustomerProductOpportunityController,
+    WebsiteIntelligenceE2eController,
   ],
   providers: [
     WebsiteEventsService,
