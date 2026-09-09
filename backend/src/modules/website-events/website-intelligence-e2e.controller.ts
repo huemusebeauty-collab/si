@@ -83,7 +83,12 @@ export class WebsiteIntelligenceE2eController {
         cleanedUp: true,
       };
     } finally {
-      await this.events.delete({ sessionId });
+      await this.events
+        .createQueryBuilder()
+        .delete()
+        .from(WebsiteEventEntity)
+        .where("session_id = :sessionId", { sessionId })
+        .execute();
     }
   }
 }
