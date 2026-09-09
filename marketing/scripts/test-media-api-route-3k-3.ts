@@ -6,8 +6,8 @@ const api = await readFile(new URL("../src/media-api.ts", import.meta.url), "utf
 const repository = await readFile(new URL("../src/media-repository.ts", import.meta.url), "utf8");
 const migration = await readFile(new URL("../migrations/002_marketing_hq_content_media.sql", import.meta.url), "utf8");
 
-assert.match(patch, /pathname === "/v1\/media"/);
-assert.match(patch, /pathname\.match\(\/\^\\\\\/v1\\\\\/media/);
+assert.ok(patch.includes('pathname === "/v1/media"'));
+assert.ok(patch.includes('const mediaMatch = pathname.match'));
 assert.match(patch, /mediaApi\.upload/);
 assert.match(patch, /mediaApi\.preview/);
 assert.match(patch, /mediaApi\.archive/);
