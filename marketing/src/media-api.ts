@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
+import type { MediaRepository } from "./media-repository";
 import type { MediaStorageAdapter } from "./media-storage";
-import { MarketingDomainStore } from "./marketing-domain-store";
 
 export type MediaAssetStatus = "active" | "archived" | "deleted";
 export interface MediaAsset {
@@ -31,7 +31,7 @@ const requireString = (body: Record<string, unknown>, key: string) => {
 };
 
 export class MediaApi {
-  constructor(private readonly store: MarketingDomainStore, private readonly storage: MediaStorageAdapter) {}
+  constructor(private readonly repository: MediaRepository, private readonly storage: MediaStorageAdapter) {}
 
   async upload(body: Record<string, unknown>) {
     try {
@@ -63,22 +63,22 @@ export class MediaApi {
         createdAt: now,
         updatedAt: now,
       };
-      await this.store.saveMediaAsset(asset);
+      await this.repository.save(asset);
       return ok(asset);
     } catch (error) {
       return fail(error instanceof Error ? error.message : "Media upload failed");
     }
   }
 
-  list() { return ok(this.store.listMediaAssets()); }
+  list() { return ok(this.repository.list()); }
 
   get(id: string) {
-    const asset = this.store.getMediaAsset(id.trim());
+    const asset = this.repository.get(id.trim());
     return asset ? ok(asset) : fail("Media asset not found");
   }
 
   async preview(id: string) {
-    const asset = this.store.getMediaAsset(id.trim());
+    const asset = this.repository.get(id.trim());
     if (!asset || asset.status === "deleted") return fail("Media asset not found");
     const stored = await this.storage.get(asset.storageKey);
     if (!stored) return fail("Media object not found in storage");
@@ -86,11 +86,11 @@ export class MediaApi {
   }
 
   async archive(id: string) {
-    const asset = this.store.getMediaAsset(id.trim());
+    const asset = this.repository.get(id.trim());
     if (!asset) return fail("Media asset not found");
     if (asset.status === "deleted") return ok(asset);
     const updated = { ...asset, status: "archived" as const, updatedAt: new Date().toISOString() };
-    await this.store.saveMediaAsset(updated);
+    await this.repository.save(updated);
     return ok(updated);
   }
 }
