@@ -13,12 +13,7 @@ export type CustomerProductOpportunity = {
   evidence: {
     productConversion?: ProductConversionMetric;
     websiteSignals: WebsiteChangeSignal[];
-    journeyDropoff: CustomerJourneyService extends never ? never : Array<{
-      from: string;
-      to: string;
-      sessions: number;
-      conversionRate: number;
-    }>;
+    journeyDropoff: Array<{ from: string; to: string; sessions: number; conversionRate: number }>;
   };
 };
 
@@ -91,7 +86,7 @@ export class CustomerProductOpportunityService {
           },
         };
       })
-      .filter((item) => item.priority !== "low" || item.evidence.productConversion?.views >= 5)
+      .filter((item) => item.priority !== "low" || (item.evidence.productConversion?.views ?? 0) >= 5)
       .sort((a, b) => b.score - a.score)
       .slice(0, 20);
   }
