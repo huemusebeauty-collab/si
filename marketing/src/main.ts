@@ -13,6 +13,7 @@ import { dashboardHtml, loginHtml } from "./dashboard-ui";
 import { fetchCommerceIntelligence } from "./commerce-data";
 import { fetchWebsiteChangeIntelligence } from "./website-intelligence";
 import { buildWebsiteActionRecommendations } from "./website-opportunity-actions";
+import { runWebsiteIntelligenceE2e } from "./website-intelligence-e2e";
 
 const startedAt = new Date().toISOString();
 const port = Number(process.env.PORT ?? 10000);
@@ -59,6 +60,15 @@ const server = createServer(async (request, response) => {
     const websiteOpportunities = websiteActions.map((item) => ({ action: item.action, reason: item.reason, priority: item.priority, score: item.priority === "high" ? 90 : item.priority === "medium" ? 70 : 40 }));
     const snapshot = marketing.evaluate({ revenueTrend: data.revenueTrend, topProducts: data.topProducts.map((product) => product.productName), risingCategories: data.risingCategories, creatorOpportunities: 0, b2bOpportunities: 0, learningScore: 0.5, availableBudget: 0, analytics: { revenue: data.revenue, orders: data.orders, conversions: data.orders }, inventoryRiskProducts: data.inventoryRiskProducts.map((product) => product.name), websiteOpportunities, evidence }).data!;
     json(response, 200, { ok: true, dataSource: "live", commerce: data, websiteIntelligence: website.ok ? website.data : { available: false, error: website.error }, websiteActions, data: dashboard.build(snapshot, marketing.approvals().data ?? [], marketing.audit().data ?? []) });
+    return;
+  }
+  if (method === "POST" && pathname === "/v1/persistence/website-intelligence-e2e") {
+    try {
+      const result = await runWebsiteIntelligenceE2e();
+      json(response, result.ok ? 200 : 500, result);
+    } catch (error) {
+      json(response, 500, { ok: false, test: "website-intelligence-e2e", error: error instanceof Error ? error.message : "Website intelligence E2E failed", cleanedUp: true });
+    }
     return;
   }
   if (method === "GET" && pathname === "/v1/persistence/domain") { json(response, 200, { ok: true, durable: Boolean(persistence), data: domainStore.summary() }); return; }
