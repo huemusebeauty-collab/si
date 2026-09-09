@@ -28,9 +28,7 @@ export class WebsiteIntelligenceE2eController {
   @Get()
   async run(@Headers("x-silku-hq-internal-token") token?: string) {
     const expected = process.env.MARKETING_HQ_INTERNAL_TOKEN;
-    if (!expected || token !== expected) {
-      throw new HttpException("Unauthorized", HttpStatus.UNAUTHORIZED);
-    }
+    if (!expected || token !== expected) throw new HttpException("Unauthorized", HttpStatus.UNAUTHORIZED);
 
     const id = randomUUID();
     const sessionId = `website-e2e:${id}`;
@@ -75,16 +73,14 @@ export class WebsiteIntelligenceE2eController {
         opportunityRadarObserved: Boolean(opportunity && opportunity.score >= 70 && opportunity.recommendedAction === "improve_product_page"),
       };
 
-      const ok = Object.values(verified).every(Boolean);
       return {
-        ok,
+        ok: Object.values(verified).every(Boolean),
         test: "website-intelligence-e2e",
         verified,
         opportunity: opportunity
           ? { productId: opportunity.productId, score: opportunity.score, priority: opportunity.priority, recommendedAction: opportunity.recommendedAction }
           : null,
-        cleanedUp: false,
-        cleanupTarget: sessionId,
+        cleanedUp: true,
       };
     } finally {
       await this.events.delete({ sessionId });
