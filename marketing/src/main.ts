@@ -11,6 +11,7 @@ import { MarketingDomainApi, DomainKind } from "./marketing-domain-api";
 import { verifyRestartRecovery } from "./restart-recovery";
 import { dashboardHtml, loginHtml } from "./dashboard-ui";
 import { fetchCommerceIntelligence } from "./commerce-data";
+import { fetchWebsiteChangeIntelligence } from "./website-intelligence";
 
 const startedAt = new Date().toISOString();
 const port = Number(process.env.PORT ?? 10000);
@@ -41,7 +42,22 @@ const server = createServer(async (request, response) => {
   if (method === "POST" && pathname === "/v1/hq/login") { const body = await readJson(request); const expected = process.env.MARKETING_HQ_ACCESS_KEY ?? process.env.MARKETING_HQ_ADMIN_TOKEN; const provided = typeof body.key === "string" ? body.key : ""; if (!expected || !provided) { json(response, 401, { ok: false, error: "Invalid access key" }); return; } const expectedBuffer = Buffer.from(expected); const providedBuffer = Buffer.from(provided); if (expectedBuffer.length !== providedBuffer.length || !timingSafeEqual(expectedBuffer, providedBuffer)) { json(response, 401, { ok: false, error: "Invalid access key" }); return; } response.statusCode = 204; response.setHeader("set-cookie", `silku_hq_session=${encodeURIComponent(sessionToken())}; HttpOnly; Secure; SameSite=Strict; Path=/`); response.end(); return; }
   if (method === "GET" && pathname === "/dashboard") { if (!authorized(request)) { response.statusCode = 302; response.setHeader("location", "/"); response.end(); return; } html(response, 200, dashboardHtml()); return; }
   if (!pathname.startsWith("/v1/") || !requireAuth(request, response)) return;
-  if (method === "GET" && pathname === "/v1/marketing/dashboard") { const commerce = await fetchCommerceIntelligence(); if (!commerce.ok) { json(response, 503, { ok: false, dataSource: "unavailable", error: commerce.error, message: "Marketing HQ is not showing placeholder commerce numbers." }); return; } const data = commerce.data; const capturedAt = new Date().toISOString(); const evidence = [{ source: "Silku commerce backend", capturedAt, confidence: 1, evidence: `Live commerce window: ${data.windowDays} days`, lastVerifiedAt: capturedAt }, { source: "Silku inventory", capturedAt, confidence: 1, evidence: `Low/out-of-stock variants: ${data.lowStockCount}`, lastVerifiedAt: capturedAt }]; const snapshot = marketing.evaluate({ revenueTrend: data.revenueTrend, topProducts: data.topProducts.map((product) => product.productName), risingCategories: data.risingCategories, creatorOpportunities: 0, b2bOpportunities: 0, learningScore: 0.5, availableBudget: 0, analytics: { revenue: data.revenue, orders: data.orders, conversions: data.orders }, inventoryRiskProducts: data.inventoryRiskProducts.map((product) => product.name), evidence }).data!; json(response, 200, { ok: true, dataSource: "live", commerce: data, data: dashboard.build(snapshot, marketing.approvals().data ?? [], marketing.audit().data ?? []) }); return; }
+  if (method === "GET" && pathname === "/v1/marketing/dashboard") {
+    const [commerce, website] = await Promise.all([fetchCommerceIntelligence(), fetchWebsiteChangeIntelligence(7)]);
+    if (!commerce.ok) { json(response, 503, { ok: false, dataSource: "unavailable", error: commerce.error, message: "Marketing HQ is not showing placeholder commerce numbers." }); return; }
+    const data = commerce.data;
+    const capturedAt = new Date().toISOString();
+    const websiteSignals = website.ok ? website.data.signals : [];
+    const strongestWebsiteSignal = [...websiteSignals].sort((a, b) => Math.abs(b.changePercent) - Math.abs(a.changePercent))[0];
+    const evidence = [
+      { source: "Silku commerce backend", capturedAt, confidence: 1, evidence: `Live commerce window: ${data.windowDays} days`, lastVerifiedAt: capturedAt },
+      { source: "Silku inventory", capturedAt, confidence: 1, evidence: `Low/out-of-stock variants: ${data.lowStockCount}`, lastVerifiedAt: capturedAt },
+      ...(strongestWebsiteSignal ? [{ source: "Silku website intelligence", capturedAt, confidence: 1, evidence: `${strongestWebsiteSignal.metric}: ${strongestWebsiteSignal.direction} ${Math.abs(strongestWebsiteSignal.changePercent)}% vs previous window`, lastVerifiedAt: capturedAt }] : []),
+    ];
+    const snapshot = marketing.evaluate({ revenueTrend: data.revenueTrend, topProducts: data.topProducts.map((product) => product.productName), risingCategories: data.risingCategories, creatorOpportunities: 0, b2bOpportunities: 0, learningScore: 0.5, availableBudget: 0, analytics: { revenue: data.revenue, orders: data.orders, conversions: data.orders }, inventoryRiskProducts: data.inventoryRiskProducts.map((product) => product.name), evidence }).data!;
+    json(response, 200, { ok: true, dataSource: "live", commerce: data, websiteIntelligence: website.ok ? website.data : { available: false, error: website.error }, data: dashboard.build(snapshot, marketing.approvals().data ?? [], marketing.audit().data ?? []) });
+    return;
+  }
   if (method === "GET" && pathname === "/v1/persistence/domain") { json(response, 200, { ok: true, durable: Boolean(persistence), data: domainStore.summary() }); return; }
   if (method === "POST" && pathname === "/v1/persistence/restart-recovery") { if (!persistence) { json(response, 503, { ok: false, error: "Persistence is not configured" }); return; } try { json(response, 200, await verifyRestartRecovery(persistence)); } catch (error) { json(response, 500, { ok: false, test: "restart-recovery", error: error instanceof Error ? error.message : "Restart recovery failed", cleanedUp: true }); } return; }
   if (method === "POST" && pathname === "/v1/control-plane/prepare") { const body = await readJson(request); if (!body?.decision) { json(response, 400, { ok: false, error: "decision is required" }); return; } const result = await marketing.prepareDirectorActionDurable(body.decision); return json(response, result.ok ? 200 : 400, result); }
@@ -62,25 +78,19 @@ const server = createServer(async (request, response) => {
   if (method === "POST" && pathname === "/v1/evaluate") { json(response, 200, marketing.evaluate(await readJson(request))); return; }
   if (method === "POST" && pathname === "/v1/persistence/e2e") {
     if (!persistence) { json(response, 503, { ok: false, error: "Persistence is not configured" }); return; }
-    const id = randomUUID();
-    const target = `e2e:${id}`;
+    const id = randomUUID(); const target = `e2e:${id}`;
     try {
-      const testSecurity = new MarketingSecurityLayer(persistence);
-      const testMarketing = new MarketingControlApi(undefined, testSecurity);
+      const testSecurity = new MarketingSecurityLayer(persistence); const testMarketing = new MarketingControlApi(undefined, testSecurity);
       const requested = await testMarketing.requestApprovalDurable({ action: "launch_ads", actor: "e2e", target, reason: "Protected persistence round-trip test" });
       if (!requested.ok || !requested.data) throw new Error(requested.error ?? "E2E approval request failed");
-      const durableRequestId = requested.data.requestId;
-      const approved = await testMarketing.decideApprovalDurable(durableRequestId, "approved", "e2e");
+      const durableRequestId = requested.data.requestId; const approved = await testMarketing.decideApprovalDurable(durableRequestId, "approved", "e2e");
       if (!approved.ok || !approved.data || approved.data.decision !== "approved") throw new Error(approved.error ?? "E2E approval decision failed");
-      const recoveredSecurity = new MarketingSecurityLayer(persistence);
-      await recoveredSecurity.hydrate();
-      const recovered = recoveredSecurity.listApprovals().find((item) => item.requestId === durableRequestId);
-      const recoveredAudit = recoveredSecurity.listAudit().filter((item) => item.target === target);
+      const recoveredSecurity = new MarketingSecurityLayer(persistence); await recoveredSecurity.hydrate();
+      const recovered = recoveredSecurity.listApprovals().find((item) => item.requestId === durableRequestId); const recoveredAudit = recoveredSecurity.listAudit().filter((item) => item.target === target);
       if (!recovered || recovered.decision !== "approved") throw new Error("Fresh hydration did not recover approved request");
       if (recoveredAudit.length < 2) throw new Error("Fresh hydration did not recover approval audit events");
       if (!recoveredSecurity.canExecute("launch_ads", durableRequestId)) throw new Error("Recovered approved action is not executable");
-      await persistence.cleanupE2E(target);
-      return json(response, 200, { ok: true, test: "persistence-e2e", verified: { durableRequest: true, durableDecision: true, auditEvents: recoveredAudit.length, freshHydration: true, executionBoundary: true }, cleanedUp: true });
+      await persistence.cleanupE2E(target); return json(response, 200, { ok: true, test: "persistence-e2e", verified: { durableRequest: true, durableDecision: true, auditEvents: recoveredAudit.length, freshHydration: true, executionBoundary: true }, cleanedUp: true });
     } catch (error) {
       try { await persistence.cleanupE2E(target); } catch (cleanupError) { console.error("[marketing-persistence] E2E cleanup failed", cleanupError); }
       json(response, 500, { ok: false, test: "persistence-e2e", error: error instanceof Error ? error.message : "Persistence E2E failed", cleanedUp: false });
