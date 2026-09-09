@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { MarketingCampaign, MarketingContent, MarketingDecisionRecord, MarketingJob } from "./contracts";
 import { MarketingDomainStore } from "./marketing-domain-store";
-import { MarketingLifecycleService } from "./marketing-lifecycle";
+import { MarketingLifecycleService, type ContentPatch } from "./marketing-lifecycle";
 
 export type DomainKind = "content" | "campaigns" | "jobs" | "decisions";
 
@@ -87,6 +87,24 @@ export class MarketingDomainApi {
       return ok(await this.lifecycle.recordDecision(item));
     } catch (error) {
       return fail(error instanceof Error ? error.message : "Domain create failed");
+    }
+  }
+
+  async editContent(id: string, body: Record<string, unknown>) {
+    try {
+      const allowed = ["campaignId", "format", "title", "hook", "body", "callToAction", "platform", "requiresApproval"] as const;
+      const patch: ContentPatch = {};
+      for (const key of allowed) {
+        if (body[key] !== undefined) (patch as Record<string, unknown>)[key] = body[key];
+      }
+      if (patch.format !== undefined) patch.format = valid(String(patch.format), contentFormats, "format") as MarketingContent["format"];
+      for (const key of ["hook", "body", "callToAction"] as const) {
+        if (patch[key] !== undefined && (typeof patch[key] !== "string" || !patch[key].trim())) throw new Error(`${key} must be a non-empty string`);
+      }
+      if (patch.requiresApproval !== undefined && typeof patch.requiresApproval !== "boolean") throw new Error("requiresApproval must be boolean");
+      return ok(await this.lifecycle.editContent(id, patch));
+    } catch (error) {
+      return fail(error instanceof Error ? error.message : "Content edit failed");
     }
   }
 

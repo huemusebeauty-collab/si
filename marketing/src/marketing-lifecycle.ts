@@ -10,6 +10,18 @@ import type {
 } from "./contracts";
 import { MarketingDomainStore } from "./marketing-domain-store";
 
+export type ContentPatch = Partial<Pick<MarketingContent, "campaignId" | "format" | "title" | "hook" | "body" | "callToAction" | "platform" | "requiresApproval">>;
+
+export const CONTENT_STATUS_TRANSITIONS: Record<ContentStatus, readonly ContentStatus[]> = {
+  idea: ["draft", "rejected"],
+  draft: ["qa_passed", "rejected"],
+  qa_passed: ["approved", "rejected"],
+  approved: ["scheduled", "rejected"],
+  scheduled: ["published", "rejected"],
+  published: [],
+  rejected: ["draft"],
+};
+
 export class MarketingLifecycleService {
   constructor(private readonly store: MarketingDomainStore) {}
 
@@ -25,6 +37,14 @@ export class MarketingLifecycleService {
     if (existing) return existing;
     const now = new Date().toISOString();
     return this.store.saveContent({ ...input, createdAt: now, updatedAt: now });
+  }
+
+  async editContent(contentId: string, patch: ContentPatch): Promise<MarketingContent> {
+    const current = this.store.getContent(contentId);
+    if (!current) throw new Error(`Content not found: ${contentId}`);
+    if (current.status === "published") throw new Error("Published content is immutable; create a new version instead");
+    const next = { ...current, ...patch, contentId: current.contentId, status: current.status, createdAt: current.createdAt, updatedAt: new Date().toISOString() };
+    return this.store.saveContent(next);
   }
 
   async createJob(input: Omit<MarketingJob, "createdAt" | "updatedAt" | "retryCount"> & { retryCount?: number }): Promise<MarketingJob> {
@@ -53,6 +73,7 @@ export class MarketingLifecycleService {
     const current = this.store.getContent(contentId);
     if (!current) throw new Error(`Content not found: ${contentId}`);
     if (current.status === status) return current;
+    if (!CONTENT_STATUS_TRANSITIONS[current.status].includes(status)) throw new Error(`Invalid content transition: ${current.status} -> ${status}`);
     return this.store.saveContent({ ...current, status, updatedAt: new Date().toISOString() });
   }
 

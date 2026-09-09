@@ -63,12 +63,8 @@ const server = createServer(async (request, response) => {
     return;
   }
   if (method === "POST" && pathname === "/v1/persistence/website-intelligence-e2e") {
-    try {
-      const result = await runWebsiteIntelligenceE2e();
-      json(response, result.ok ? 200 : 500, result);
-    } catch (error) {
-      json(response, 500, { ok: false, test: "website-intelligence-e2e", error: error instanceof Error ? error.message : "Website intelligence E2E failed", cleanedUp: true });
-    }
+    try { const result = await runWebsiteIntelligenceE2e(); json(response, result.ok ? 200 : 500, result); }
+    catch (error) { json(response, 500, { ok: false, test: "website-intelligence-e2e", error: error instanceof Error ? error.message : "Website intelligence E2E failed", cleanedUp: true }); }
     return;
   }
   if (method === "GET" && pathname === "/v1/persistence/domain") { json(response, 200, { ok: true, durable: Boolean(persistence), data: domainStore.summary() }); return; }
@@ -82,6 +78,7 @@ const server = createServer(async (request, response) => {
     if (method === "GET" && !id) { json(response, 200, domainApi.list(kind)); return; }
     if (method === "GET" && id) { const result = domainApi.get(kind, id); json(response, result.ok ? 200 : 404, result); return; }
     if (method === "POST" && !id) { const result = await domainApi.create(kind, await readJson(request)); json(response, result.ok ? 201 : 400, result); return; }
+    if (method === "PATCH" && kind === "content" && id && !pathname.endsWith("/status")) { const result = await domainApi.editContent(id, await readJson(request)); json(response, result.ok ? 200 : 400, result); return; }
     if (method === "POST" && id && pathname.endsWith("/status")) { const body = await readJson(request); if (typeof body.status !== "string") { json(response, 400, { ok: false, error: "status is required" }); return; } const result = await domainApi.updateStatus(kind, id, body.status, typeof body.errorMessage === "string" ? body.errorMessage : undefined); json(response, result.ok ? 200 : 404, result); return; }
   }
   if (method === "GET" && pathname === "/v1/approvals") { json(response, 200, marketing.approvals()); return; }
