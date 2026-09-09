@@ -26,8 +26,12 @@ export interface ContentVersionRepository {
 export class MemoryContentVersionRepository implements ContentVersionRepository {
   private readonly versions = new Map<string, ContentVersion>();
   async create(version: ContentVersion) {
-    this.versions.set(version.versionId, version);
-    return version;
+    const latest = this.list(version.contentId)[0];
+    const next = latest && version.versionNumber <= latest.versionNumber
+      ? { ...version, versionNumber: latest.versionNumber + 1 }
+      : version;
+    this.versions.set(next.versionId, next);
+    return next;
   }
   list(contentId: string) {
     return [...this.versions.values()].filter((v) => v.contentId === contentId).sort((a, b) => b.versionNumber - a.versionNumber);
