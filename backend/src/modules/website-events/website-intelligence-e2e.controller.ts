@@ -11,7 +11,7 @@ import { CustomerJourneyService } from "./customer-journey.service";
 import { WebsiteChangeIntelligenceService } from "./website-change-intelligence.service";
 import { CustomerProductOpportunityService } from "./customer-product-opportunity.service";
 
-@Controller("/v1/website/analytics/e2e")
+@Controller({ path: "website/analytics/e2e", version: "1" })
 export class WebsiteIntelligenceE2eController {
   constructor(
     @InjectRepository(WebsiteEventEntity)
