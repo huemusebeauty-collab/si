@@ -14,16 +14,16 @@ export type WebsiteEventName = (typeof WEBSITE_EVENT_NAMES)[number];
 @Index("idx_website_events_event_name_occurred_at", ["eventName", "occurredAt"])
 @Index("idx_website_events_session_occurred_at", ["sessionId", "occurredAt"])
 export class WebsiteEventEntity {
-  @PrimaryColumn({ type: "uuid" })
+  @PrimaryColumn({ name: "event_id", type: "uuid" })
   eventId!: string;
 
-  @Column({ type: "text" })
+  @Column({ name: "event_name", type: "text" })
   eventName!: WebsiteEventName;
 
-  @Column({ type: "text" })
+  @Column({ name: "session_id", type: "text" })
   sessionId!: string;
 
-  @Column({ type: "text", nullable: true })
+  @Column({ name: "anonymous_id", type: "text", nullable: true })
   anonymousId?: string;
 
   @Column({ type: "text" })
@@ -41,18 +41,18 @@ export class WebsiteEventEntity {
   @Column({ type: "text", nullable: true })
   campaign?: string;
 
-  @Column({ type: "text", nullable: true })
+  @Column({ name: "product_id", type: "text", nullable: true })
   productId?: string;
 
-  @Column({ type: "text", nullable: true })
+  @Column({ name: "order_id", type: "text", nullable: true })
   orderId?: string;
 
   @Column({ type: "jsonb", default: {} })
   metadata!: Record<string, unknown>;
 
-  @Column({ type: "timestamptz" })
+  @Column({ name: "occurred_at", type: "timestamptz" })
   occurredAt!: Date;
 
-  @CreateDateColumn({ type: "timestamptz" })
+  @CreateDateColumn({ name: "received_at", type: "timestamptz" })
   receivedAt!: Date;
 }
