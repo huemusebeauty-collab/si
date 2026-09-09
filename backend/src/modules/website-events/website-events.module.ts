@@ -5,11 +5,13 @@ import { WebsiteEventsController } from "./website-events.controller";
 import { WebsiteEventsService } from "./website-events.service";
 import { WebsiteFunnelController } from "./website-funnel.controller";
 import { WebsiteFunnelService } from "./website-funnel.service";
+import { ProductConversionController } from "./product-conversion.controller";
+import { ProductConversionService } from "./product-conversion.service";
 
 @Module({
   imports: [TypeOrmModule.forFeature([WebsiteEventEntity])],
-  controllers: [WebsiteEventsController, WebsiteFunnelController],
-  providers: [WebsiteEventsService, WebsiteFunnelService],
-  exports: [WebsiteEventsService, WebsiteFunnelService],
+  controllers: [WebsiteEventsController, WebsiteFunnelController, ProductConversionController],
+  providers: [WebsiteEventsService, WebsiteFunnelService, ProductConversionService],
+  exports: [WebsiteEventsService, WebsiteFunnelService, ProductConversionService],
 })
 export class WebsiteEventsModule {}
