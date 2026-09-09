@@ -29,7 +29,7 @@ export class WebsiteEventsService {
       occurredAt: dto.occurredAt ? new Date(dto.occurredAt) : new Date(),
     });
 
-    await this.events.insert(event);
+    await this.events.insert(event as any);
     return { accepted: true, eventId: event.eventId };
   }
 }
