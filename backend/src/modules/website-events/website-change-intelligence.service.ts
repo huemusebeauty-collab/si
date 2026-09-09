@@ -36,7 +36,7 @@ export class WebsiteChangeIntelligenceService {
       ["purchases", "purchase"],
     ];
 
-    const signals = metrics.map(([metric, eventName]) => {
+    const signals: WebsiteChangeSignal[] = metrics.map(([metric, eventName]) => {
       const recentSet = new Set<string>();
       const previousSet = new Set<string>();
       let recent = 0;
@@ -56,9 +56,9 @@ export class WebsiteChangeIntelligenceService {
         previous = previousSet.size;
       }
       const changePercent = previous === 0 ? (recent > 0 ? 100 : 0) : Number((((recent - previous) / previous) * 100).toFixed(2));
-      const direction = changePercent > 2 ? "up" : changePercent < -2 ? "down" : "flat";
+      const direction: WebsiteChangeSignal["direction"] = changePercent > 2 ? "up" : changePercent < -2 ? "down" : "flat";
       const magnitude = Math.abs(changePercent);
-      const significance = magnitude >= 30 ? "high" : magnitude >= 10 ? "medium" : "low";
+      const significance: WebsiteChangeSignal["significance"] = magnitude >= 30 ? "high" : magnitude >= 10 ? "medium" : "low";
       return { metric, recent, previous, changePercent, direction, significance };
     });
 
