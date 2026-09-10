@@ -18,11 +18,14 @@ export class PublishingPipelineService {
     if (!cleanActor) throw new Error("actor is required");
     const version = this.versions.get(expectedVersionId.trim());
     if (!version || version.contentId !== content.contentId) throw new Error("Publishing version mismatch");
-    if (content.status === "published" && to !== "published") throw new Error("Published content is immutable; create a new version instead");
-    if (content.status === to) return content;
+    const current = this.lifecycle.getContent(content.contentId);
+    if (!current) throw new Error(`Content not found: ${content.contentId}`);
+    if (current.status !== content.status) throw new Error(`Publishing content state is stale: ${content.status} != ${current.status}`);
+    if (current.status === "published" && to !== "published") throw new Error("Published content is immutable; create a new version instead");
+    if (current.status === to) return current;
 
     const next = await this.lifecycle.updateContent(content.contentId, to);
-    await this.audit.append(createAuditEntry(content.contentId, version.versionId, content.status, next.status, cleanActor));
+    await this.audit.append(createAuditEntry(content.contentId, version.versionId, current.status, next.status, cleanActor));
     return next;
   }
 
