@@ -20,12 +20,17 @@ async function main() {
   current = await service.publish(current, "test", version.versionId);
   if (current.status !== "published") throw new Error("Publish failed");
 
-  for (const [from, to] of [["draft", "approved"], ["approved", "published"]] as const) {
-    try { await service.transition({ ...base, status: from }, to, "test", version.versionId); throw new Error(`Invalid transition accepted: ${from} -> ${to}`); }
-    catch (error) { if (!(error instanceof Error) || !error.message.includes("Invalid content transition")) throw error; }
+  try { await service.transition({ ...base, status: "draft" }, "approved", "test", version.versionId); throw new Error("Invalid transition accepted: draft -> approved"); }
+  catch (error) { if (!(error instanceof Error) || !error.message.includes("Invalid content transition")) throw error; }
+
+  try { await service.transition({ ...base, status: "approved" }, "published", "test", version.versionId); throw new Error("Invalid transition accepted: approved -> published"); }
+  catch (error) {
+    if (!(error instanceof Error) || !["Invalid content transition", "Only scheduled content can be published"].some((message) => error.message.includes(message))) throw error;
   }
+
   try { await service.publish({ ...current, status: "scheduled" }, "test", "v2"); throw new Error("Version mismatch accepted"); }
   catch (error) { if (!(error instanceof Error) || error.message !== "Publishing version mismatch") throw error; }
+
   try { await service.transition(current, "draft", "test", version.versionId); throw new Error("Published content mutation accepted"); }
   catch (error) { if (!(error instanceof Error) || !error.message.includes("Published content is immutable")) throw error; }
 
