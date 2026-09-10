@@ -18,6 +18,7 @@
     "test:content-lifecycle-3k-2": "tsx scripts/test-content-lifecycle-3k-2.ts",
     "test:content-api-route-3k-2": "tsx scripts/test-content-api-route-3k-2.ts",
     "test:media-api-3k-3": "tsx scripts/test-media-api-3k-3.ts",
+    "test:media-api-route-3k-3": "tsx scripts/test-media-api-route-3k-3.ts",
     "test:media-storage-3k-3": "tsx scripts/test-media-storage-3k-3.ts",
     "test:content-versioning-3k-4": "tsx scripts/test-content-versioning-3k-4.ts",
     "test:content-version-route-3k-4": "tsx scripts/test-content-version-route-3k-4.ts",
