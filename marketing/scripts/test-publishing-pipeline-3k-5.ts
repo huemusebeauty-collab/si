@@ -25,7 +25,7 @@ async function main() {
 
   try { await service.transition({ ...base, status: "approved" }, "published", "test", version.versionId); throw new Error("Invalid transition accepted: approved -> published"); }
   catch (error) {
-    if (!(error instanceof Error) || !["Invalid content transition", "Only scheduled content can be published"].some((message) => error.message.includes(message))) throw error;
+    if (!(error instanceof Error) || !error.message.includes("Publishing content state is stale")) throw error;
   }
 
   try { await service.publish({ ...current, status: "scheduled" }, "test", "v2"); throw new Error("Version mismatch accepted"); }
