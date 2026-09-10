@@ -14,6 +14,7 @@ import { fetchCommerceIntelligence } from "./commerce-data";
 import { fetchWebsiteChangeIntelligence } from "./website-intelligence";
 import { buildWebsiteActionRecommendations } from "./website-opportunity-actions";
 import { runWebsiteIntelligenceE2e } from "./website-intelligence-e2e";
+import { SocialCenter, socialCenterHtml } from "./social-center";
 
 const startedAt = new Date().toISOString();
 const port = Number(process.env.PORT ?? 10000);
@@ -33,6 +34,7 @@ const marketing = new MarketingControlApi(undefined, security, domainStore);
 const dashboard = new MarketingHqDashboard();
 const monitor = new MarketingMonitor();
 const fieldForce = new FieldForceApi();
+const social = new SocialCenter();
 const domainKinds = new Set<DomainKind>(["content", "campaigns", "jobs", "decisions"]);
 
 const server = createServer(async (request, response) => {
@@ -43,7 +45,9 @@ const server = createServer(async (request, response) => {
   if (method === "GET" && pathname === "/") { html(response, 200, authorized(request) ? dashboardHtml() : loginHtml()); return; }
   if (method === "POST" && pathname === "/v1/hq/login") { const body = await readJson(request); const expected = process.env.MARKETING_HQ_ACCESS_KEY ?? process.env.MARKETING_HQ_ADMIN_TOKEN; const provided = typeof body.key === "string" ? body.key : ""; if (!expected || !provided) { json(response, 401, { ok: false, error: "Invalid access key" }); return; } const expectedBuffer = Buffer.from(expected); const providedBuffer = Buffer.from(provided); if (expectedBuffer.length !== providedBuffer.length || !timingSafeEqual(expectedBuffer, providedBuffer)) { json(response, 401, { ok: false, error: "Invalid access key" }); return; } response.statusCode = 204; response.setHeader("set-cookie", `silku_hq_session=${encodeURIComponent(sessionToken())}; HttpOnly; Secure; SameSite=Strict; Path=/`); response.end(); return; }
   if (method === "GET" && pathname === "/dashboard") { if (!authorized(request)) { response.statusCode = 302; response.setHeader("location", "/"); response.end(); return; } html(response, 200, dashboardHtml()); return; }
+  if (method === "GET" && pathname === "/social") { if (!authorized(request)) { response.statusCode = 302; response.setHeader("location", "/"); response.end(); return; } html(response, 200, socialCenterHtml()); return; }
   if (!pathname.startsWith("/v1/") || !requireAuth(request, response)) return;
+  if (method === "GET" && pathname === "/v1/social/dashboard") { json(response, 200, social.dashboard()); return; }
   if (method === "GET" && pathname === "/v1/marketing/dashboard") {
     const [commerce, website, websiteActions] = await Promise.all([fetchCommerceIntelligence(), fetchWebsiteChangeIntelligence(7), buildWebsiteActionRecommendations()]);
     if (!commerce.ok) { json(response, 503, { ok: false, dataSource: "unavailable", error: commerce.error, message: "Marketing HQ is not showing placeholder commerce numbers." }); return; }
@@ -62,61 +66,22 @@ const server = createServer(async (request, response) => {
     json(response, 200, { ok: true, dataSource: "live", commerce: data, websiteIntelligence: website.ok ? website.data : { available: false, error: website.error }, websiteActions, data: dashboard.build(snapshot, marketing.approvals().data ?? [], marketing.audit().data ?? []) });
     return;
   }
-  if (method === "POST" && pathname === "/v1/persistence/website-intelligence-e2e") {
-    try { const result = await runWebsiteIntelligenceE2e(); json(response, result.ok ? 200 : 500, result); }
-    catch (error) { json(response, 500, { ok: false, test: "website-intelligence-e2e", error: error instanceof Error ? error.message : "Website intelligence E2E failed", cleanedUp: true }); }
-    return;
-  }
+  if (method === "POST" && pathname === "/v1/persistence/website-intelligence-e2e") { try { const result = await runWebsiteIntelligenceE2e(); json(response, result.ok ? 200 : 500, result); } catch (error) { json(response, 500, { ok: false, test: "website-intelligence-e2e", error: error instanceof Error ? error.message : "Website intelligence E2E failed", cleanedUp: true }); } return; }
   if (method === "GET" && pathname === "/v1/persistence/domain") { json(response, 200, { ok: true, durable: Boolean(persistence), data: domainStore.summary() }); return; }
   if (method === "POST" && pathname === "/v1/persistence/restart-recovery") { if (!persistence) { json(response, 503, { ok: false, error: "Persistence is not configured" }); return; } try { json(response, 200, await verifyRestartRecovery(persistence)); } catch (error) { json(response, 500, { ok: false, test: "restart-recovery", error: error instanceof Error ? error.message : "Restart recovery failed", cleanedUp: true }); } return; }
   if (method === "POST" && pathname === "/v1/control-plane/prepare") { const body = await readJson(request); if (!body?.decision) { json(response, 400, { ok: false, error: "decision is required" }); return; } const result = await marketing.prepareDirectorActionDurable(body.decision); return json(response, result.ok ? 200 : 400, result); }
   if (method === "POST" && pathname === "/v1/control-plane/check") { const body = await readJson(request); if (!body?.action) { json(response, 400, { ok: false, error: "action is required" }); return; } const result = marketing.executionBoundary(body.action, body.approvalRequestId); json(response, result.ok ? 200 : 403, result); return; }
   const domainMatch = pathname.match(/^\/v1\/domain\/([^/]+)(?:\/([^/]+))?(?:\/status)?$/);
-  if (domainMatch && domainKinds.has(domainMatch[1] as DomainKind)) {
-    const kind = domainMatch[1] as DomainKind;
-    const id = domainMatch[2];
-    if (method === "GET" && !id) { json(response, 200, domainApi.list(kind)); return; }
-    if (method === "GET" && id) { const result = domainApi.get(kind, id); json(response, result.ok ? 200 : 404, result); return; }
-    if (method === "POST" && !id) { const result = await domainApi.create(kind, await readJson(request)); json(response, result.ok ? 201 : 400, result); return; }
-    if (method === "PATCH" && kind === "content" && id && !pathname.endsWith("/status")) { const result = await domainApi.editContent(id, await readJson(request)); json(response, result.ok ? 200 : 400, result); return; }
-    if (method === "POST" && id && pathname.endsWith("/status")) { const body = await readJson(request); if (typeof body.status !== "string") { json(response, 400, { ok: false, error: "status is required" }); return; } const result = await domainApi.updateStatus(kind, id, body.status, typeof body.errorMessage === "string" ? body.errorMessage : undefined); json(response, result.ok ? 200 : 404, result); return; }
-  }
+  if (domainMatch && domainKinds.has(domainMatch[1] as DomainKind)) { const kind = domainMatch[1] as DomainKind; const id = domainMatch[2]; if (method === "GET" && !id) { json(response, 200, domainApi.list(kind)); return; } if (method === "GET" && id) { const result = domainApi.get(kind, id); json(response, result.ok ? 200 : 404, result); return; } if (method === "POST" && !id) { const result = await domainApi.create(kind, await readJson(request)); json(response, result.ok ? 201 : 400, result); return; } if (method === "PATCH" && kind === "content" && id && !pathname.endsWith("/status")) { const result = await domainApi.editContent(id, await readJson(request)); json(response, result.ok ? 200 : 400, result); return; } if (method === "POST" && id && pathname.endsWith("/status")) { const body = await readJson(request); if (typeof body.status !== "string") { json(response, 400, { ok: false, error: "status is required" }); return; } const result = await domainApi.updateStatus(kind, id, body.status, typeof body.errorMessage === "string" ? body.errorMessage : undefined); json(response, result.ok ? 200 : 404, result); return; } }
   if (method === "GET" && pathname === "/v1/approvals") { json(response, 200, marketing.approvals()); return; }
   if (method === "GET" && pathname === "/v1/audit") { json(response, 200, marketing.audit()); return; }
   if (method === "GET" && pathname === "/v1/monitoring/status") { json(response, 200, monitor.status()); return; }
   if (method === "GET" && pathname.startsWith("/v1/field-force/")) { json(response, 200, fieldForce.handle(method, pathname, {})); return; }
   if (method === "POST" && pathname === "/v1/evaluate") { json(response, 200, marketing.evaluate(await readJson(request))); return; }
-  if (method === "POST" && pathname === "/v1/persistence/e2e") {
-    if (!persistence) { json(response, 503, { ok: false, error: "Persistence is not configured" }); return; }
-    const id = randomUUID(); const target = `e2e:${id}`;
-    try {
-      const testSecurity = new MarketingSecurityLayer(persistence); const testMarketing = new MarketingControlApi(undefined, testSecurity);
-      const requested = await testMarketing.requestApprovalDurable({ action: "launch_ads", actor: "e2e", target, reason: "Protected persistence round-trip test" });
-      if (!requested.ok || !requested.data) throw new Error(requested.error ?? "E2E approval request failed");
-      const durableRequestId = requested.data.requestId; const approved = await testMarketing.decideApprovalDurable(durableRequestId, "approved", "e2e");
-      if (!approved.ok || !approved.data || approved.data.decision !== "approved") throw new Error(approved.error ?? "E2E approval decision failed");
-      const recoveredSecurity = new MarketingSecurityLayer(persistence); await recoveredSecurity.hydrate();
-      const recovered = recoveredSecurity.listApprovals().find((item) => item.requestId === durableRequestId); const recoveredAudit = recoveredSecurity.listAudit().filter((item) => item.target === target);
-      if (!recovered || recovered.decision !== "approved") throw new Error("Fresh hydration did not recover approved request");
-      if (recoveredAudit.length < 2) throw new Error("Fresh hydration did not recover approval audit events");
-      if (!recoveredSecurity.canExecute("launch_ads", durableRequestId)) throw new Error("Recovered approved action is not executable");
-      await persistence.cleanupE2E(target); return json(response, 200, { ok: true, test: "persistence-e2e", verified: { durableRequest: true, durableDecision: true, auditEvents: recoveredAudit.length, freshHydration: true, executionBoundary: true }, cleanedUp: true });
-    } catch (error) {
-      try { await persistence.cleanupE2E(target); } catch (cleanupError) { console.error("[marketing-persistence] E2E cleanup failed", cleanupError); }
-      json(response, 500, { ok: false, test: "persistence-e2e", error: error instanceof Error ? error.message : "Persistence E2E failed", cleanedUp: false });
-    }
-    return;
-  }
+  if (method === "POST" && pathname === "/v1/persistence/e2e") { if (!persistence) { json(response, 503, { ok: false, error: "Persistence is not configured" }); return; } const id = randomUUID(); const target = `e2e:${id}`; try { const testSecurity = new MarketingSecurityLayer(persistence); const testMarketing = new MarketingControlApi(undefined, testSecurity); const requested = await testMarketing.requestApprovalDurable({ action: "launch_ads", actor: "e2e", target, reason: "Protected persistence round-trip test" }); if (!requested.ok || !requested.data) throw new Error(requested.error ?? "E2E approval request failed"); const durableRequestId = requested.data.requestId; const approved = await testMarketing.decideApprovalDurable(durableRequestId, "approved", "e2e"); if (!approved.ok || !approved.data || approved.data.decision !== "approved") throw new Error(approved.error ?? "E2E approval decision failed"); const recoveredSecurity = new MarketingSecurityLayer(persistence); await recoveredSecurity.hydrate(); const recovered = recoveredSecurity.listApprovals().find((item) => item.requestId === durableRequestId); const recoveredAudit = recoveredSecurity.listAudit().filter((item) => item.target === target); if (!recovered || recovered.decision !== "approved") throw new Error("Fresh hydration did not recover approved request"); if (recoveredAudit.length < 2) throw new Error("Fresh hydration did not recover approval audit events"); if (!recoveredSecurity.canExecute("launch_ads", durableRequestId)) throw new Error("Recovered approved action is not executable"); await persistence.cleanupE2E(target); return json(response, 200, { ok: true, test: "persistence-e2e", verified: { durableRequest: true, durableDecision: true, auditEvents: recoveredAudit.length, freshHydration: true, executionBoundary: true }, cleanedUp: true }); } catch (error) { try { await persistence.cleanupE2E(target); } catch (cleanupError) { console.error("[marketing-persistence] E2E cleanup failed", cleanupError); } json(response, 500, { ok: false, test: "persistence-e2e", error: error instanceof Error ? error.message : "Persistence E2E failed", cleanedUp: false }); } return; }
   if (method === "POST" && pathname === "/v1/approvals") { json(response, 201, await marketing.requestApprovalDurable(await readJson(request))); return; }
-  const approvalMatch = pathname.match(/^\/v1\/approvals\/([^/]+)\/(approve|reject)$/);
-  if (method === "POST" && approvalMatch) { const body = await readJson(request); const result = approvalMatch[2] === "approve" ? await marketing.decideApprovalDurable(approvalMatch[1], "approved", body.actor ?? "marketing-hq") : await marketing.decideApprovalDurable(approvalMatch[1], "rejected", body.actor ?? "marketing-hq"); json(response, result.ok ? 200 : 404, result); return; }
+  const approvalMatch = pathname.match(/^\/v1\/approvals\/([^/]+)\/(approve|reject)$/); if (method === "POST" && approvalMatch) { const body = await readJson(request); const result = approvalMatch[2] === "approve" ? await marketing.decideApprovalDurable(approvalMatch[1], "approved", body.actor ?? "marketing-hq") : await marketing.decideApprovalDurable(approvalMatch[1], "rejected", body.actor ?? "marketing-hq"); json(response, result.ok ? 200 : 404, result); return; }
   json(response, 404, { ok: false, error: "Not found" });
 });
 
-server.listen(port, hostname, () => {
-  console.log(`Silku Marketing HQ listening on ${hostname}:${port}`);
-  Promise.all([security.hydrate(), domainStore.hydrate()]).catch((error) => {
-    console.error("[marketing-persistence] startup hydration failed", error);
-    process.exitCode = 1;
-  });
-});
+server.listen(port, hostname, () => { console.log(`Silku Marketing HQ listening on ${hostname}:${port}`); Promise.all([security.hydrate(), domainStore.hydrate()]).catch((error) => { console.error("[marketing-persistence] startup hydration failed", error); process.exitCode = 1; }); });
