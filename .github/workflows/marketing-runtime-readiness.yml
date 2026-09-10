@@ -1,8 +1,10 @@
 name: Marketing runtime readiness
 
 on:
-  push:
-    branches: [test/render-port-runtime]
+  pull_request:
+    paths:
+      - "marketing/**"
+      - ".github/workflows/marketing-runtime-readiness.yml"
 
 jobs:
   runtime-readiness:
