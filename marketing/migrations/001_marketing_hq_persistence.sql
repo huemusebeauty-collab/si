@@ -4,26 +4,27 @@ CREATE TABLE IF NOT EXISTS marketing_hq_approvals (
   actor TEXT NOT NULL,
   target TEXT,
   reason TEXT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL,
+  requested_at TIMESTAMPTZ NOT NULL,
   decision TEXT NOT NULL CHECK (decision IN ('approved','pending','rejected')),
   decided_at TIMESTAMPTZ,
   decided_by TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_marketing_hq_approvals_decision_created
-  ON marketing_hq_approvals (decision, created_at DESC);
+  ON marketing_hq_approvals (decision, requested_at DESC);
 
 CREATE TABLE IF NOT EXISTS marketing_hq_audit_events (
   event_id TEXT PRIMARY KEY,
+  event_type TEXT NOT NULL,
+  request_id TEXT,
   action TEXT NOT NULL,
   actor TEXT NOT NULL,
-  target TEXT,
-  details TEXT NOT NULL,
-  occurred_at TIMESTAMPTZ NOT NULL
+  details JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_marketing_hq_audit_events_occurred
-  ON marketing_hq_audit_events (occurred_at DESC);
+CREATE INDEX IF NOT EXISTS idx_marketing_hq_audit_events_created
+  ON marketing_hq_audit_events (created_at DESC);
 
 CREATE TABLE IF NOT EXISTS marketing_hq_content (
   content_id TEXT PRIMARY KEY,
@@ -83,7 +84,7 @@ CREATE TABLE IF NOT EXISTS marketing_hq_decisions (
   actor TEXT NOT NULL,
   target TEXT,
   reason TEXT NOT NULL,
-  confidence NUMERIC NOT NULL,
+  confidence DOUBLE PRECISION NOT NULL,
   requires_approval BOOLEAN NOT NULL,
   status TEXT NOT NULL,
   evidence JSONB NOT NULL DEFAULT '[]'::jsonb,
