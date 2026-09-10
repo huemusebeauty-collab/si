@@ -1,73 +1,36 @@
-export type PublishingStatus =
-  | "idea"
-  | "draft"
-  | "qa_passed"
-  | "approved"
-  | "scheduled"
-  | "published"
-  | "rejected";
+import type { ContentStatus, MarketingContent } from "./contracts";
+import { MarketingLifecycleService } from "./marketing-lifecycle";
+import type { ContentVersionRepository } from "./content-versioning";
+import type { PublishingAuditRepository } from "./publishing-audit";
+import { createAuditEntry } from "./publishing-audit";
 
-export interface PublishingContent {
-  contentId: string;
-  versionId: string;
-  status: PublishingStatus;
-  scheduledAt?: string;
-  publishedAt?: string;
-}
-
-export interface PublishingAuditEntry {
-  contentId: string;
-  versionId: string;
-  from: PublishingStatus;
-  to: PublishingStatus;
-  actor: string;
-  at: string;
-}
+export type PublishingStatus = ContentStatus;
 
 export class PublishingPipelineService {
-  private readonly audit: PublishingAuditEntry[] = [];
+  constructor(
+    private readonly lifecycle: MarketingLifecycleService,
+    private readonly versions: ContentVersionRepository,
+    private readonly audit: PublishingAuditRepository,
+  ) {}
 
-  private readonly transitions: Record<PublishingStatus, PublishingStatus[]> = {
-    idea: ["draft", "rejected"],
-    draft: ["qa_passed", "rejected"],
-    qa_passed: ["approved", "rejected"],
-    approved: ["scheduled", "rejected"],
-    scheduled: ["published", "rejected"],
-    published: [],
-    rejected: ["draft"],
-  };
+  async transition(content: MarketingContent, to: PublishingStatus, actor: string, expectedVersionId: string): Promise<MarketingContent> {
+    const cleanActor = actor.trim();
+    if (!cleanActor) throw new Error("actor is required");
+    const version = this.versions.get(expectedVersionId.trim());
+    if (!version || version.contentId !== content.contentId) throw new Error("Publishing version mismatch");
+    if (content.status === "published" && to !== "published") throw new Error("Published content is immutable; create a new version instead");
+    if (to === "published" && content.status !== "scheduled") throw new Error("Only scheduled content can be published");
+    if (to === "scheduled" && !content.scheduledAt) throw new Error("Scheduled content requires scheduledAt");
+    if (content.status === to) return content;
 
-  transition(content: PublishingContent, to: PublishingStatus, actor: string, at = new Date().toISOString()): PublishingContent {
-    if (content.status === to) return { ...content };
-    if (content.status === "published") {
-      throw new Error("Published content is immutable; create a new version instead");
-    }
-    if (!this.transitions[content.status].includes(to)) {
-      throw new Error(`Invalid publishing transition: ${content.status} -> ${to}`);
-    }
-    if (to === "scheduled" && !content.scheduledAt) {
-      throw new Error("Scheduled content requires scheduledAt");
-    }
-    if (to === "published" && !content.scheduledAt) {
-      throw new Error("Only scheduled content can be published");
-    }
-
-    const next = { ...content, status: to };
-    if (to === "published") next.publishedAt = at;
-    this.audit.push({ contentId: content.contentId, versionId: content.versionId, from: content.status, to, actor, at });
+    const next = await this.lifecycle.updateContent(content.contentId, to);
+    await this.audit.append(createAuditEntry(content.contentId, version.versionId, content.status, next.status, cleanActor));
     return next;
   }
 
-  getAudit(contentId: string): PublishingAuditEntry[] {
-    return this.audit.filter((entry) => entry.contentId === contentId).map((entry) => ({ ...entry }));
+  async publish(content: MarketingContent, actor: string, expectedVersionId: string): Promise<MarketingContent> {
+    return this.transition(content, "published", actor, expectedVersionId);
   }
 
-  assertPublishable(content: PublishingContent, expectedVersionId: string): void {
-    if (content.versionId !== expectedVersionId) {
-      throw new Error("Publishing version mismatch");
-    }
-    if (content.status !== "scheduled") {
-      throw new Error("Only scheduled content can be published");
-    }
-  }
+  async getAudit(contentId: string) { return this.audit.list(contentId.trim()); }
 }
