@@ -113,9 +113,10 @@ const server = createServer(async (request, response) => {
   json(response, 404, { ok: false, error: "Not found" });
 });
 
-Promise.all([security.hydrate(), domainStore.hydrate()]).then(() => {
-  server.listen(port, hostname, () => { console.log(`Silku Marketing HQ listening on ${hostname}:${port}`); });
-}).catch((error) => {
-  console.error("[marketing-persistence] startup hydration failed", error);
-  process.exitCode = 1;
+server.listen(port, hostname, () => {
+  console.log(`Silku Marketing HQ listening on ${hostname}:${port}`);
+  Promise.all([security.hydrate(), domainStore.hydrate()]).catch((error) => {
+    console.error("[marketing-persistence] startup hydration failed", error);
+    process.exitCode = 1;
+  });
 });
