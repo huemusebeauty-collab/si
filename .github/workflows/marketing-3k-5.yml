@@ -2,7 +2,7 @@ name: Marketing HQ 3K-5 gate
 
 on:
   push:
-    branches: [feature/3k-5-publishing-pipeline]
+    branches: [feature/3k-5-publishing-pipeline-final]
     paths:
       - "marketing/**"
       - ".github/workflows/marketing-3k-5.yml"
