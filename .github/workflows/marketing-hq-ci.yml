@@ -1,0 +1,38 @@
+name: Marketing HQ CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "marketing/**"
+      - ".github/workflows/marketing-hq-ci.yml"
+  pull_request:
+    paths:
+      - "marketing/**"
+      - ".github/workflows/marketing-hq-ci.yml"
+
+jobs:
+  marketing-hq:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: marketing
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: marketing/package.json
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Restart recovery test
+        run: npm run test:restart-recovery
+      - name: Durable lifecycle test
+        run: npm run test:durable-lifecycle
+      - name: Persistence E2E test
+        run: npm run test:persistence-e2e
