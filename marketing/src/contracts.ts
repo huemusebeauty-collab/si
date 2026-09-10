@@ -83,6 +83,34 @@ export interface MarketingJob {
   updatedAt: string;
 }
 
+export interface MarketingJobAttempt {
+  attemptId: string;
+  jobId: string;
+  attemptNumber: number;
+  status: MarketingJobStatus;
+  startedAt?: string;
+  finishedAt?: string;
+  errorCode?: string;
+  errorMessage?: string;
+  evidence?: Record<string, unknown>;
+  createdAt: string;
+}
+
+export type MarketingAlertSeverity = "info" | "warning" | "critical";
+export type MarketingAlertStatus = "open" | "acknowledged" | "resolved";
+
+export interface MarketingAlert {
+  alertId: string;
+  severity: MarketingAlertSeverity;
+  type: string;
+  message: string;
+  status: MarketingAlertStatus;
+  jobId?: string;
+  details?: Record<string, unknown>;
+  createdAt: string;
+  resolvedAt?: string;
+}
+
 export type MarketingDecisionStatus = "proposed" | "approved" | "rejected" | "executed" | "failed" | "cancelled";
 
 export interface MarketingDecisionRecord {
