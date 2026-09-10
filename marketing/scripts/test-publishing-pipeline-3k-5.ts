@@ -1,30 +1,33 @@
-import { PublishingPipelineService, PublishingContent } from "../src/publishing-pipeline";
+import { MarketingLifecycleService } from "../src/marketing-lifecycle";
+import { MarketingDomainStore } from "../src/marketing-domain-store";
+import { MemoryContentVersionRepository } from "../src/content-versioning";
+import { MemoryPublishingAuditRepository } from "../src/publishing-audit";
+import { PublishingPipelineService } from "../src/publishing-pipeline";
 
-const service = new PublishingPipelineService();
-const base: PublishingContent = { contentId: "test-3k-5", versionId: "v1", status: "draft", scheduledAt: "2030-01-01T10:00:00.000Z" };
+const store = new MarketingDomainStore();
+const lifecycle = new MarketingLifecycleService(store);
+const versions = new MemoryContentVersionRepository();
+const audit = new MemoryPublishingAuditRepository();
+const service = new PublishingPipelineService(lifecycle, versions, audit);
 
-const qa = service.transition(base, "qa_passed", "test");
-if (qa.status !== "qa_passed") throw new Error("QA transition failed");
-const approved = service.transition(qa, "approved", "test");
-const scheduled = service.transition(approved, "scheduled", "test");
-service.assertPublishable(scheduled, "v1");
-const published = service.transition(scheduled, "published", "test", "2030-01-01T10:00:00.000Z");
-if (published.status !== "published" || !published.publishedAt) throw new Error("Publish failed");
+const base = await lifecycle.createContent({ contentId: "test-3k-5", format: "post", hook: "hook", body: "body", callToAction: "shop", status: "draft", requiresApproval: true } as never);
+const version = await versions.create({ versionId: "v1", contentId: base.contentId, versionNumber: 1, format: base.format, hook: base.hook, body: base.body, callToAction: base.callToAction, createdAt: new Date().toISOString() });
 
-for (const [from, to] of [["draft", "approved"], ["approved", "published"], ["published", "draft"]] as const) {
-  try {
-    service.transition({ ...base, status: from }, to, "test");
-    throw new Error(`Invalid transition accepted: ${from} -> ${to}`);
-  } catch (error) {
-    if (!(error instanceof Error) || !error.message.includes("Invalid publishing transition") && !error.message.includes("Published content is immutable")) throw error;
-  }
+let current = await service.transition({ ...base, scheduledAt: "2030-01-01T10:00:00.000Z" }, "qa_passed", "test", version.versionId);
+current = await service.transition(current, "approved", "test", version.versionId);
+current = await service.transition(current, "scheduled", "test", version.versionId);
+current = await service.publish(current, "test", version.versionId);
+if (current.status !== "published") throw new Error("Publish failed");
+
+for (const [from, to] of [["draft", "approved"], ["approved", "published"]] as const) {
+  try { await service.transition({ ...base, status: from }, to, "test", version.versionId); throw new Error(`Invalid transition accepted: ${from} -> ${to}`); }
+  catch (error) { if (!(error instanceof Error) || !error.message.includes("Invalid content transition")) throw error; }
 }
+try { await service.publish({ ...current, status: "scheduled" }, "test", "v2"); throw new Error("Version mismatch accepted"); }
+catch (error) { if (!(error instanceof Error) || error.message !== "Publishing version mismatch") throw error; }
+try { await service.transition(current, "draft", "test", version.versionId); throw new Error("Published content mutation accepted"); }
+catch (error) { if (!(error instanceof Error) || !error.message.includes("Published content is immutable")) throw error; }
 
-try { service.assertPublishable(scheduled, "v2"); throw new Error("Version mismatch accepted"); } catch (error) {
-  if (!(error instanceof Error) || error.message !== "Publishing version mismatch") throw error;
-}
-
-const audit = service.getAudit("test-3k-5");
-if (audit.length !== 4) throw new Error(`Expected 4 audit entries, got ${audit.length}`);
-
-console.log(JSON.stringify({ ok: true, test: "publishing-pipeline-3k-5", auditEntries: audit.length }));
+const entries = await audit.list(base.contentId);
+if (entries.length !== 4) throw new Error(`Expected 4 audit entries, got ${entries.length}`);
+console.log(JSON.stringify({ ok: true, test: "publishing-pipeline-3k-5", auditEntries: entries.length }));
