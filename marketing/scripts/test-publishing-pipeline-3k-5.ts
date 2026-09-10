@@ -14,16 +14,16 @@ async function main() {
   const base = await lifecycle.createContent({ contentId: "test-3k-5", format: "post", hook: "hook", body: "body", callToAction: "shop", status: "draft", requiresApproval: true });
   const version = await versions.create({ versionId: "v1", contentId: base.contentId, versionNumber: 1, format: base.format, hook: base.hook, body: base.body, callToAction: base.callToAction, createdAt: new Date().toISOString() });
 
+  try { await service.transition(base, "approved", "test", version.versionId); throw new Error("Invalid transition accepted: draft -> approved"); }
+  catch (error) { if (!(error instanceof Error) || !error.message.includes("Invalid content transition")) throw error; }
+
   let current = await service.transition(base, "qa_passed", "test", version.versionId);
   current = await service.transition(current, "approved", "test", version.versionId);
   current = await service.schedule(current, "test", version.versionId);
   current = await service.publish(current, "test", version.versionId);
   if (current.status !== "published") throw new Error("Publish failed");
 
-  try { await service.transition({ ...base, status: "draft" }, "approved", "test", version.versionId); throw new Error("Invalid transition accepted: draft -> approved"); }
-  catch (error) { if (!(error instanceof Error) || !error.message.includes("Invalid content transition")) throw error; }
-
-  try { await service.transition({ ...base, status: "approved" }, "published", "test", version.versionId); throw new Error("Invalid transition accepted: approved -> published"); }
+  try { await service.transition({ ...base, status: "approved" }, "published", "test", version.versionId); throw new Error("Stale transition accepted"); }
   catch (error) {
     if (!(error instanceof Error) || !error.message.includes("Publishing content state is stale")) throw error;
   }
