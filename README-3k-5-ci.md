@@ -1,1 +1,0 @@
-3K-5 CI validation is branch scoped.
