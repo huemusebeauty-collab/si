@@ -1,0 +1,44 @@
+name: Marketing production build runtime
+
+on:
+  pull_request:
+    paths:
+      - "marketing/**"
+      - ".github/workflows/marketing-production-build-runtime.yml"
+
+jobs:
+  production-build-runtime:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: marketing
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm install
+      - name: Build exact production artifact
+        run: npm run build
+      - name: Start exact production artifact and probe health
+        run: |
+          PORT=18080 node dist/main.js > /tmp/marketing-production-runtime.log 2>&1 &
+          pid=$!
+          trap 'kill $pid 2>/dev/null || true' EXIT
+          for i in $(seq 1 20); do
+            if curl --fail --silent --show-error http://127.0.0.1:18080/health; then
+              echo
+              echo "exact production build runtime health probe: PASS"
+              echo "--- startup log ---"
+              cat /tmp/marketing-production-runtime.log
+              kill $pid 2>/dev/null || true
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "exact production build runtime health probe: FAIL"
+          cat /tmp/marketing-production-runtime.log
+          exit 1
