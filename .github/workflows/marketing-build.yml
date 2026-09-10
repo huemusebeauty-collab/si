@@ -2,7 +2,7 @@ name: Marketing HQ build gate
 
 on:
   push:
-    branches: [feature/3k-4-media-versioning]
+    branches: [feature/3k-5-publishing-pipeline]
     paths:
       - "marketing/**"
       - ".github/workflows/marketing-build.yml"
