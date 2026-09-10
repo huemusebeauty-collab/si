@@ -24,6 +24,9 @@
     "test:content-version-route-3k-4": "tsx scripts/test-content-version-route-3k-4.ts",
     "test:publishing-pipeline-3k-5": "tsx scripts/test-publishing-pipeline-3k-5.ts",
     "test:publishing-pipeline-route-3k-5": "tsx scripts/test-publishing-pipeline-route-3k-5.ts",
+    "test:media-api-route-3k-3": "tsx scripts/test-media-api-route-3k-3.ts",
+    "test:publishing-pipeline-3k-5": "tsx scripts/test-publishing-pipeline-3k-5.ts",
+    "test:publishing-pipeline-route-3k-5": "tsx scripts/test-publishing-pipeline-route-3k-5.ts",
     "test:content-studio-3k-6": "tsx scripts/test-content-studio-3k-6.ts",
     "test:content-workspace-nav-3k-6": "tsx scripts/test-content-workspace-nav-3k-6.ts",
     "test:phase2-e2e": "tsx scripts/test-phase2-e2e.ts",
@@ -32,14 +35,6 @@
     "test:website-intelligence-e2e": "tsx scripts/test-website-intelligence-e2e.ts",
     "test:social-center": "tsx scripts/test-social-center.ts"
   },
-  "dependencies": {
-    "@aws-sdk/client-s3": "^3.879.0",
-    "pg": "^8.12.0"
-  },
-  "devDependencies": {
-    "@types/node": "^20.14.0",
-    "@types/pg": "^8.11.10",
-    "tsx": "^4.19.1",
-    "typescript": "^5.5.0"
-  }
+  "dependencies": {"@aws-sdk/client-s3":"^3.879.0","pg":"^8.12.0"},
+  "devDependencies": {"@types/node":"^20.14.0","@types/pg":"^8.11.10","tsx":"^4.19.1","typescript":"^5.5.0"}
 }
