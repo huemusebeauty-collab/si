@@ -1,0 +1,95 @@
+import { randomUUID } from "node:crypto";
+import { SocialAccountManager, type SocialPlatform } from "./social-account-manager";
+import type { MarketingContent } from "./contracts";
+
+export type SocialQueueStatus = "draft" | "pending_approval" | "scheduled" | "published" | "failed";
+
+export interface SocialQueueItem {
+  postId: string;
+  contentId: string;
+  platform: SocialPlatform;
+  format: "post" | "story" | "reel" | "short" | "carousel" | "video" | "message";
+  text: string;
+  scheduledAt?: string;
+  status: SocialQueueStatus;
+  approvalRequestId?: string;
+  createdAt: string;
+  updatedAt: string;
+  error?: string;
+}
+
+const platforms: SocialPlatform[] = ["instagram", "facebook", "youtube", "pinterest", "x", "whatsapp"];
+const formats = ["post", "story", "reel", "short", "carousel", "video", "message"] as const;
+
+export class SocialCenter {
+  readonly accounts = new SocialAccountManager();
+  private readonly queue = new Map<string, SocialQueueItem>();
+
+  listAccounts() { return this.accounts.list(); }
+  listQueue() { return [...this.queue.values()].sort((a, b) => a.createdAt.localeCompare(b.createdAt)); }
+
+  connectAccount(input: { accountId: string; platform: SocialPlatform; displayName: string; scopes: string[]; expiresAt?: string }) {
+    if (!platforms.includes(input.platform)) throw new Error("Unsupported social platform");
+    return this.accounts.connect(input);
+  }
+
+  health(accountId: string) { return this.accounts.healthCheck(accountId); }
+
+  schedule(input: { content: MarketingContent; platform: SocialPlatform; format: string; scheduledAt?: string }) {
+    if (!platforms.includes(input.platform)) throw new Error("Unsupported social platform");
+    if (!formats.includes(input.format as typeof formats[number])) throw new Error("Unsupported social format");
+    if (!input.content.contentId || !input.content.body) throw new Error("contentId and content body are required");
+    const now = new Date().toISOString();
+    const item: SocialQueueItem = {
+      postId: `social_${randomUUID()}`,
+      contentId: input.content.contentId,
+      platform: input.platform,
+      format: input.format as SocialQueueItem["format"],
+      text: input.content.body,
+      scheduledAt: input.scheduledAt,
+      status: "pending_approval",
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.queue.set(item.postId, item);
+    return { ...item };
+  }
+
+  setStatus(postId: string, status: SocialQueueStatus, error?: string) {
+    const item = this.queue.get(postId);
+    if (!item) throw new Error(`Social post not found: ${postId}`);
+    if ((status === "published" || status === "scheduled") && item.status !== "pending_approval" && item.status !== "scheduled") {
+      throw new Error("Social execution requires an approved queue item");
+    }
+    item.status = status;
+    item.error = error;
+    item.updatedAt = new Date().toISOString();
+    return { ...item };
+  }
+
+  dashboard() {
+    const accounts = this.listAccounts();
+    const queue = this.listQueue();
+    return {
+      ok: true,
+      platforms,
+      accounts,
+      queue,
+      counts: {
+        connected: accounts.filter((a) => a.status === "connected").length,
+        needsAttention: accounts.filter((a) => a.status === "expired" || a.status === "error").length,
+        pendingApproval: queue.filter((p) => p.status === "pending_approval").length,
+        scheduled: queue.filter((p) => p.status === "scheduled").length,
+        published: queue.filter((p) => p.status === "published").length,
+      },
+      executionPolicy: "Publishing and messaging remain approval-gated; platform delivery requires registered adapters and credentials.",
+    };
+  }
+}
+
+const esc = (value: unknown) => String(value ?? "").replace(/[&<>\"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c] ?? c));
+
+export function socialCenterHtml(): string {
+  const style = `:root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui;background:#09070d;color:#fff}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 15% 0%,#31132f,#09070d 42%),radial-gradient(circle at 100% 15%,#17143a,#09070d 45%)}main{max-width:1180px;margin:auto;padding:28px 22px 50px}.top{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:24px}.eyebrow{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#c9bdd0}.title{font-size:30px;font-weight:850;letter-spacing:-.04em;margin-top:5px}.link{color:#ddd3df;text-decoration:none;border:1px solid #ffffff14;background:#ffffff08;padding:10px 14px;border-radius:12px;font-size:12px}.hero,.card{border:1px solid #ffffff12;border-radius:24px;background:#ffffff07;padding:22px}.hero{margin-bottom:16px}.hero h1{font-size:clamp(32px,5vw,52px);letter-spacing:-.055em;line-height:1;margin:0 0 12px}.hero p{color:#bcb0c1;line-height:1.6;max-width:760px}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0}.metric{padding:16px;border:1px solid #ffffff0b;border-radius:16px;background:#09070d80}.metric small{display:block;color:#8f8493;font-size:11px}.metric strong{display:block;font-size:24px;margin-top:6px}.cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}.row{padding:14px 0;border-bottom:1px solid #ffffff0b}.row:last-child{border-bottom:0}.name{font-weight:800}.meta{font-size:12px;color:#9f93a4;margin-top:5px}.badge{display:inline-block;padding:5px 8px;border-radius:999px;background:#ffffff0c;border:1px solid #ffffff12;font-size:11px;margin-top:8px}.empty{color:#9f93a4;font-size:13px;padding:18px 0}.policy{margin-top:16px;padding:14px;border-radius:14px;background:#ffb84a12;border:1px solid #ffb84a22;color:#e9d5ba;font-size:12px;line-height:1.5}@media(max-width:800px){.grid,.cols{grid-template-columns:1fr 1fr}}@media(max-width:520px){main{padding:18px 14px}.grid,.cols{grid-template-columns:1fr}.top{align-items:flex-start}}`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Silku Social Center</title><style>${style}</style></head><body><main><header class="top"><div><div class="eyebrow">Silku Marketing HQ</div><div class="title">Social Center</div></div><a class="link" href="/dashboard">← Back to HQ</a></header><section class="hero"><div class="eyebrow">Phase 5</div><h1>Every channel. One approval-safe queue.</h1><p>Manage social accounts, health, content scheduling and publishing readiness from one place. Live platform delivery stays behind the approval boundary until the real adapter and credentials are configured.</p></section><div class="grid"><div class="metric"><small>Connected accounts</small><strong id="connected">—</strong></div><div class="metric"><small>Needs attention</small><strong id="attention">—</strong></div><div class="metric"><small>Pending approval</small><strong id="pending">—</strong></div><div class="metric"><small>Scheduled</small><strong id="scheduled">—</strong></div></div><section class="cols"><article class="card"><div class="eyebrow">Accounts</div><h2>Channel health</h2><div id="accounts" class="empty">Loading…</div></article><article class="card"><div class="eyebrow">Publishing queue</div><h2>Ready to move</h2><div id="queue" class="empty">Loading…</div></article></section><div class="policy">🛡️ ${esc("Approval policy: scheduling creates a pending-approval item. It does not publish, message, spend money, or bypass the existing security boundary.")}</div></main><script>const esc=${esc.toString()};async function load(){const r=await fetch('/v1/social/dashboard',{credentials:'same-origin',cache:'no-store'});if(r.status===401){location.href='/';return}const j=await r.json();if(!j.ok)throw new Error(j.error||'Social Center unavailable');const c=j.counts;document.querySelector('#connected').textContent=c.connected;document.querySelector('#attention').textContent=c.needsAttention;document.querySelector('#pending').textContent=c.pendingApproval;document.querySelector('#scheduled').textContent=c.scheduled;document.querySelector('#accounts').innerHTML=j.accounts.length?j.accounts.map(a=>'<div class="row"><div class="name">'+esc(a.displayName)+'</div><div class="meta">'+esc(a.platform)+' · '+esc(a.status)+'</div><span class="badge">'+(a.automationEnabled?'Automation on':'Automation off')+'</span></div>').join(''):'<div class="empty">No social accounts connected yet.</div>';document.querySelector('#queue').innerHTML=j.queue.length?j.queue.map(p=>'<div class="row"><div class="name">'+esc(p.contentId)+'</div><div class="meta">'+esc(p.platform)+' · '+esc(p.format)+'</div><span class="badge">'+esc(p.status)+'</span></div>').join(''):'<div class="empty">No social posts in the queue.</div>'}load().catch(e=>document.querySelector('#accounts').textContent=e.message)</script></body></html>`;
+}
