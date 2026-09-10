@@ -5,7 +5,8 @@ CREATE TABLE IF NOT EXISTS marketing_hq_publishing_audit (
   from_status TEXT NOT NULL,
   to_status TEXT NOT NULL,
   actor TEXT NOT NULL,
-  occurred_at TIMESTAMPTZ NOT NULL
+  occurred_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_marketing_hq_publishing_audit_content
