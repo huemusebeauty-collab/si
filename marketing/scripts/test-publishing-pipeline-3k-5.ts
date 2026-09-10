@@ -10,12 +10,12 @@ const versions = new MemoryContentVersionRepository();
 const audit = new MemoryPublishingAuditRepository();
 const service = new PublishingPipelineService(lifecycle, versions, audit);
 
-const base = await lifecycle.createContent({ contentId: "test-3k-5", format: "post", hook: "hook", body: "body", callToAction: "shop", status: "draft", requiresApproval: true } as never);
+const base = await lifecycle.createContent({ contentId: "test-3k-5", format: "post", hook: "hook", body: "body", callToAction: "shop", status: "draft", requiresApproval: true });
 const version = await versions.create({ versionId: "v1", contentId: base.contentId, versionNumber: 1, format: base.format, hook: base.hook, body: base.body, callToAction: base.callToAction, createdAt: new Date().toISOString() });
 
-let current = await service.transition({ ...base, scheduledAt: "2030-01-01T10:00:00.000Z" }, "qa_passed", "test", version.versionId);
+let current = await service.transition(base, "qa_passed", "test", version.versionId);
 current = await service.transition(current, "approved", "test", version.versionId);
-current = await service.transition(current, "scheduled", "test", version.versionId);
+current = await service.schedule(current, "test", version.versionId);
 current = await service.publish(current, "test", version.versionId);
 if (current.status !== "published") throw new Error("Publish failed");
 
