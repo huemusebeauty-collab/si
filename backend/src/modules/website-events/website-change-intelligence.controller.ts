@@ -2,7 +2,10 @@ import { Controller, Get, Query } from "@nestjs/common";
 import { Public } from "@/common/decorators/public.decorator";
 import { WebsiteChangeIntelligenceService } from "./website-change-intelligence.service";
 
-@Controller("/v1/website/analytics/changes")
+// URI versioning is enabled globally in main.ts, so the /v1 prefix is
+// supplied by Nest itself. Keeping it out of @Controller avoids exposing
+// this endpoint as /v1/v1/website/analytics/changes.
+@Controller("website/analytics/changes")
 export class WebsiteChangeIntelligenceController {
   constructor(private readonly changes: WebsiteChangeIntelligenceService) {}
 
