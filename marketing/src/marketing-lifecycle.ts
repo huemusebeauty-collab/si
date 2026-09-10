@@ -39,6 +39,8 @@ export class MarketingLifecycleService {
     return this.store.saveContent({ ...input, createdAt: now, updatedAt: now });
   }
 
+  getContent(contentId: string): MarketingContent | undefined { return this.store.getContent(contentId); }
+
   async editContent(contentId: string, patch: ContentPatch): Promise<MarketingContent> {
     const current = this.store.getContent(contentId);
     if (!current) throw new Error(`Content not found: ${contentId}`);
