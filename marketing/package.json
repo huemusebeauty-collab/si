@@ -5,7 +5,7 @@
   "scripts": {
     "start": "node dist/main.js",
     "dev": "tsx src/main.ts",
-    "build": "tsc -p tsconfig.json && node scripts/patch-dashboard.js && node scripts/patch-dashboard-navigation.js && node scripts/patch-content-workspace-nav.js && node scripts/patch-main.js && node scripts/patch-content-studio.js && npm run test:control-plane && npm run test:execution-center && npm run test:persistence && npm run test:persistence-e2e && npm run test:domain-store && npm run test:restart-recovery && npm run test:durable-lifecycle && npm run test:domain-api && npm run test:content-lifecycle-3k-2 && npm run test:content-api-route-3k-2 && npm run test:media-api-3k-3 && npm run test:media-api-route-3k-3 && npm run test:media-storage-3k-3 && npm run test:content-versioning-3k-4 && npm run test:content-version-route-3k-4 && npm run test:publishing-pipeline-3k-5 && npm run test:publishing-pipeline-route-3k-5 && npm run test:content-studio-3k-6 && npm run test:content-workspace-nav-3k-6 && npm run test:phase2-e2e && npm run test:website-actions && npm run test:director-website && npm run test:website-intelligence-e2e && npm run test:social-center && npm run test:social-center-route",
+    "build": "tsc -p tsconfig.json && node scripts/patch-dashboard.js && node scripts/patch-dashboard-navigation.js && node scripts/patch-content-workspace-nav.js && node scripts/patch-main.js && node scripts/patch-content-studio.js && npm run test:control-plane && npm run test:execution-center && npm run test:persistence && npm run test:persistence-e2e && npm run test:domain-store && npm run test:restart-recovery && npm run test:durable-lifecycle && npm run test:domain-api && npm run test:content-lifecycle-3k-2 && npm run test:content-api-route-3k-2 && npm run test:media-api-3k-3 && npm run test:media-api-route-3k-3 && npm run test:media-storage-3k-3 && npm run test:content-versioning-3k-4 && npm run test:content-version-route-3k-4 && npm run test:publishing-pipeline-3k-5 && npm run test:publishing-pipeline-route-3k-5 && npm run test:content-studio-3k-6 && npm run test:content-workspace-nav-3k-6 && npm run test:phase2-e2e && npm run test:website-actions && npm run test:director-website && npm run test:website-intelligence-e2e && npm run test:social-center && npm run test:social-center-route && npm run test:dashboard-navigation",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test:control-plane": "tsx scripts/test-control-plane.ts",
     "test:execution-center": "tsx scripts/test-execution-center.ts",
@@ -31,7 +31,8 @@
     "test:director-website": "tsx scripts/test-marketing-director-website.ts",
     "test:website-intelligence-e2e": "tsx scripts/test-website-intelligence-e2e.ts",
     "test:social-center": "tsx scripts/test-social-center.ts",
-    "test:social-center-route": "tsx scripts/test-social-center-route.ts"
+    "test:social-center-route": "tsx scripts/test-social-center-route.ts",
+    "test:dashboard-navigation": "tsx scripts/test-dashboard-navigation.ts"
   },
   "dependencies": {"@aws-sdk/client-s3":"^3.879.0","pg":"^8.12.0"},
   "devDependencies": {"@types/node":"^20.14.0","@types/pg":"^8.11.10","tsx":"^4.19.1","typescript":"^5.5.0"}
