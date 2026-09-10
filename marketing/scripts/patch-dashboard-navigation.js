@@ -4,7 +4,14 @@ const path = require('node:path');
 const file = path.join(__dirname, '..', 'dist', 'dashboard-ui.js');
 let source = fs.readFileSync(file, 'utf8');
 
-const marker = "$$('[data-jump]').forEach(x=>x.addEventListener('click',()=>jump(x.dataset.jump)));";
+// Avoid the legacy $$ helper name. Some deployed/browser paths are resolving the
+// double-dollar expression as a single-dollar helper, which makes .forEach fail.
+// Use a normal named helper and native querySelectorAll instead.
+if (source.includes('const $$=s=>Array.from(document.querySelectorAll(s));')) {
+  source = source.replaceAll('$$', 'qsa');
+}
+
+const marker = "qsa('[data-jump]').forEach(x=>x.addEventListener('click',()=>jump(x.dataset.jump)));";
 if (!source.includes(marker)) throw new Error('HQ navigation binding marker not found');
 
 const navigationFix = "const routeMap={content:'/content-studio',social:'/social'};const originalJump=jump;jump=function(id){const target=document.getElementById(id);if(target)return originalJump(id);const route=routeMap[id];if(route){location.href=route;return}toast('This workspace is not wired yet.');};\n";
