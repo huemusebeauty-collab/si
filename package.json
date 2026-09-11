@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "cd marketing && npm install && npm run build && cd .. && mkdir -p dist && cp marketing/dist/worker-main.js dist/worker-main.js",
+    "build": "cd marketing && npm install && npm run build && cd .. && rm -rf dist && mkdir -p dist && cp -r marketing/dist/. dist/",
     "start": "next start",
     "lint": "eslint .",
     "test": "vitest run",
