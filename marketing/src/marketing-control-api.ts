@@ -29,7 +29,7 @@ export class MarketingControlApi {
       reason: result.data.reason,
       confidence: result.data.confidence,
       requiresApproval: result.data.requiresApproval,
-      status: result.data.status,
+      status: "proposed",
       evidence: decision.evidence ?? [],
       approvalRequestId: result.data.approvalRequestId,
     });
