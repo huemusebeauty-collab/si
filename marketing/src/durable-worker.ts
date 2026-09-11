@@ -3,7 +3,6 @@ import type { MarketingAlert, MarketingJob, MarketingJobAttempt } from "./contra
 import type { MarketingDomainPersistence, MarketingPersistence } from "./marketing-persistence";
 
 export type DurableJobHandler = (job: MarketingJob) => Promise<Record<string, unknown> | void>;
-
 export interface DurableWorkerOptions { stallAfterMs?: number; now?: () => number; }
 
 export class DurableMarketingWorker {
@@ -28,10 +27,11 @@ export class DurableMarketingWorker {
     await this.recoverStalled(); const jobs = await this.domain.loadJobs(); const now = this.now();
     const job = jobs.filter((item) => item.status === "queued").filter((item) => !item.scheduledAt || new Date(item.scheduledAt).getTime() <= now).sort((a,b) => new Date(a.scheduledAt ?? a.createdAt).getTime() - new Date(b.scheduledAt ?? b.createdAt).getTime())[0];
     if (!job) return { processed: false };
+    const handler = this.handlers.get(job.type);
+    if (!handler) return { processed: false, jobId: job.jobId, status: "queued" };
     const startedAt = new Date(now).toISOString(); const running = this.updatedJob(job, { status: "running", startedAt, errorCode: undefined, errorMessage: undefined }); await this.domain.saveJob(running);
     const attemptBase: MarketingJobAttempt = { attemptId: `attempt_${randomUUID()}`, jobId: job.jobId, attemptNumber: job.retryCount + 1, status: "running", startedAt, createdAt: startedAt }; await this.persistence.saveJobAttempt(attemptBase);
     try {
-      const handler = this.handlers.get(job.type); if (!handler) throw new Error(`No handler registered for job type: ${job.type}`);
       const evidence = await handler(job); const finishedAt = new Date(this.now()).toISOString();
       const completedAttempt: MarketingJobAttempt = { ...attemptBase, status: "succeeded", finishedAt, ...(evidence === undefined ? {} : { evidence }) };
       await this.persistence.saveJobAttempt(completedAttempt); await this.domain.saveJob(this.updatedJob(running, { status: "succeeded", finishedAt })); return { processed: true, jobId: job.jobId, status: "succeeded" };
