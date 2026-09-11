@@ -6,6 +6,7 @@ import { ReviewCard } from "@/components/composite/ReviewCard";
 import { Tabs } from "@/components/composite/Tabs";
 import { RelatedCarousel } from "@/components/patterns/RelatedCarousel";
 import { TrustSignalStrip } from "@/components/patterns/TrustSignalStrip";
+import { ProductViewTracker } from "@/components/ProductViewTracker";
 import { getAllProducts, getProductBySlug, getReviewsForProduct } from "@/services/api/products";
 
 interface Props {
@@ -32,6 +33,7 @@ export default async function ProductPage({ params }: Props) {
 
   return (
     <div className="py-6">
+      <ProductViewTracker productId={product.id} />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
