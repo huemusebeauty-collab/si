@@ -10,7 +10,7 @@ export interface DirectorAction {
 
 export interface ControlPlaneResult {
   status: "approval_required" | "ready" | "blocked";
-  action: MarketingAction;
+  action: MarketingAction | null;
   reason: string;
   confidence: number;
   requiresApproval: boolean;
@@ -50,7 +50,7 @@ export class MarketingControlPlane {
 
   prepareFromDirector(decision: { action: string; reason: string; confidence: number; requiresApproval: boolean; target?: string }, actor = "marketing-director"): ControlPlaneResult {
     const action = normalizeDirectorAction(decision.action);
-    if (!action) return { status: "blocked", action: "publish_content", reason: `No executable control-plane action mapping for Director action: ${decision.action}`, confidence: decision.confidence, requiresApproval: false, target: decision.target };
+    if (!action) return { status: "blocked", action: null, reason: `No executable control-plane action mapping for Director action: ${decision.action}`, confidence: decision.confidence, requiresApproval: false, target: decision.target };
     return this.prepare({ action, reason: decision.reason, confidence: decision.confidence, requiresApproval: decision.requiresApproval, target: decision.target }, actor);
   }
 
