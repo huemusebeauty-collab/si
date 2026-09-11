@@ -19,7 +19,7 @@ export class MarketingControlApi {
   }
   async prepareDirectorActionDurable(decision: MarketingIntelligenceSnapshot["decision"]): Promise<MarketingApiResponse<ControlPlaneResult>> {
     const result = this.prepareDirectorAction(decision);
-    if (!result.ok || !result.data || !this.lifecycle) return result;
+    if (!result.ok || !result.data || result.data.status === "blocked" || !result.data.action || !this.lifecycle) return result;
     await this.security.flushPersistence();
     const durable = await this.lifecycle.recordDecision({
       decisionId: `decision_${randomUUID()}`,
