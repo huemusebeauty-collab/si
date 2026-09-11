@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: silku-marketing-hq
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: marketing
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: false
+
+  - type: web
+    name: silku-backend
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: backend
+    buildCommand: npm install --include=dev --legacy-peer-deps && npm run build
+    startCommand: npm start
+    autoDeploy: true
+
+  - type: web
+    name: silku-frontend
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    startCommand: node .next/standalone/server.js
+    autoDeploy: true
