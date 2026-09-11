@@ -1,1 +1,1 @@
-require("./marketing/dist/worker-main.js");
+require("../marketing/dist/worker-main.js");
