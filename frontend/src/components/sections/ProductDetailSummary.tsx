@@ -10,6 +10,7 @@ import { ProductSwatchImage } from "@/components/composite/ProductSwatchImage";
 import type { Product } from "@/types/product";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { addCartItem } from "@/services/api/cart";
+import { trackWebsiteEvent } from "@/components/WebsiteEventTracker";
 
 export function ProductDetailSummary({ product }: { product: Product }) {
   const [quantity, setQuantity] = useState(1);
@@ -28,6 +29,10 @@ export function ProductDetailSummary({ product }: { product: Product }) {
     setMessage(null);
     try {
       await addCartItem(selectedShadeId, quantity);
+      trackWebsiteEvent("add_to_cart", {
+        productId: product.id,
+        metadata: { shadeId: selectedShadeId, quantity },
+      });
       setMessage("Added to your cart.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not add this item to your cart.");
