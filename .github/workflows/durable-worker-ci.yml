@@ -1,0 +1,28 @@
+name: Durable Worker CI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "marketing/**"
+      - ".github/workflows/durable-worker-ci.yml"
+  pull_request:
+    paths:
+      - "marketing/**"
+      - ".github/workflows/durable-worker-ci.yml"
+
+jobs:
+  durable-worker:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: marketing
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npx tsx scripts/test-durable-worker.ts
