@@ -6,6 +6,7 @@ import { Breadcrumb } from "@/components/patterns/Breadcrumb";
 import { Button } from "@/components/basic/Button";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { createOrder, getCartTotals, getOrCreateGuestCart, type ApiCart } from "@/services/api/cart";
+import { trackWebsiteEvent } from "@/components/WebsiteEventTracker";
 
 export default function CheckoutPage() {
   const [cart, setCart] = useState<ApiCart | null>(null);
@@ -31,6 +32,9 @@ export default function CheckoutPage() {
         const [nextCart, nextTotals] = await Promise.all([getOrCreateGuestCart(), getCartTotals()]);
         setCart(nextCart);
         setTotals(nextTotals);
+        if (nextCart.lineItems.some((item) => !item.savedForLater)) {
+          trackWebsiteEvent("begin_checkout", { metadata: { itemCount: nextTotals.itemCount } });
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Could not load checkout.");
       } finally {
@@ -51,6 +55,7 @@ export default function CheckoutPage() {
     try {
       const order = await createOrder(form);
       setOrderId(order.id);
+      trackWebsiteEvent("purchase", { orderId: order.id, metadata: { total: totals.total, itemCount: totals.itemCount } });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not place your order.");
     } finally {
