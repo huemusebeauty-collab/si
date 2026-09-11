@@ -1,4 +1,4 @@
-import { Controller, Get } from "@nestjs/common";
+import { Controller, Get, Version, VERSION_NEUTRAL } from "@nestjs/common";
 import {
   HealthCheck,
   HealthCheckService,
@@ -23,5 +23,15 @@ export class HealthController {
   @HealthCheck()
   ready() {
     return this.health.check([() => this.db.pingCheck("database")]);
+  }
+}
+
+@ApiTags("health")
+@Controller("api/health")
+export class RenderHealthController {
+  @Get()
+  @Version(VERSION_NEUTRAL)
+  live() {
+    return { status: "ok" };
   }
 }
