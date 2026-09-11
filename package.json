@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "cd marketing && npm install && npm run build && cd .. && rm -rf dist && mkdir -p dist && cp -r marketing/dist/. dist/",
+    "build": "next build",
     "start": "next start",
     "lint": "eslint .",
     "test": "vitest run",
@@ -25,7 +25,6 @@
     "@vitejs/plugin-react": "^4.3.0",
     "@playwright/test": "^1.46.0",
     "@axe-core/playwright": "^4.9.0",
-    "@types/node": "^20.14.0",
     "autoprefixer": "^10.4.0",
     "jsdom": "^24.1.0",
     "postcss": "^8.4.0",
