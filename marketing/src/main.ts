@@ -8,6 +8,7 @@ import { MarketingSecurityLayer } from "./marketing-security";
 import { NeonMarketingPersistence } from "./marketing-persistence";
 import { MarketingDomainStore } from "./marketing-domain-store";
 import { MarketingDomainApi, DomainKind } from "./marketing-domain-api";
+import { DurableMarketingWorker } from "./durable-worker";
 import { verifyRestartRecovery } from "./restart-recovery";
 import { dashboardHtml, loginHtml } from "./dashboard-ui";
 import { fetchCommerceIntelligence } from "./commerce-data";
@@ -35,6 +36,8 @@ const dashboard = new MarketingHqDashboard();
 const monitor = new MarketingMonitor();
 const fieldForce = new FieldForceApi();
 const social = new SocialCenter();
+const durableWorker = persistence ? new DurableMarketingWorker(persistence, persistence, { stallAfterMs: Number(process.env.MARKETING_WORKER_STALL_AFTER_MS ?? 15 * 60 * 1000) }) : undefined;
+if (durableWorker) durableWorker.register("maintenance", async () => ({ worker: "silku-marketing-hq", completedAt: new Date().toISOString() }));
 const domainKinds = new Set<DomainKind>(["content", "campaigns", "jobs", "decisions"]);
 
 const server = createServer(async (request, response) => {
@@ -84,4 +87,14 @@ const server = createServer(async (request, response) => {
   json(response, 404, { ok: false, error: "Not found" });
 });
 
-server.listen(port, hostname, () => { console.log(`Silku Marketing HQ listening on ${hostname}:${port}`); Promise.all([security.hydrate(), domainStore.hydrate()]).catch((error) => { console.error("[marketing-persistence] startup hydration failed", error); process.exitCode = 1; }); });
+server.listen(port, hostname, () => {
+  console.log(`Silku Marketing HQ listening on ${hostname}:${port}`);
+  Promise.all([security.hydrate(), domainStore.hydrate()]).catch((error) => { console.error("[marketing-persistence] startup hydration failed", error); process.exitCode = 1; });
+  if (durableWorker) {
+    const intervalMs = Number(process.env.MARKETING_WORKER_INTERVAL_MS ?? 15000);
+    const runWorker = async () => { try { const result = await durableWorker.runOnce(); if (result.processed) console.log(`[durable-worker] ${result.jobId}: ${result.status}`); } catch (error) { console.error("[durable-worker] tick failed", error); } };
+    void runWorker();
+    const timer = setInterval(() => void runWorker(), intervalMs);
+    timer.unref();
+  }
+});
