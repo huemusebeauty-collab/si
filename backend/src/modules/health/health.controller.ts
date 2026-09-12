@@ -5,6 +5,7 @@ import {
   TypeOrmHealthIndicator,
 } from "@nestjs/terminus";
 import { ApiTags } from "@nestjs/swagger";
+import { Public } from "@/common/decorators/public.decorator";
 
 @ApiTags("health")
 @Controller({ path: "health", version: "1" })
@@ -15,11 +16,13 @@ export class HealthController {
   ) {}
 
   @Get("live")
+  @Public()
   live() {
     return { status: "ok" };
   }
 
   @Get("ready")
+  @Public()
   @HealthCheck()
   ready() {
     return this.health.check([() => this.db.pingCheck("database")]);
@@ -30,6 +33,7 @@ export class HealthController {
 @Controller("api/health")
 export class RenderHealthController {
   @Get()
+  @Public()
   @Version(VERSION_NEUTRAL)
   live() {
     return { status: "ok" };
