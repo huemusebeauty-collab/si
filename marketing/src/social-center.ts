@@ -17,9 +17,8 @@ export class SocialCenter {
   private readonly approvalChecker: (approvalRequestId: string) => boolean;
 
   constructor(persistence?: SocialPersistence, approvalChecker: (approvalRequestId: string) => boolean = () => false) {
-    this.persistence = persistence ?? ((process.env.MARKETING_HQ_DATABASE_URL ?? process.env.DATABASE_URL) ? new NeonSocialPersistence() : undefined);
+    this.persistence = persistence;
     this.approvalChecker = approvalChecker;
-    if (this.persistence) void this.hydrate().catch((error) => console.error("[social-persistence] hydration failed", error));
   }
 
   async hydrate(): Promise<void> {
