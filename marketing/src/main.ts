@@ -16,6 +16,7 @@ import { fetchWebsiteChangeIntelligence } from "./website-intelligence";
 import { buildWebsiteActionRecommendations } from "./website-opportunity-actions";
 import { runWebsiteIntelligenceE2e } from "./website-intelligence-e2e";
 import { SocialCenter, socialCenterHtml } from "./social-center";
+import { CreatorCollaborationEngine } from "./creator-collaboration";
 
 const startedAt = new Date().toISOString();
 const port = Number(process.env.PORT ?? 10000);
@@ -36,6 +37,7 @@ const dashboard = new MarketingHqDashboard();
 const monitor = new MarketingMonitor();
 const fieldForce = new FieldForceApi();
 const social = new SocialCenter();
+const creators = new CreatorCollaborationEngine(persistence);
 const durableWorker = persistence ? new DurableMarketingWorker(persistence, persistence, { stallAfterMs: Number(process.env.MARKETING_WORKER_STALL_AFTER_MS ?? 15 * 60 * 1000) }) : undefined;
 if (durableWorker) durableWorker.register("maintenance", async () => ({ worker: "silku-marketing-hq", completedAt: new Date().toISOString() }));
 const domainKinds = new Set<DomainKind>(["content", "campaigns", "jobs", "decisions"]);
@@ -89,7 +91,7 @@ const server = createServer(async (request, response) => {
 
 server.listen(port, hostname, () => {
   console.log(`Silku Marketing HQ listening on ${hostname}:${port}`);
-  Promise.all([security.hydrate(), domainStore.hydrate()]).catch((error) => { console.error("[marketing-persistence] startup hydration failed", error); process.exitCode = 1; });
+  Promise.all([security.hydrate(), domainStore.hydrate(), creators.hydrate()]).catch((error) => { console.error("[marketing-persistence] startup hydration failed", error); process.exitCode = 1; });
   if (durableWorker) {
     const intervalMs = Number(process.env.MARKETING_WORKER_INTERVAL_MS ?? 15000);
     const runWorker = async () => { try { const result = await durableWorker.runOnce(); if (result.processed) console.log(`[durable-worker] ${result.jobId}: ${result.status}`); } catch (error) { console.error("[durable-worker] tick failed", error); } };
