@@ -5,7 +5,10 @@ import { TrackWebsiteEventDto } from "./dto/track-website-event.dto";
 import { WebsiteEventsService } from "./website-events.service";
 
 @ApiTags("website-events")
-@Controller({ path: "website/events", version: "1" })
+// Keep this collector path explicit: the storefront sends events to
+// /v1/website/events, and this route must not depend on Nest URI-version
+// prefixing semantics for the public telemetry collector.
+@Controller("v1/website/events")
 export class WebsiteEventsController {
   constructor(private readonly websiteEvents: WebsiteEventsService) {}
 
