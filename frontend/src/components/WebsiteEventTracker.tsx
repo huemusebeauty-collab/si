@@ -2,7 +2,9 @@
 
 import { useEffect } from "react";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://silku-backend.onrender.com";
+// Accept either the backend origin or an origin that already ends in /v1.
+// This prevents accidental /v1/v1/... collector URLs in production.
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL ?? "https://silku-backend.onrender.com").replace(/\/+$/, "").replace(/\/v1$/, "");
 const SESSION_KEY = "silku_tracking_session";
 const ANONYMOUS_KEY = "silku_tracking_anonymous";
 
@@ -45,7 +47,7 @@ export function trackWebsiteEvent(
   };
 
   const body = JSON.stringify(payload);
-  const endpoint = `${API_URL}/v1/website/events`;
+  const endpoint = `${API_BASE_URL}/v1/website/events`;
 
   // TEMPORARY B2 DIAGNOSTICS: expose endpoint, status and network/CORS errors
   // in the browser console without ever blocking the storefront.
