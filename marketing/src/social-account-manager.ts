@@ -66,6 +66,12 @@ export class SocialAccountManager {
     return { ...account, scopes: [...account.scopes] };
   }
 
+  restore(account: SocialAccount): SocialAccount {
+    if (!account.accountId || !account.displayName) throw new Error("accountId and displayName are required");
+    this.accounts.set(account.accountId, { ...account, scopes: [...account.scopes] });
+    return { ...account, scopes: [...account.scopes] };
+  }
+
   disconnect(accountId: string): boolean {
     return this.accounts.delete(accountId);
   }
