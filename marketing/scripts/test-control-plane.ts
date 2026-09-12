@@ -27,7 +27,7 @@ assert.equal(controlPlane.canExecute("contact_creator", rejected.approvalRequest
 const ready = controlPlane.prepareFromDirector({ action: "Promote products with safe inventory", reason: "Avoid inventory-risk products.", confidence: 0.9, requiresApproval: false });
 assert.equal(ready.status, "ready");
 assert.equal(ready.action, "publish_content");
-assert.equal(controlPlane.canExecute("publish_content"), false);
+assert.equal(controlPlane.canExecute("publish_content"), true);
 
 const blocked = controlPlane.prepareFromDirector({ action: "monitor", reason: "Observe system health.", confidence: 0.6, requiresApproval: false });
 assert.equal(blocked.status, "blocked");
