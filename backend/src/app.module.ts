@@ -32,6 +32,7 @@ import { StorageModule } from "./modules/storage/storage.module";
 import { IntegrationsModule } from "./integrations/integrations.module";
 import { AdminModule } from "./admin/admin.module";
 import { WebsiteEventsModule } from "./modules/website-events/website-events.module";
+import { SocialModule } from "./modules/social/social.module";
 
 @Module({
   imports: [
@@ -67,6 +68,7 @@ import { WebsiteEventsModule } from "./modules/website-events/website-events.mod
     IntegrationsModule,
     AdminModule,
     WebsiteEventsModule,
+    SocialModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
