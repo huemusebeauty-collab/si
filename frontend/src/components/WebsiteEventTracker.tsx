@@ -47,15 +47,9 @@ export function trackWebsiteEvent(
   const body = JSON.stringify(payload);
   const endpoint = `${API_URL}/v1/website/events`;
 
-  if (eventName === "page_view" && navigator.sendBeacon) {
-    try {
-      navigator.sendBeacon(endpoint, new Blob([body], { type: "application/json" }));
-      return;
-    } catch {
-      // Fall through to fetch for browsers that reject the beacon payload.
-    }
-  }
-
+  // application/json is not a CORS-safelisted Beacon content type. Using
+  // fetch here ensures the browser performs the normal CORS exchange and
+  // exposes failures to the promise instead of silently queueing a beacon.
   void fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
