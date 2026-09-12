@@ -24,7 +24,7 @@ fs.writeFileSync(file, source);
 const mainFile = path.join(__dirname, '..', 'dist', 'main.js');
 let main = fs.readFileSync(mainFile, 'utf8');
 const routeMarker = 'if (method === "GET" && pathname === "/") {';
-const workspaceRoutePatch = 'const workspaceRoutes={"/grow":"grow","/money":"money","/website-intelligence":"websiteIntel","/whats-hot":"hotSection","/ask-silku":"director","/approvals":"approvals","/creators":"creators","/b2b":"b2b","/campaigns":"campaigns","/analytics":"analytics","/operations":"operations","/ads":"ads"};if(method==="GET"&&workspaceRoutes[pathname]){if(!authorized(request)){response.statusCode=302;response.setHeader("location","/");response.end();return;}html(response,200,dashboardHtml());return;}\n  ';
+const workspaceRoutePatch = 'const workspaceRoutes={"/grow":"grow","/money":"money","/website-intelligence":"websiteIntel","/whats-hot":"hotSection","/ask-silku":"director","/approvals":"approvals","/creators":"creators","/b2b":"b2b","/campaigns":"campaigns","/analytics":"analytics","/operations":"operations","/ads":"ads"};if(method==="GET"&&workspaceRoutes[pathname]){if(!authorized(request)){response.statusCode=302;response.setHeader("location","/");response.end();return;}html(response,200,require("./dashboard-ui").dashboardHtml());return;}\n  ';
 if (!main.includes('const workspaceRoutes=')) {
   if (!main.includes(routeMarker)) throw new Error('HQ workspace server route marker not found');
   main = main.replace(routeMarker, workspaceRoutePatch + routeMarker);
