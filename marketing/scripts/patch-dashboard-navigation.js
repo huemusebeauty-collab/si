@@ -14,7 +14,7 @@ if (source.includes('const $$=s=>Array.from(document.querySelectorAll(s));')) {
 const marker = "qsa('[data-jump]').forEach(x=>x.addEventListener('click',()=>jump(x.dataset.jump)));";
 if (!source.includes(marker)) throw new Error('HQ navigation binding marker not found');
 
-const navigationFix = "const routeMap={content:'/content-studio',social:'/social'};const originalJump=jump;jump=function(id){const target=document.getElementById(id);if(target)return originalJump(id);const route=routeMap[id];if(route){location.href=route;return}toast('This workspace is not wired yet.');};\n";
+const navigationFix = "const routeMap={overview:'/',grow:'/grow',money:'/money',websiteIntel:'/website-intelligence',hotSection:'/whats-hot',director:'/ask-silku',content:'/content-studio',social:'/social',approvals:'/approvals',creators:'/creators',b2b:'/b2b',campaigns:'/campaigns',analytics:'/analytics',operations:'/operations',ads:'/ads'};const originalJump=jump;jump=function(id){const route=routeMap[id];if(route){location.href=route;return}toast('This workspace is not wired yet.');};const routeTargetMap={grow:'grow',money:'money',websiteIntel:'websiteIntel',hotSection:'hotSection',director:'director',approvals:'approvals',creators:'creators',b2b:'b2b',campaigns:'campaigns',analytics:'analytics',operations:'operations',ads:'ads'};const currentRoute=Object.keys(routeMap).find(k=>routeMap[k]===location.pathname);if(currentRoute&&routeTargetMap[currentRoute]){requestAnimationFrame(()=>originalJump(routeTargetMap[currentRoute]));}\n";
 if (!source.includes('const routeMap={content:')) source = source.replace(marker, navigationFix + marker);
 
 fs.writeFileSync(file, source);
