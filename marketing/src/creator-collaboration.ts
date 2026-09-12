@@ -1,3 +1,5 @@
+import type { CreatorPersistence } from "./creator-persistence";
+
 export type CreatorStatus =
   | "prospect"
   | "contacted"
@@ -43,12 +45,36 @@ export class CreatorCollaborationEngine {
   private readonly creators = new Map<string, CreatorProfile>();
   private readonly sampleKits = new Map<string, SampleKit>();
 
+  constructor(private readonly persistence?: CreatorPersistence) {}
+
+  async hydrate(): Promise<void> {
+    if (!this.persistence) return;
+    const [creators, kits] = await Promise.all([this.persistence.loadCreators(), this.persistence.loadSampleKits()]);
+    this.creators.clear();
+    this.sampleKits.clear();
+    for (const creator of creators) this.creators.set(creator.creatorId, { ...creator, beautyFocus: [...creator.beautyFocus], productsSent: [...creator.productsSent], publishedContentIds: [...creator.publishedContentIds] });
+    for (const kit of kits) this.sampleKits.set(kit.kitId, { ...kit, productIds: [...kit.productIds] });
+  }
+
+  async flushPersistence(): Promise<void> {
+    if (!this.persistence) return;
+    await Promise.all([
+      ...[...this.creators.values()].map((creator) => this.persistence!.saveCreator(creator)),
+      ...[...this.sampleKits.values()].map((kit) => this.persistence!.saveSampleKit(kit)),
+    ]);
+  }
+
+  listSampleKits(): SampleKit[] {
+    return [...this.sampleKits.values()].map((kit) => ({ ...kit, productIds: [...kit.productIds] }));
+  }
+
   addCreator(creator: CreatorProfile): CreatorProfile {
     const scored = {
       ...creator,
       creatorScore: this.scoreCreator(creator),
     };
     this.creators.set(creator.creatorId, scored);
+    void this.persistence?.saveCreator(scored);
     return scored;
   }
 
@@ -67,6 +93,7 @@ export class CreatorCollaborationEngine {
     if (!creator) return undefined;
     const updated = { ...creator, status };
     this.creators.set(creatorId, updated);
+    void this.persistence?.saveCreator(updated);
     return updated;
   }
 
@@ -79,6 +106,7 @@ export class CreatorCollaborationEngine {
       shipmentStatus: approved ? "approved" : "pending",
     };
     this.sampleKits.set(kit.kitId, kit);
+    void this.persistence?.saveSampleKit(kit);
     return kit;
   }
 
@@ -87,6 +115,7 @@ export class CreatorCollaborationEngine {
     if (!kit) return undefined;
     const updated = { ...kit, approved: true, shipmentStatus: "approved" as const };
     this.sampleKits.set(kitId, updated);
+    void this.persistence?.saveSampleKit(updated);
     return updated;
   }
 
