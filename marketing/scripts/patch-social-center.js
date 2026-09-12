@@ -6,9 +6,12 @@ const from = 'const social = new social_center_1.SocialCenter();';
 const to = 'const social = new social_center_1.SocialCenter(persistence, (approvalRequestId) => security.canExecute("publish_content", approvalRequestId));';
 if (source.includes(from)) source = source.replace(from, to);
 else if (!source.includes(to)) throw new Error('Social Center initialization marker not found');
-const startup = 'Promise.all([security.hydrate(), domainStore.hydrate()])';
-const startupTo = 'Promise.all([security.hydrate(), domainStore.hydrate(), social.hydrate()])';
-if (source.includes(startup)) source = source.replace(startup, startupTo);
-else if (!source.includes('social.hydrate()')) throw new Error('Social Center startup hydration marker not found');
+if (source.includes('Promise.all([security.hydrate(), domainStore.hydrate(), mediaRepository.hydrate(), contentVersionRepository.hydrate()])')) {
+  source = source.replace('Promise.all([security.hydrate(), domainStore.hydrate(), mediaRepository.hydrate(), contentVersionRepository.hydrate()])', 'Promise.all([security.hydrate(), domainStore.hydrate(), mediaRepository.hydrate(), contentVersionRepository.hydrate(), social.hydrate()])');
+} else if (source.includes('Promise.all([security.hydrate(), domainStore.hydrate()])')) {
+  source = source.replace('Promise.all([security.hydrate(), domainStore.hydrate()])', 'Promise.all([security.hydrate(), domainStore.hydrate(), social.hydrate()])');
+} else if (!source.includes('social.hydrate()')) {
+  throw new Error('Social Center startup hydration marker not found');
+}
 fs.writeFileSync(file, source);
 console.log('Social Center persistence wiring patched');
