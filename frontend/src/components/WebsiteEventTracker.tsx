@@ -47,18 +47,37 @@ export function trackWebsiteEvent(
   const body = JSON.stringify(payload);
   const endpoint = `${API_URL}/v1/website/events`;
 
-  // application/json is not a CORS-safelisted Beacon content type. Using
-  // fetch here ensures the browser performs the normal CORS exchange and
-  // exposes failures to the promise instead of silently queueing a beacon.
+  // TEMPORARY B2 DIAGNOSTICS: expose endpoint, status and network/CORS errors
+  // in the browser console without ever blocking the storefront.
+  console.info("[SILKU B2] sending website event", {
+    eventName,
+    endpoint,
+    path: payload.path,
+  });
+
   void fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body,
     keepalive: true,
     credentials: "omit",
-  }).catch(() => {
-    // Tracking must never block or break the storefront.
-  });
+  })
+    .then(async (response) => {
+      const responseText = await response.text().catch(() => "");
+      console.info("[SILKU B2] website event response", {
+        eventName,
+        status: response.status,
+        ok: response.ok,
+        response: responseText.slice(0, 500),
+      });
+    })
+    .catch((error: unknown) => {
+      console.error("[SILKU B2] website event network/CORS failure", {
+        eventName,
+        endpoint,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
 }
 
 export function WebsiteEventTracker() {
