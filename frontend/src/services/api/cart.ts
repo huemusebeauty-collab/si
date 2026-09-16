@@ -27,6 +27,14 @@ export interface ApiOrder {
   shippingAddress: Record<string, unknown>;
 }
 
+export interface PaymentIntentResponse {
+  providerReference: string;
+  status: string;
+  amount: number;
+  currency: string;
+  clientSecret?: string;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     ...init,
@@ -114,4 +122,20 @@ export async function createOrder(shippingAddress: Record<string, string>): Prom
     method: "POST",
     body: JSON.stringify({ customerId: sessionId, cartId, shippingAddress }),
   });
+}
+
+export async function initiatePayment(order: ApiOrder, idempotencyKey: string): Promise<PaymentIntentResponse> {
+  return request<PaymentIntentResponse>("/payments/initiate", {
+    method: "POST",
+    body: JSON.stringify({
+      orderId: order.id,
+      amount: Number(order.total),
+      currency: order.currency,
+      idempotencyKey,
+    }),
+  });
+}
+
+export async function syncPayment(providerReference: string): Promise<unknown> {
+  return request(`/payments/${encodeURIComponent(providerReference)}/sync`);
 }
