@@ -1,0 +1,35 @@
+name: Apply checkout transaction fix
+
+on:
+  push:
+    branches: [fix/checkout-order-transaction]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch transaction return
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('backend/src/modules/orders/orders.service.ts')
+          s = p.read_text()
+          old = '      return this.getOrder(savedOrder.id);\n    });'
+          new = '''      return manager.findOne(OrderEntity, {\n        where: { id: savedOrder.id },\n        relations: ["lineItems", "statusHistory"],\n      });\n    });'''
+          if old not in s:
+              raise SystemExit('Expected transaction return pattern not found')
+          p.write_text(s.replace(old, new, 1))
+          PY
+      - name: Commit fix and remove temporary workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/src/modules/orders/orders.service.ts .github/workflows/checkout-order-transaction-fix.yml
+          git commit -m "fix: return created order inside transaction"
+          git rm .github/workflows/checkout-order-transaction-fix.yml
+          git commit -m "chore: remove temporary checkout fix workflow"
+          git push
