@@ -9,15 +9,21 @@ import { PaymentTransactionEntity } from "./entities/payment-transaction.entity"
 import { IdempotencyService } from "./idempotency.service";
 import { ResilientCallService } from "@/integrations/common/resilient-call.service";
 import { OrdersService } from "@/modules/orders/orders.service";
+import { ProductsService } from "@/modules/products/products.service";
+import { TransactionService } from "@/database/transaction.service";
+import { OrderEntity } from "@/modules/orders/entities/order.entity";
+import { OrderStatusHistoryEntity } from "@/modules/orders/entities/order-status-history.entity";
 
 @Injectable()
 export class PaymentService {
   constructor(
     @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider,
-    @InjectRepository(PaymentTransactionEntity) private readonly transactions: Repository<PaymentTransactionEntity>,
+    @InjectRepository(PaymentTransactionEntity) private readonly transactionsRepo: Repository<PaymentTransactionEntity>,
     private readonly idempotency: IdempotencyService,
     private readonly resilientCall: ResilientCallService,
     private readonly orders: OrdersService,
+    private readonly products: ProductsService,
+    private readonly transactionService: TransactionService,
   ) {}
 
   async initiatePayment(orderId: string, _amount: number, _currency: string, idempotencyKey: string) {
@@ -38,8 +44,8 @@ export class PaymentService {
         () => this.provider.initiatePayment({ orderId, amount, currency, idempotencyKey }),
       );
 
-      await this.transactions.save(
-        this.transactions.create({
+      await this.transactionsRepo.save(
+        this.transactionsRepo.create({
           orderId,
           provider: this.provider.name,
           providerReference: result.providerReference,
@@ -52,7 +58,7 @@ export class PaymentService {
       if (result.status === "succeeded") {
         await this.orders.confirmOrder(orderId, result.providerReference);
       } else if (result.status === "failed") {
-        await this.orders.failOrder(orderId, "Payment initiation failed.");
+        await this.failPaymentAndReleaseStock(orderId, "Payment initiation failed.");
       }
 
       return result;
@@ -67,7 +73,7 @@ export class PaymentService {
   }
 
   async initiateRefund(orderId: string, amount: number, reason?: string) {
-    const transaction = await this.transactions.findOne({ where: { orderId }, order: { createdAt: "DESC" } });
+    const transaction = await this.transactionsRepo.findOne({ where: { orderId }, order: { createdAt: "DESC" } });
     if (!transaction) {
       throw new NotFoundException("No payment transaction found for this order.");
     }
@@ -77,13 +83,13 @@ export class PaymentService {
     );
     if (result.status === "succeeded") {
       transaction.status = "refunded";
-      await this.transactions.save(transaction);
+      await this.transactionsRepo.save(transaction);
     }
     return result;
   }
 
   async syncStatus(providerReference: string): Promise<PaymentTransactionEntity> {
-    const transaction = await this.transactions.findOne({ where: { providerReference } });
+    const transaction = await this.transactionsRepo.findOne({ where: { providerReference } });
     if (!transaction) throw new NotFoundException("Payment transaction not found.");
 
     const verification = await this.verifyPayment(providerReference);
@@ -96,15 +102,32 @@ export class PaymentService {
 
     if (verification.status !== transaction.status) {
       transaction.status = verification.status;
-      await this.transactions.save(transaction);
+      await this.transactionsRepo.save(transaction);
     }
 
     if (verification.status === "succeeded") {
-      await this.orders.confirmOrder(transaction.orderId, providerReference);
+      const order = await this.orders.getOrder(transaction.orderId);
+      if (order.status === "pending_payment") await this.orders.confirmOrder(transaction.orderId, providerReference);
     } else if (verification.status === "failed") {
-      await this.orders.failOrder(transaction.orderId, "Payment failed at the provider.");
+      await this.failPaymentAndReleaseStock(transaction.orderId, "Payment failed at the provider.");
     }
 
     return transaction;
+  }
+
+  private async failPaymentAndReleaseStock(orderId: string, reason: string): Promise<void> {
+    const order = await this.orders.getOrder(orderId);
+    if (order.status !== "pending_payment") return;
+
+    await this.transactionService.runInTransaction(async (queryRunner) => {
+      const manager = queryRunner.manager;
+      for (const line of order.lineItems) {
+        await this.products.adjustStock(line.variantId, line.quantity, manager);
+      }
+      await manager.update(OrderEntity, order.id, { status: "payment_failed" });
+      await manager.save(manager.create(OrderStatusHistoryEntity, { order, status: "payment_failed" }));
+    });
+
+    void reason;
   }
 }
