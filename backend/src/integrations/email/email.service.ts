@@ -8,22 +8,6 @@ import { QUEUE_NAMES } from "@/integrations/queue/queue.constants";
 import { ConfigService } from "@nestjs/config";
 import { SettingsService } from "@/admin/settings/settings.service";
 
-// Sprint 5.4 — EmailService: the only thing other modules (Orders,
-// Auth, Reviews, ...) should call for outbound email. Every send goes
-// through the queue (Sprint 5.8 — "Queue support" is this module's own
-// explicit deliverable) rather than sending inline during the HTTP
-// request — an order confirmation email should never make checkout
-// slower or fail the order if the email provider is briefly down.
-//
-// Sprint 7.5 correction: every template send now checks
-// SettingsService for a DB-backed override FIRST (Sprint 7.5's new
-// NotificationTemplateEntity — admin-editable, closing the gap flagged
-// since Sprint 7.3/7.4), falling back to the Sprint 5.4 hardcoded
-// EMAIL_TEMPLATES when no override exists. The fallback is deliberate
-// and load-bearing: a template table that's never been seeded/edited
-// must not break transactional email — this is why
-// SettingsService.getNotificationTemplateOverride() returns `null`
-// rather than throwing.
 @Injectable()
 export class EmailService {
   constructor(
@@ -42,9 +26,6 @@ export class EmailService {
     });
   }
 
-  // Sprint 7.5 — resolves a template by key: DB override (rendered
-  // through the same `renderTemplate` engine the hardcoded templates
-  // use) if one exists, otherwise the hardcoded Sprint 5.4 default.
   private async resolveTemplate(
     templateKey: keyof typeof EMAIL_TEMPLATES,
     vars: Record<string, string | number>,
@@ -80,10 +61,6 @@ export class EmailService {
     await this.enqueue(to, await this.resolveTemplate("refundNotification", { firstName, orderId, amount }));
   }
 
-  // Sprint 5.4 — exposed for the EmailProcessor (the actual queue
-  // worker) to call the real provider; EmailService itself never calls
-  // the provider directly, keeping "enqueue" and "actually send"
-  // cleanly separated.
   getProvider(): EmailProvider {
     return this.provider;
   }
