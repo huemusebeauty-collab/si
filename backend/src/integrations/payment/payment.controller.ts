@@ -11,7 +11,7 @@ import { RequirePermission } from "@/admin/common/require-permission.decorator";
 export class PaymentController {
   constructor(private readonly payments: PaymentService) {}
 
-  // Guest checkout is allowed to initiate payment for its newly-created order.
+  // Guest checkout may initiate payment for its own newly-created order.
   @Public()
   @Post("initiate")
   initiate(@Body() dto: InitiatePaymentDto) {
@@ -23,8 +23,7 @@ export class PaymentController {
     return this.payments.verifyPayment(providerReference);
   }
 
-  // Refunds move money and therefore must be an explicit admin operation.
-  @RequirePermission("orders", "update")
+  @RequirePermission("orders", "edit")
   @Post(":orderId/refund")
   refund(@Param("orderId") orderId: string, @Body() body: { amount: number; reason?: string }) {
     return this.payments.initiateRefund(orderId, body.amount, body.reason);
