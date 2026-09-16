@@ -1,14 +1,15 @@
 import { plainToInstance } from "class-transformer";
 import { IsEnum, IsInt, IsOptional, IsString, Min, validateSync } from "class-validator";
 
-// Sprint 3.1 — Configuration validation. App fails fast at boot with a
-// clear error if a required environment variable is missing, per Sprint
-// 1's CI_CD_FOUNDATION.md commitment ("each package validates its
-// required environment variables at startup").
 enum Environment {
   Development = "development",
   Test = "test",
   Production = "production",
+}
+
+enum PaymentProvider {
+  Mock = "mock",
+  Stripe = "stripe",
 }
 
 class EnvironmentVariables {
@@ -46,6 +47,18 @@ class EnvironmentVariables {
   @IsOptional()
   @IsString()
   STORAGE_BUCKET?: string;
+
+  @IsOptional()
+  @IsEnum(PaymentProvider)
+  PAYMENT_PROVIDER?: PaymentProvider;
+
+  @IsOptional()
+  @IsString()
+  STRIPE_SECRET_KEY?: string;
+
+  @IsOptional()
+  @IsString()
+  STRIPE_WEBHOOK_SECRET?: string;
 }
 
 export function validateEnv(config: Record<string, unknown>) {
@@ -59,6 +72,16 @@ export function validateEnv(config: Record<string, unknown>) {
       .map((e) => Object.values(e.constraints ?? {}).join(", "))
       .join("; ");
     throw new Error(`Invalid environment configuration: ${details}`);
+  }
+
+  const provider = config.PAYMENT_PROVIDER ?? "mock";
+  if (provider === "stripe") {
+    if (typeof config.STRIPE_SECRET_KEY !== "string" || !config.STRIPE_SECRET_KEY) {
+      throw new Error("Invalid environment configuration: STRIPE_SECRET_KEY is required when PAYMENT_PROVIDER=stripe.");
+    }
+    if (typeof config.STRIPE_WEBHOOK_SECRET !== "string" || !config.STRIPE_WEBHOOK_SECRET) {
+      throw new Error("Invalid environment configuration: STRIPE_WEBHOOK_SECRET is required when PAYMENT_PROVIDER=stripe.");
+    }
   }
 
   return validated;
