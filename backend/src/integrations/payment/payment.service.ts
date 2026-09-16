@@ -10,10 +10,6 @@ import { IdempotencyService } from "./idempotency.service";
 import { ResilientCallService } from "@/integrations/common/resilient-call.service";
 import { OrdersService } from "@/modules/orders/orders.service";
 
-// Sprint 5.2 — PaymentService: the ONLY thing OrdersService/controllers
-// should call for payment operations — never a provider directly.
-// Every provider call routes through ResilientCallService (Sprint 5.1)
-// for timeout/retry/circuit-breaking/logging/status-reporting.
 @Injectable()
 export class PaymentService {
   constructor(
@@ -24,8 +20,19 @@ export class PaymentService {
     private readonly orders: OrdersService,
   ) {}
 
-  async initiatePayment(orderId: string, amount: number, currency: string, idempotencyKey: string) {
+  async initiatePayment(orderId: string, _amount: number, _currency: string, idempotencyKey: string) {
     return this.idempotency.runOnce(idempotencyKey, "payment:initiate", async () => {
+      const order = await this.orders.getOrder(orderId);
+      if (order.status !== "pending_payment") {
+        throw new Error(`Order ${orderId} is not awaiting payment.`);
+      }
+
+      // Never trust a browser-supplied amount/currency. The order total
+      // and currency were calculated server-side when the order was created.
+      const amount = Number(order.total);
+      const currency = order.currency;
+      if (!Number.isFinite(amount) || amount <= 0) throw new Error("Invalid order payment amount.");
+
       const result = await this.resilientCall.execute(
         { provider: this.provider.name, operation: "initiatePayment", timeoutMs: 10_000, retry: { maxAttempts: 3 } },
         () => this.provider.initiatePayment({ orderId, amount, currency, idempotencyKey }),
@@ -52,9 +59,6 @@ export class PaymentService {
     });
   }
 
-  // Sprint 5.2 — payment verification, called independently of webhooks
-  // (e.g. a reconciliation job — see Sprint 5.8) as a source-of-truth
-  // cross-check against whatever a webhook already reported.
   async verifyPayment(providerReference: string) {
     return this.resilientCall.execute(
       { provider: this.provider.name, operation: "verifyPayment", timeoutMs: 8_000, retry: { maxAttempts: 2 } },
@@ -78,18 +82,29 @@ export class PaymentService {
     return result;
   }
 
-  // Sprint 5.2 — payment status synchronization: reconciles this
-  // service's stored status against what the provider currently
-  // reports, updating the local record if they've drifted.
   async syncStatus(providerReference: string): Promise<PaymentTransactionEntity> {
     const transaction = await this.transactions.findOne({ where: { providerReference } });
     if (!transaction) throw new NotFoundException("Payment transaction not found.");
 
     const verification = await this.verifyPayment(providerReference);
+    if (verification.providerReference !== transaction.providerReference) {
+      throw new Error("Payment provider reference mismatch.");
+    }
+    if (Math.abs(verification.amountCaptured - Number(transaction.amount)) > 0.01 && verification.status === "succeeded") {
+      throw new Error("Captured payment amount does not match the recorded order amount.");
+    }
+
     if (verification.status !== transaction.status) {
       transaction.status = verification.status;
       await this.transactions.save(transaction);
     }
+
+    if (verification.status === "succeeded") {
+      await this.orders.confirmOrder(transaction.orderId, providerReference);
+    } else if (verification.status === "failed") {
+      await this.orders.failOrder(transaction.orderId, "Payment failed at the provider.");
+    }
+
     return transaction;
   }
 }
