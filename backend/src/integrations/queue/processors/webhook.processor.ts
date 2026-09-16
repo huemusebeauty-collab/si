@@ -12,12 +12,6 @@ interface WebhookJobData {
   category: "payment" | "shipping";
 }
 
-// Sprint 5.7/5.8 — the actual business-effect processing for a webhook,
-// run asynchronously via the queue (never inline in the HTTP request —
-// see WebhooksService's comment). On failure, BullMQ's own retry/backoff
-// applies (queue.module.ts defaults: 5 attempts, exponential); after
-// exhausting attempts the job lands in BullMQ's failed-job list — the
-// dead-letter queue for this sprint's purposes (QueueMonitorService exposes it for inspection).
 @Processor(QUEUE_NAMES.WEBHOOK_RETRY)
 export class WebhookProcessor extends WorkerHost {
   private readonly logger = new Logger("WebhookProcessor");
@@ -40,34 +34,38 @@ export class WebhookProcessor extends WorkerHost {
       event.attemptCount += 1;
 
       if (job.data.category === "payment") {
-        // Sprint 5.7 — Sprint 5 scope: the mock payment provider's
-        // webhook payload shape is minimal (see docs/integrations/
-        // WEBHOOK_SPECIFICATION.md); a real provider's actual event-type
-        // parsing (e.g. Stripe's `type: "payment_intent.succeeded"`)
-        // would branch here. For Sprint 5, any payment webhook triggers
-        // a status re-sync against the provider reference embedded in
-        // the payload, reusing PaymentService.syncStatus rather than
-        // trusting the webhook body's claimed status directly (defense
-        // against a malformed or stale payload — the sync call re-
-        // verifies against the provider).
-        const parsed = JSON.parse(event.rawBody) as { providerReference?: string };
-        if (parsed.providerReference) {
-          await this.payments.syncStatus(parsed.providerReference);
+        const parsed = JSON.parse(event.rawBody) as {
+          id?: string;
+          type?: string;
+          data?: { object?: { id?: string } };
+          providerReference?: string;
+        };
+        const providerReference = parsed.data?.object?.id ?? parsed.providerReference;
+
+        // Stripe sends payment_intent.succeeded/payment_intent.payment_failed
+        // (and cancellation) events. We deliberately re-fetch the PaymentIntent
+        // from Stripe rather than trusting status fields in the webhook body.
+        // This makes the provider API the source of truth and keeps processing
+        // safe under duplicate/out-of-order deliveries.
+        if (
+          providerReference &&
+          (parsed.type === "payment_intent.succeeded" ||
+            parsed.type === "payment_intent.payment_failed" ||
+            parsed.type === "payment_intent.canceled" ||
+            parsed.type === undefined)
+        ) {
+          await this.payments.syncStatus(providerReference);
         }
       }
-      // Sprint 5 scope: shipping webhook processing (tracking status
-      // sync) follows the same shape but isn't wired to a concrete
-      // downstream effect yet — Orders doesn't yet have a
-      // "shipped"-from-webhook trigger distinct from the manual
-      // updateStatus call. Documented in Known Issues.
 
       event.status = "processed";
+      event.processingError = undefined;
       await this.events.save(event);
     } catch (error) {
       event.status = "failed";
       event.processingError = error instanceof Error ? error.message : String(error);
       await this.events.save(event);
-      throw error; // re-throw so BullMQ counts this as a failed attempt and retries per its backoff policy
+      throw error;
     }
   }
 }
