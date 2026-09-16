@@ -1,17 +1,42 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon } from "@/components/basic/Icon";
 import { SearchBar } from "@/components/composite/SearchBar";
 import { MegaMenu } from "@/components/sections/MegaMenu";
 import { MobileMenu } from "@/components/sections/MobileMenu";
 import { ROUTES } from "@/constants/routes";
 import type { Category } from "@/types/product";
+import { getCartTotals, getStoredCartId } from "@/services/api/cart";
 
 export function Header({ categories }: { categories: Category[] }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [megaMenuCategoryId, setMegaMenuCategoryId] = useState<string | null>(null);
+  const [cartItemCount, setCartItemCount] = useState(0);
   const megaMenuCategory = categories.find((c) => c.id === megaMenuCategoryId) ?? null;
+
+  useEffect(() => {
+    let active = true;
+    async function refreshCartCount() {
+      if (!getStoredCartId()) {
+        if (active) setCartItemCount(0);
+        return;
+      }
+      try {
+        const totals = await getCartTotals();
+        if (active) setCartItemCount(totals.itemCount);
+      } catch {
+        if (active) setCartItemCount(0);
+      }
+    }
+    void refreshCartCount();
+    const handleCartUpdated = () => void refreshCartCount();
+    window.addEventListener("silku-cart-updated", handleCartUpdated);
+    return () => {
+      active = false;
+      window.removeEventListener("silku-cart-updated", handleCartUpdated);
+    };
+  }, []);
 
   return (
     <>
@@ -62,10 +87,15 @@ export function Header({ categories }: { categories: Category[] }) {
                 <path d="M12 21s-7-4.4-9.5-8.8C.7 8.6 2.3 5 6 5c2 0 3.4 1 6 3.5C14.6 6 16 5 18 5c3.7 0 5.3 3.6 3.5 7.2C19 16.6 12 21 12 21z" />
               </Icon>
             </Link>
-            <Link href={ROUTES.cart} aria-label="Cart, 0 items">
+            <Link href={ROUTES.cart} aria-label={`Cart, ${cartItemCount} items`} className="relative">
               <Icon size={24} label="">
                 <path d="M3 3h2l2.6 12.4a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 2-1.6L22 7H6" />
               </Icon>
+              {cartItemCount > 0 && (
+                <span className="absolute -right-2 -top-2 min-w-4 rounded-full bg-primary-rose px-1 text-center text-[10px] leading-4 text-white" aria-hidden="true">
+                  {cartItemCount}
+                </span>
+              )}
             </Link>
           </div>
         </div>

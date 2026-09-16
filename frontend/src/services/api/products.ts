@@ -94,7 +94,7 @@ function mapProduct(p: ApiProduct): Product {
     price: Number.parseFloat(p.price),
     salePrice: p.salePrice ? Number.parseFloat(p.salePrice) : undefined,
     currency: p.currency,
-    imageUrl: productImageForCategory(p.category.slug),
+    imageUrl: p.mediaUrls?.[0] || productImageForCategory(p.category.slug),
     imageAlt: p.name,
     badges: [],
     availability: overallAvailability(p.variants),
