@@ -13,61 +13,66 @@ import { RequirePermission } from "@/admin/common/require-permission.decorator";
 export class OrdersController {
   constructor(private readonly orders: OrdersService) {}
 
+  private async requireOwner(orderId: string, user: AuthenticatedUser) {
+    const order = await this.orders.getOrder(orderId);
+    if (order.customerId !== user.id) {
+      throw new DomainException(DomainErrorCode.REAUTHENTICATION_REQUIRED, "You do not have access to this order.");
+    }
+    return order;
+  }
+
   @Get()
   listMine(@CurrentUser() user: AuthenticatedUser) {
     return this.orders.listOrderHistory(user.id);
   }
 
   @Get(":orderId")
-  get(@Param("orderId") orderId: string) {
-    return this.orders.getOrder(orderId);
+  async get(@Param("orderId") orderId: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.requireOwner(orderId, user);
   }
 
   @Get(":orderId/tracking")
-  tracking(@Param("orderId") orderId: string) {
+  async tracking(@Param("orderId") orderId: string, @CurrentUser() user: AuthenticatedUser) {
+    await this.requireOwner(orderId, user);
     return this.orders.getTrackingStatus(orderId);
   }
 
   @Get(":orderId/invoice")
-  invoice(
+  async invoice(
     @Param("orderId") orderId: string,
+    @CurrentUser() user: AuthenticatedUser,
     @Query("size") size?: string,
     @Query("format") format?: string,
   ) {
+    await this.requireOwner(orderId, user);
     return this.orders.generateInvoice(orderId, size, format);
   }
 
+  @RequirePermission("orders", "update")
   @Patch(":orderId/status")
   updateStatus(@Param("orderId") orderId: string, @Body("status") status: OrderStatus) {
     return this.orders.updateStatus(orderId, status);
   }
 
   @Post(":orderId/cancel")
-  cancel(@Param("orderId") orderId: string, @Body("reason") reason: string) {
+  async cancel(@Param("orderId") orderId: string, @CurrentUser() user: AuthenticatedUser, @Body("reason") reason: string) {
+    await this.requireOwner(orderId, user);
     return this.orders.requestCancellation(orderId, reason);
   }
 
   @Post(":orderId/return")
-  requestReturn(
+  async requestReturn(
     @Param("orderId") orderId: string,
+    @CurrentUser() user: AuthenticatedUser,
     @Body("lineItemIds") lineItemIds: string[],
     @Body("reason") reason: string,
   ) {
+    await this.requireOwner(orderId, user);
     return this.orders.requestReturn(orderId, lineItemIds, reason);
   }
 
-  // Sprint 4.6 — Order creation/confirmation. @Public() since guest
-  // checkout is part of Phase 8 §6's guest journey.
-  //
-  // Sprint 4.15 security fix (KI4-6/R4-2): JwtAuthGuard now attempts
-  // optional auth on @Public() routes (see the guard's own comments) —
-  // if the caller IS authenticated, `req.user` is populated even on
-  // this public route, and we reject a request whose body `customerId`
-  // doesn't match the authenticated identity, rather than trusting an
-  // arbitrary client-supplied value. A true guest (no token at all)
-  // still passes through with whatever customerId they supply — that
-  // remains an intentionally open guest-checkout path, not a leftover
-  // gap, until Sprint 5's guest-order-linking design is settled.
+  // Public only because guest checkout creates orders. Authenticated callers
+  // are still protected by the customerId check below.
   @Public()
   @Post()
   create(
@@ -96,7 +101,8 @@ export class OrdersController {
   }
 
   @Get(":orderId/refund-eligibility")
-  refundEligibility(@Param("orderId") orderId: string) {
+  async refundEligibility(@Param("orderId") orderId: string, @CurrentUser() user: AuthenticatedUser) {
+    await this.requireOwner(orderId, user);
     return this.orders.checkRefundEligibility(orderId);
   }
 
