@@ -85,27 +85,37 @@ function getOrCreateSessionId(): string {
   return id;
 }
 
+function notifyCartUpdated(): void {
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("silku-cart-updated"));
+}
+
 export async function addCartItem(variantId: string, quantity: number): Promise<ApiCart> {
   const cart = await getOrCreateGuestCart();
-  return request<ApiCart>(`/carts/${cart.id}/items`, {
+  const updated = await request<ApiCart>(`/carts/${cart.id}/items`, {
     method: "POST",
     body: JSON.stringify({ variantId, quantity }),
   });
+  notifyCartUpdated();
+  return updated;
 }
 
 export async function updateCartItem(lineItemId: string, quantity: number): Promise<ApiCart> {
   const cartId = getStoredCartId();
   if (!cartId) throw new Error("Cart not found.");
-  return request<ApiCart>(`/carts/${cartId}/items/${lineItemId}`, {
+  const updated = await request<ApiCart>(`/carts/${cartId}/items/${lineItemId}`, {
     method: "PATCH",
     body: JSON.stringify({ quantity }),
   });
+  notifyCartUpdated();
+  return updated;
 }
 
 export async function removeCartItem(lineItemId: string): Promise<ApiCart> {
   const cartId = getStoredCartId();
   if (!cartId) throw new Error("Cart not found.");
-  return request<ApiCart>(`/carts/${cartId}/items/${lineItemId}`, { method: "DELETE" });
+  const updated = await request<ApiCart>(`/carts/${cartId}/items/${lineItemId}`, { method: "DELETE" });
+  notifyCartUpdated();
+  return updated;
 }
 
 export async function getCartTotals(): Promise<{ subtotal: number; discountAmount: number; total: number; itemCount: number }> {
