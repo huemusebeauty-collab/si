@@ -211,7 +211,7 @@ export class OrdersService {
         where: { id: savedOrder.id },
         relations: ["lineItems", "statusHistory"],
       });
-      if (!createdOrder) throw new DomainException(DomainErrorCode.ORDER_NOT_FOUND, "Created order could not be loaded.");
+      if (!createdOrder) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Created order could not be loaded.");
       return createdOrder;
     });
   }
