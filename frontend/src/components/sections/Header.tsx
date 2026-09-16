@@ -84,7 +84,7 @@ export function Header({ categories }: { categories: Category[] }) {
             </Link>
             <Link href={ROUTES.wishlist} aria-label="Wishlist">
               <Icon size={24} label="">
-                <path d="M12 21s-7-4.4-9.5-8.8C.7 8.6 2.3 5 6 5c2 0 3.4 3.6 5.3 7.2C19 16.6 12 21 12 21z" />
+                <path d="M12 21s-7-4.4-9.5-8.8C.7 8.6 2.3 5 6 5c2 0 3.4 1 6 3.5C14.6 6 16 5 18 5c3.7 0 5.3 3.6 3.5 7.2C19 16.6 12 21 12 21z" />
               </Icon>
             </Link>
             <Link href={ROUTES.cart} aria-label={`Cart, ${cartItemCount} items`} className="relative">
