@@ -48,7 +48,7 @@ export class OrdersController {
     return this.orders.generateInvoice(orderId, size, format);
   }
 
-  @RequirePermission("orders", "update")
+  @RequirePermission("orders", "edit")
   @Patch(":orderId/status")
   updateStatus(@Param("orderId") orderId: string, @Body("status") status: OrderStatus) {
     return this.orders.updateStatus(orderId, status);
