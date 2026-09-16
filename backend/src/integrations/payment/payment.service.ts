@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import {
@@ -77,9 +77,25 @@ export class PaymentService {
     if (!transaction) {
       throw new NotFoundException("No payment transaction found for this order.");
     }
+    if (transaction.status === "refunded") {
+      throw new BadRequestException("This payment has already been refunded.");
+    }
+    const requestedAmount = Number(amount);
+    const capturedAmount = Number(transaction.amount);
+    // The current transaction model tracks one refundable amount and one
+    // refunded state, so only a full refund is safe until partial-refund
+    // accounting is introduced.
+    if (!Number.isFinite(requestedAmount) || requestedAmount <= 0 || Math.abs(requestedAmount - capturedAmount) > 0.01) {
+      throw new BadRequestException("Refund amount must exactly match the captured payment amount.");
+    }
+    const eligibility = await this.orders.checkRefundEligibility(orderId);
+    if (!eligibility.eligible) {
+      throw new BadRequestException(eligibility.reason ?? "This order is not eligible for a refund.");
+    }
+
     const result = await this.resilientCall.execute(
       { provider: this.provider.name, operation: "initiateRefund", timeoutMs: 10_000, retry: { maxAttempts: 3 } },
-      () => this.provider.initiateRefund({ providerReference: transaction.providerReference, amount, reason }),
+      () => this.provider.initiateRefund({ providerReference: transaction.providerReference, amount: requestedAmount, reason }),
     );
     if (result.status === "succeeded") {
       transaction.status = "refunded";
