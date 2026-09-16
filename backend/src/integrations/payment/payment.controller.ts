@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { PaymentService } from "./payment.service";
 import { InitiatePaymentDto } from "./dto/initiate-payment.dto";
 import { Public } from "@/common/decorators/public.decorator";
+import { RequirePermission } from "@/admin/common/require-permission.decorator";
 
 @ApiTags("payments")
 @ApiBearerAuth()
@@ -10,9 +11,7 @@ import { Public } from "@/common/decorators/public.decorator";
 export class PaymentController {
   constructor(private readonly payments: PaymentService) {}
 
-  // Sprint 5.2 — @Public() to match Sprint 4's guest-checkout allowance
-  // on order creation; the same optional-auth pattern from Sprint 4.15
-  // applies at the JwtAuthGuard level.
+  // Guest checkout is allowed to initiate payment for its newly-created order.
   @Public()
   @Post("initiate")
   initiate(@Body() dto: InitiatePaymentDto) {
@@ -24,6 +23,8 @@ export class PaymentController {
     return this.payments.verifyPayment(providerReference);
   }
 
+  // Refunds move money and therefore must be an explicit admin operation.
+  @RequirePermission("orders", "update")
   @Post(":orderId/refund")
   refund(@Param("orderId") orderId: string, @Body() body: { amount: number; reason?: string }) {
     return this.payments.initiateRefund(orderId, body.amount, body.reason);
