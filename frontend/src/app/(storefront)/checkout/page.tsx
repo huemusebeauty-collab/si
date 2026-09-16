@@ -28,6 +28,7 @@ export default function CheckoutPage() {
   const [error, setError] = useState<string | null>(null);
   const [order, setOrder] = useState<ApiOrder | null>(null);
   const [payment, setPayment] = useState<PaymentIntentResponse | null>(null);
+  const [paymentComplete, setPaymentComplete] = useState(false);
   const [paymentReady, setPaymentReady] = useState(false);
   const paymentMountRef = useRef<HTMLDivElement | null>(null);
   const elementsRef = useRef<StripeElements | null>(null);
@@ -69,7 +70,7 @@ export default function CheckoutPage() {
   }, []);
 
   useEffect(() => {
-    if (!payment?.clientSecret || !paymentMountRef.current) return;
+    if (!payment?.clientSecret || !paymentMountRef.current || paymentComplete) return;
     let cancelled = false;
 
     async function mountPaymentElement() {
@@ -96,7 +97,7 @@ export default function CheckoutPage() {
       elementsRef.current = null;
       setPaymentReady(false);
     };
-  }, [payment?.clientSecret]);
+  }, [payment?.clientSecret, paymentComplete]);
 
   function updateField(field: keyof typeof form, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -149,6 +150,9 @@ export default function CheckoutPage() {
 
       if (typeof syncResult === "object" && syncResult !== null && "status" in syncResult && syncResult.status === "succeeded") {
         trackWebsiteEvent("purchase", { orderId: order.id, metadata: { total: Number(order.total), itemCount: totals.itemCount } });
+        setPaymentComplete(true);
+      } else {
+        throw new Error("Payment is still being confirmed. Please wait a moment and try again.");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Payment could not be completed.");
@@ -166,6 +170,28 @@ export default function CheckoutPage() {
         <h1 className="mt-4 font-display text-3xl font-semibold text-ink">Checkout</h1>
         <p className="mt-4 text-stone">Your cart is empty. Add something beautiful before checking out.</p>
         <Link href="/shop" className="mt-6 inline-block rounded-md bg-ink px-5 py-3 text-sm font-semibold text-white">Shop now</Link>
+      </div>
+    );
+  }
+
+  if (order && payment && paymentComplete) {
+    return (
+      <div className="py-10">
+        <Breadcrumb items={[{ label: "Home", href: "/" }, { label: "Cart", href: "/cart" }, { label: "Order confirmed" }]} />
+        <div className="mt-8 max-w-2xl rounded-md bg-white p-8 shadow-rest">
+          <p className="text-sm font-semibold uppercase tracking-[0.16em] text-stone">Payment confirmed</p>
+          <h1 className="mt-2 font-display text-3xl font-semibold text-ink">Thank you for your order</h1>
+          <p className="mt-3 text-stone">Your payment has been verified by the server and your order is confirmed.</p>
+          <dl className="mt-6 space-y-3 border-y border-fog py-5 text-sm">
+            <div className="flex justify-between gap-4"><dt className="text-stone">Order ID</dt><dd className="font-medium text-ink break-all">{order.id}</dd></div>
+            <div className="flex justify-between gap-4"><dt className="text-stone">Total</dt><dd className="font-medium text-ink">{formatCurrency(Number(order.total))}</dd></div>
+            <div className="flex justify-between gap-4"><dt className="text-stone">Status</dt><dd className="font-medium text-ink">Confirmed</dd></div>
+          </dl>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <Link href="/shop" className="inline-flex items-center justify-center rounded-md bg-ink px-5 py-3 text-sm font-semibold text-white">Continue shopping</Link>
+            <Link href="/" className="inline-flex items-center justify-center rounded-md border border-fog px-5 py-3 text-sm font-semibold text-ink">Back to home</Link>
+          </div>
+        </div>
       </div>
     );
   }
