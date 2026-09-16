@@ -10,17 +10,16 @@ import { IdempotencyService } from "./idempotency.service";
 import { PaymentService } from "./payment.service";
 import { PaymentController } from "./payment.controller";
 import { OrdersModule } from "@/modules/orders/orders.module";
+import { ProductsModule } from "@/modules/products/products.module";
+import { DatabaseModule } from "@/database/database.module";
 
-// Sprint 5.1/5.2/5.9 — config-driven provider selection: the
-// PAYMENT_PROVIDER DI token resolves to whichever concrete class
-// `payment.provider` config says (defaults to "mock" — see
-// configuration.ts). Swapping providers means changing one env var,
-// never editing PaymentService or any controller.
 @Module({
   imports: [
     ConfigModule,
     TypeOrmModule.forFeature([IdempotencyKeyEntity, PaymentTransactionEntity]),
     OrdersModule,
+    ProductsModule,
+    DatabaseModule,
   ],
   controllers: [PaymentController],
   providers: [
