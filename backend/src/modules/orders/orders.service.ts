@@ -207,10 +207,12 @@ export class OrdersService {
       const savedOrder = await manager.save(order);
       for (const snapshot of snapshotLines) await manager.save(manager.create(OrderLineItemEntity, { ...snapshot, order: savedOrder }));
       await manager.save(manager.create(OrderStatusHistoryEntity, { order: savedOrder, status: "pending_payment" }));
-      return manager.findOne(OrderEntity, {
+      const createdOrder = await manager.findOne(OrderEntity, {
         where: { id: savedOrder.id },
         relations: ["lineItems", "statusHistory"],
       });
+      if (!createdOrder) throw new DomainException(DomainErrorCode.ORDER_NOT_FOUND, "Created order could not be loaded.");
+      return createdOrder;
     });
   }
 
