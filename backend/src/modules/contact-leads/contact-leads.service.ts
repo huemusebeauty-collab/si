@@ -25,6 +25,9 @@ export class ContactLeadsService {
       id: saved.id,
       submitted: true,
       message: "Your details were submitted successfully.",
+      businessAddress: "99, Nimera, Jaipur, Rajasthan 303005, India.",
+      legalBusinessName: "Shree Khatu Shyam Health Care",
+      gstin: "08FYZPB1721H1Z7",
     };
   }
 }
