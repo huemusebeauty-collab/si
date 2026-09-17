@@ -11,6 +11,8 @@ interface AdminAuthState {
   login: (email: string, password: string) => Promise<void>;
   sendOtp: (phoneNumber: string) => Promise<{ devOtp?: string }>;
   loginWithOtp: (phoneNumber: string, code: string) => Promise<void>;
+  requestPasswordReset: (email: string, phoneNumber: string) => Promise<{ resetToken: string; devOtp?: string; phoneNumber: string }>;
+  confirmPasswordReset: (resetToken: string, code: string, newPassword: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -54,6 +56,14 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     router.push("/admin/dashboard");
   }, [router]);
 
+  const requestPasswordReset = useCallback(async (resetEmail: string, phoneNumber: string) => {
+    return adminApi.requestPasswordReset(resetEmail, phoneNumber);
+  }, []);
+
+  const confirmPasswordReset = useCallback(async (resetToken: string, code: string, newPassword: string) => {
+    await adminApi.confirmPasswordReset(resetToken, code, newPassword);
+  }, []);
+
   const logout = useCallback(() => {
     setToken(null);
     window.localStorage.removeItem("hmb_admin_role");
@@ -65,7 +75,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   return (
-    <AdminAuthContext.Provider value={{ role, email, isLoading, login, sendOtp, loginWithOtp, logout }}>
+    <AdminAuthContext.Provider value={{ role, email, isLoading, login, sendOtp, loginWithOtp, requestPasswordReset, confirmPasswordReset, logout }}>
       {children}
     </AdminAuthContext.Provider>
   );

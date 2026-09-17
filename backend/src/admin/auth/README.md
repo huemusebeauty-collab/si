@@ -1,0 +1,1 @@
+Admin password endpoints are implemented in AdminAuthController. Production recovery requires the ADMIN_RECOVERY_TOKEN environment variable; never commit that token to the repository.
