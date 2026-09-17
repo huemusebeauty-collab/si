@@ -111,6 +111,54 @@ export class AdminAuthService {
     return { sessionToken, role: user.role, expiresAt: new Date(Date.now() + 15 * 60 * 1000) };
   }
 
+  async requestPasswordReset(email: string, phoneNumber: string): Promise<{ sent: true; phoneNumber: string; resetToken: string; devOtp?: string }> {
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedPhone = this.normalizePhone(phoneNumber);
+    const user = await this.adminUsers.findOne({ where: { email: normalizedEmail } });
+    if (!user?.active || !user.phoneNumber || user.phoneNumber !== normalizedPhone) {
+      throw new UnauthorizedException("Admin account or registered phone number could not be verified.");
+    }
+
+    const code = randomInt(100000, 1000000).toString();
+    user.otpHash = this.hashOtp(code);
+    user.otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000);
+    user.otpAttempts = 0;
+    await this.adminUsers.save(user);
+
+    const resetToken = await this.jwt.signAsync(
+      { sub: user.id, email: user.email, purpose: "admin_password_reset" },
+      { secret: this.config.get<string>("jwt.secret"), expiresIn: "10m" },
+    );
+    await this.auditLog.record({ actorId: user.id, actorEmail: user.email, module: "auth", action: "password_reset_otp_sent" });
+    const devMode = process.env.ADMIN_OTP_DEV_MODE === "true";
+    return { sent: true, phoneNumber: this.maskPhone(normalizedPhone), resetToken, ...(devMode ? { devOtp: code } : {}) };
+  }
+
+  async resetPassword(resetToken: string, code: string, newPassword: string): Promise<{ reset: true }> {
+    let payload: { sub?: string; email?: string; purpose?: string };
+    try { payload = await this.jwt.verifyAsync(resetToken, { secret: this.config.get<string>("jwt.secret") }); }
+    catch { throw new UnauthorizedException("Your password reset request has expired. Please start again."); }
+    if (payload.purpose !== "admin_password_reset" || !payload.sub || !payload.email) throw new UnauthorizedException("Invalid password reset request.");
+
+    const user = await this.adminUsers.findOne({ where: { id: payload.sub, email: payload.email } });
+    if (!user?.active || !user.otpHash || !user.otpExpiresAt) throw new UnauthorizedException("Invalid or expired OTP.");
+    if (user.otpExpiresAt.getTime() < Date.now()) throw new UnauthorizedException("OTP has expired. Please request a new code.");
+    if (user.otpAttempts >= 5) throw new UnauthorizedException("Too many OTP attempts. Please request a new code.");
+    if (!/^\d{6}$/.test(code) || this.hashOtp(code) !== user.otpHash) {
+      user.otpAttempts += 1;
+      await this.adminUsers.save(user);
+      throw new UnauthorizedException("Invalid OTP.");
+    }
+
+    user.passwordHash = await hashPassword(newPassword);
+    user.otpHash = undefined;
+    user.otpExpiresAt = undefined;
+    user.otpAttempts = 0;
+    await this.adminUsers.save(user);
+    await this.auditLog.record({ actorId: user.id, actorEmail: user.email, module: "auth", action: "password_reset" });
+    return { reset: true };
+  }
+
   async changePassword(adminId: string, currentPassword: string, newPassword: string): Promise<{ changed: true }> {
     if (currentPassword === newPassword) throw new BadRequestException("New password must be different from the current password.");
     const user = await this.adminUsers.findOne({ where: { id: adminId } });
