@@ -39,6 +39,18 @@ export class AdminAuthService {
     return a.length === b.length && timingSafeEqual(a, b);
   }
 
+  async verifyAccessToken(token: string): Promise<{ sub: string; email: string; role: string }> {
+    try {
+      const payload = await this.jwt.verifyAsync<{ sub?: string; email?: string; role?: string; purpose?: string }>(token, {
+        secret: this.config.get<string>("jwt.secret"),
+      });
+      if (!payload.sub || !payload.email || !payload.role || payload.purpose) throw new Error("invalid token");
+      return { sub: payload.sub, email: payload.email, role: payload.role };
+    } catch {
+      throw new UnauthorizedException("Invalid admin session.");
+    }
+  }
+
   async login(email: string, password: string): Promise<{ sessionToken: string; role: string; expiresAt: Date; phoneNumber?: string }> {
     const user = await this.adminUsers.findOne({ where: { email: email.trim().toLowerCase() } });
     const isValid = Boolean(user?.active) && (await verifyPassword(password, user?.passwordHash ?? ""));
