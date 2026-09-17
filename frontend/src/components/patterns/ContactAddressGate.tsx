@@ -16,7 +16,7 @@ export function ContactAddressGate() {
 
     const form = new FormData(event.currentTarget);
     const payload = {
-      full_name: String(form.get("name") || ""),
+      fullName: String(form.get("name") || ""),
       email: String(form.get("email") || ""),
       phone: String(form.get("phone") || ""),
       address: String(form.get("address") || ""),
