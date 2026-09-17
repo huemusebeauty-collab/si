@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Breadcrumb } from "@/components/patterns/Breadcrumb";
+import { ContactAddressGate } from "@/components/patterns/ContactAddressGate";
 
 // Storefront policy pages. Business-specific details are kept here until a CMS is introduced.
 const STATIC_PAGES: Record<string, { title: string; body: string }> = {
@@ -10,7 +11,7 @@ const STATIC_PAGES: Record<string, { title: string; body: string }> = {
   },
   contact: {
     title: "Contact Us",
-    body: "For product, order, shipping, return, or payment support, contact Silku at silku981@gmail.com or +91-7339899606. Legal business name: Shree Khatu Shyam Health Care. Business address: 99, Nimera, Jaipur, Rajasthan 303005, India. GSTIN: 08FYZPB1721H1Z7.",
+    body: "For product, order, shipping, return, or payment support, contact Silku at silku981@gmail.com or +91-7339899606. Legal business name: Shree Khatu Shyam Health Care. Business location: Jaipur, Rajasthan. GSTIN: 08FYZPB1721H1Z7.",
   },
   "shipping-returns": {
     title: "Shipping & Returns",
@@ -65,6 +66,7 @@ export default function StaticPage({ params }: Props) {
       <Breadcrumb items={[{ label: "Home", href: "/" }, { label: page.title }]} />
       <h1 className="mt-4 font-display text-[32px] leading-10 font-semibold text-ink">{page.title}</h1>
       <p className="prose-copy mt-4 whitespace-pre-line text-base text-charcoal">{page.body}</p>
+      {params.slug === "contact" ? <ContactAddressGate /> : null}
     </div>
   );
 }
