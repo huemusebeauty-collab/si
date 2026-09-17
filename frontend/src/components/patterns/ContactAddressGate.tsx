@@ -2,6 +2,8 @@
 
 import { FormEvent, useState } from "react";
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://silku-backend.onrender.com/v1";
+
 export function ContactAddressGate() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -21,14 +23,11 @@ export function ContactAddressGate() {
     };
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "https://silku-backend.onrender.com"}/v1/contact-leads`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        },
-      );
+      const response = await fetch(`${API_BASE}/contact-leads`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
       if (!response.ok) throw new Error("Unable to submit details");
       setSubmitted(true);
