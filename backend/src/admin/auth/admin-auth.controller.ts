@@ -5,6 +5,8 @@ import { AdminAuthService } from "./admin-auth.service";
 import { AdminLoginDto } from "./dto/admin-login.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
 import { RecoverPasswordDto } from "./dto/recover-password.dto";
+import { RequestPasswordResetDto } from "./dto/request-password-reset.dto";
+import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { Public } from "@/common/decorators/public.decorator";
 
 @ApiTags("admin-auth")
@@ -34,6 +36,22 @@ export class AdminAuthController {
   @Post("otp/verify")
   verifyOtp(@Headers("authorization") authorization: string | undefined, @Body() body: { code: string }) {
     return this.adminAuth.verifyOtp(this.extractBearer(authorization), body.code);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
+  @HttpCode(HttpStatus.OK)
+  @Post("password/reset/request")
+  requestPasswordReset(@Body() dto: RequestPasswordResetDto) {
+    return this.adminAuth.requestPasswordReset(dto.email, dto.phoneNumber);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @HttpCode(HttpStatus.OK)
+  @Post("password/reset/confirm")
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.adminAuth.resetPassword(dto.resetToken, dto.code, dto.newPassword);
   }
 
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
