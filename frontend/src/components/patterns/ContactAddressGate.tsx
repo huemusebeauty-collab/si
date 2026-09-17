@@ -2,12 +2,22 @@
 
 import { FormEvent, useState } from "react";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://silku-backend.onrender.com/v1";
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "https://silku-backend.onrender.com/v1").replace(/\/+$/, "");
+
+type ContactLeadResponse = {
+  submitted: boolean;
+  businessAddress?: string;
+  legalBusinessName?: string;
+  gstin?: string;
+};
 
 export function ContactAddressGate() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [businessAddress, setBusinessAddress] = useState("");
+  const [legalBusinessName, setLegalBusinessName] = useState("");
+  const [gstin, setGstin] = useState("");
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -16,10 +26,10 @@ export function ContactAddressGate() {
 
     const form = new FormData(event.currentTarget);
     const payload = {
-      fullName: String(form.get("name") || ""),
-      email: String(form.get("email") || ""),
-      phone: String(form.get("phone") || ""),
-      address: String(form.get("address") || ""),
+      fullName: String(form.get("name") || "").trim(),
+      email: String(form.get("email") || "").trim(),
+      phone: String(form.get("phone") || "").trim(),
+      address: String(form.get("address") || "").trim(),
     };
 
     try {
@@ -30,7 +40,17 @@ export function ContactAddressGate() {
       });
 
       if (!response.ok) throw new Error("Unable to submit details");
+
+      const result = (await response.json()) as ContactLeadResponse;
+      if (!result.submitted || !result.businessAddress) {
+        throw new Error("Incomplete server response");
+      }
+
+      setBusinessAddress(result.businessAddress);
+      setLegalBusinessName(result.legalBusinessName || "");
+      setGstin(result.gstin || "");
       setSubmitted(true);
+      event.currentTarget.reset();
     } catch {
       setError("Please try again later.");
     } finally {
@@ -42,8 +62,9 @@ export function ContactAddressGate() {
     return (
       <div className="mt-6 rounded-lg border border-sand bg-cream p-5" aria-live="polite">
         <h2 className="font-display text-xl font-semibold text-ink">Business address</h2>
-        <p className="mt-2 text-base text-charcoal">99, Nimera, Jaipur, Rajasthan 303005, India.</p>
-        <p className="mt-2 text-sm text-charcoal">Legal business name: Shree Khatu Shyam Health Care. GSTIN: 08FYZPB1721H1Z7.</p>
+        <p className="mt-2 text-base text-charcoal">{businessAddress}</p>
+        {legalBusinessName ? <p className="mt-2 text-sm text-charcoal">Legal business name: {legalBusinessName}.</p> : null}
+        {gstin ? <p className="mt-1 text-sm text-charcoal">GSTIN: {gstin}.</p> : null}
       </div>
     );
   }
