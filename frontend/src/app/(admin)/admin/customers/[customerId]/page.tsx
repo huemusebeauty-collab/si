@@ -1,6 +1,6 @@
 "use client";
-import { use } from "react";
 import Link from "next/link";
+import { use } from "react";
 import { RequireAdminAuth } from "@/admin/components/RequireAdminAuth";
 import { AdminShell } from "@/admin/components/AdminShell";
 import { useAdminQuery } from "@/admin/hooks/useAdminQuery";
