@@ -10,18 +10,6 @@ export interface CategorySeedNode {
 
 export const CATEGORY_TREE: CategorySeedNode[] = [
   {
-    slug: "nail-collection",
-    name: "Nail Collection",
-    displayOrder: 1,
-    children: [
-      { slug: "nail-polish", name: "Nail Polish", displayOrder: 1 },
-      { slug: "gel-polish", name: "Gel Polish", displayOrder: 2 },
-      { slug: "base-coat", name: "Base Coat", displayOrder: 3 },
-      { slug: "top-coat", name: "Top Coat", displayOrder: 4 },
-      { slug: "nail-treatments", name: "Nail Treatments", displayOrder: 5 },
-    ],
-  },
-  {
     slug: "color-cosmetics",
     name: "Color Cosmetics",
     displayOrder: 2,
@@ -37,6 +25,7 @@ export const CATEGORY_TREE: CategorySeedNode[] = [
       { slug: "concealer", name: "Concealer", displayOrder: 9 },
       { slug: "compact-powder", name: "Compact Powder", displayOrder: 10 },
       { slug: "primer", name: "Primer", displayOrder: 11 },
+      { slug: "nail-polish", name: "Nail Polish", displayOrder: 12 },
     ],
   },
   {
