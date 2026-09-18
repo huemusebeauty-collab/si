@@ -26,7 +26,7 @@ export interface ProductSeed {
 
 const BRAND = "Hue Muse Beauty";
 
-export const PRODUCT_SEEDS: ProductSeed[] = [
+const CORE_PRODUCT_SEEDS: ProductSeed[] = [
   {
     slug: "muse-rose-nail-lacquer",
     name: "Muse Rose Nail Lacquer",
@@ -440,3 +440,42 @@ export const PRODUCT_SEEDS: ProductSeed[] = [
     variants: [{ sku: "HMB-PR-001", name: "Universal", stockQuantity: 140 }],
   },
 ];
+
+
+// P5.43B — Starter general-skincare catalog. No fabricated image URLs are
+// included; media can be added during catalog QA before products are published.
+const SKINCARE_PRODUCT_SEEDS: ProductSeed[] = [
+  ["silku-gentle-barrier-face-wash","Gentle Barrier Face Wash","face-wash",299,"A gentle daily cleanser designed to remove dirt, oil and makeup without leaving skin feeling stripped."],
+  ["silku-melt-away-cleansing-balm","Melt-Away Cleansing Balm","cleansing-balm",449,"A soft cleansing balm that melts into an oil and rinses away daily makeup, sunscreen and surface impurities."],
+  ["silku-hydra-prep-toner","Hydra Prep Toner","toner",349,"A lightweight hydrating toner that preps freshly cleansed skin for the rest of a simple skincare routine."],
+  ["silku-niacinamide-serum","Niacinamide Balance Serum","serum",499,"A lightweight niacinamide serum created for simple, ingredient-led skincare and an easy everyday routine."],
+  ["silku-barrier-cloud-moisturizer","Barrier Cloud Moisturizer","moisturizer",449,"A lightweight face moisturizer with humectants and barrier-supporting ingredients for a comfortable everyday finish."],
+  ["silku-daily-shield-spf-50","Daily Shield SPF 50 Sunscreen","sunscreen",599,"A lightweight daily sunscreen designed to fit comfortably into a simple morning skincare routine."],
+  ["silku-polish-glow-exfoliator","Polish & Glow Face Exfoliator","face-scrub",349,"A gentle exfoliating face scrub designed for occasional use to leave skin feeling smoother and refreshed."],
+  ["silku-cloud-clay-face-mask","Cloud Clay Face Mask","face-mask",399,"A creamy clay mask designed for an easy weekly self-care ritual and a fresh, clean skin feel."],
+  ["silku-bright-eye-gel","Bright Eye Hydration Gel","eye-care",449,"A lightweight eye-area gel designed to add comfortable hydration to the delicate-looking eye contour."],
+  ["silku-soft-shield-lip-balm","Soft Shield Lip Balm","lip-care",199,"A smooth everyday lip balm that helps keep lips feeling soft and comfortable throughout the day."],
+  ["silku-velvet-body-lotion","Velvet Body Lotion","body-lotion",399,"A lightweight body lotion that leaves skin feeling moisturized and smooth without a heavy finish."],
+  ["silku-refresh-body-wash","Refresh Daily Body Wash","body-wash",299,"A refreshing daily body wash that cleanses comfortably and rinses away cleanly without an overly tight after-feel."],
+  ["silku-smooth-body-polish","Smooth Body Polish","body-scrub",349,"A creamy body exfoliator for an occasional self-care ritual that leaves skin feeling smoother and refreshed."],
+  ["silku-barrier-repair-cream","Barrier Repair Cream","skin-treatments",499,"A richer face cream designed for dry-feeling skin and simple barrier-focused routines, with ceramides, panthenol and squalane."],
+].map(([slug,name,categorySlug,price,description]) => ({
+  slug, name, categorySlug, collectionSlugs: ["new-arrivals"], price, description,
+  content: {
+    shortDescription: description,
+    keyBenefits: ["Comfortable everyday care", "Easy to layer into a routine", "Simple ingredient-led formula"],
+    features: ["Lightweight, easy-use texture", "Designed for routine use", "No fabricated claims"],
+    ingredients: "Aqua, Glycerin, Panthenol, Tocopherol and a product-specific supporting blend.",
+    usageInstructions: ["Apply as directed on clean skin.", "Stop use if irritation occurs."],
+    warnings: "For external use only. Patch test before use where appropriate. Avoid direct eye contact.",
+    storageInstructions: "Store in a cool, dry place away from direct sunlight.",
+    specifications: { size: "Standard retail size", shelfLifeMonths: "12 after opening" },
+    faqs: [{ question: "Can I use it every day?", answer: "Use according to the product directions and your skin's tolerance." }],
+  },
+  metaTitle: name + " | Hue Muse Beauty",
+  metaDescription: description,
+  mediaUrls: [],
+  variants: [{ sku: "HMB-SK-" + slug.toUpperCase().replace(/[^A-Z0-9]+/g,"-"), name: "Standard", stockQuantity: 75 }],
+}));
+
+export const PRODUCT_SEEDS: ProductSeed[] = [...CORE_PRODUCT_SEEDS, ...SKINCARE_PRODUCT_SEEDS];
