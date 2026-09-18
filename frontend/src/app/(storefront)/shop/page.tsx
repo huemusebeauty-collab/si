@@ -27,10 +27,11 @@ function slugify(value: string): string {
 }
 
 interface Props {
-  searchParams: { finish?: string | string[]; price?: string | string[] };
+  searchParams: Promise<{ finish?: string | string[]; price?: string | string[] }>;
 }
 
 export default async function ShopPage({ searchParams }: Props) {
+  const { finish, price } = await searchParams;
   const allProducts = await getAllProducts();
 
   const finishValues = Array.from(
@@ -53,8 +54,8 @@ export default async function ShopPage({ searchParams }: Props) {
     },
   ];
 
-  const selectedFinish = toArray(searchParams.finish);
-  const selectedPrice = toArray(searchParams.price);
+  const selectedFinish = toArray(finish);
+  const selectedPrice = toArray(price);
 
   let products = allProducts;
   if (selectedFinish.length > 0) {
