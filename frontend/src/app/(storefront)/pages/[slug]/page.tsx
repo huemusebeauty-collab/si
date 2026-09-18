@@ -49,11 +49,12 @@ const STATIC_PAGES: Record<string, { title: string; body: string }> = {
 };
 
 interface Props {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }
 
 export function generateMetadata({ params }: Props): Metadata {
-  const page = STATIC_PAGES[params.slug];
+  const { slug } = await params;
+  const page = STATIC_PAGES[slug];
   if (!page) return {};
   return { title: page.title, alternates: { canonical: `/pages/${params.slug}` } };
 }
@@ -62,14 +63,14 @@ export default async function StaticPage({ params }: Props) {
   const page = STATIC_PAGES[params.slug];
   if (!page) notFound();
 
-  const faqs = params.slug === "faqs" ? await getFaqs() : [];
+  const faqs = slug === "faqs" ? await getFaqs() : [];
 
   return (
     <div className="py-12">
       <Breadcrumb items={[{ label: "Home", href: "/" }, { label: page.title }]} />
       <h1 className="mt-4 font-display text-[32px] leading-10 font-semibold text-ink">{page.title}</h1>
 
-      {params.slug === "faqs" && faqs.length > 0 ? (
+      {slug === "faqs" && faqs.length > 0 ? (
         <div className="mt-6 space-y-4">
           {faqs.map((faq) => (
             <details key={faq.id} className="rounded-lg border border-fog px-4 py-3">
@@ -82,7 +83,7 @@ export default async function StaticPage({ params }: Props) {
         <p className="prose-copy mt-4 whitespace-pre-line text-base text-charcoal">{page.body}</p>
       )}
 
-      {params.slug === "contact" ? <ContactAddressGate /> : null}
+      {slug === "contact" ? <ContactAddressGate /> : null}
     </div>
   );
 }
