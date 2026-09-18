@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { use } from "react";
 import { RequireAdminAuth } from "@/admin/components/RequireAdminAuth";
 import { AdminShell } from "@/admin/components/AdminShell";
 import { useAdminQuery } from "@/admin/hooks/useAdminQuery";
@@ -41,8 +42,8 @@ function CustomerDetailContent({ customerId }: { customerId: string }) {
   );
 }
 
-export default async function CustomerDetailPage({ params }: { params: Promise<{ customerId: string }> }) {
-  const { customerId } = await params;
+export default function CustomerDetailPage({ params }: { params: Promise<{ customerId: string }> }) {
+  const { customerId } = use(params);
   return (
     <RequireAdminAuth>
       <AdminShell><CustomerDetailContent customerId={customerId} /></AdminShell>
