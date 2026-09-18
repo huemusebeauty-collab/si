@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { use, useState } from "react";
 import { RequireAdminAuth } from "@/admin/components/RequireAdminAuth";
 import { AdminShell } from "@/admin/components/AdminShell";
 import { RoleGate } from "@/admin/components/RoleGate";
@@ -61,8 +61,8 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
   );
 }
 
-export default function OrderDetailPage({ params }: { params: { orderId: string } }) {
-  const { orderId } = params;
+export default function OrderDetailPage({ params }: { params: Promise<{ orderId: string }> }) {
+  const { orderId } = use(params);
   return (
     <RequireAdminAuth>
       <AdminShell><OrderDetailContent orderId={orderId} /></AdminShell>
