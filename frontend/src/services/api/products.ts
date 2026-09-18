@@ -72,9 +72,13 @@ function overallAvailability(variants: ApiProductVariant[]): AvailabilityStatus 
   return "out-of-stock";
 }
 
-function resolveProductImage(mediaUrls: string[] | undefined, categorySlug: string): string {
-  const mediaUrl = mediaUrls?.find((url) => url && !url.startsWith("/mock/"));
-  return mediaUrl || productImageForCategory(categorySlug);
+function resolveProductImage(mediaUrls: string[] | undefined, categorySlug: string, productSlug?: string): string {
+  const mediaUrl = mediaUrls?.find((url) => /^https?:\/\//.test(url));
+  if (mediaUrl) return mediaUrl;
+  if (productSlug === "muse-rose-nail-lacquer" || productSlug === "silku-nail-lacquer") {
+    return "/products/silku-black-signature.jpg.jpeg";
+  }
+  return productImageForCategory(categorySlug);
 }
 
 function productImageForCategory(categorySlug: string): string {
@@ -97,7 +101,7 @@ function mapProduct(p: ApiProduct): Product {
     price: Number.parseFloat(p.price),
     salePrice: p.salePrice ? Number.parseFloat(p.salePrice) : undefined,
     currency: p.currency,
-    imageUrl: resolveProductImage(p.mediaUrls, p.category.slug),
+    imageUrl: resolveProductImage(p.mediaUrls, p.category.slug, p.slug),
     imageAlt: p.name,
     badges: [],
     availability: overallAvailability(p.variants),
@@ -140,9 +144,9 @@ function mapCategory(c: ApiCategory, itemCount = 0): Category {
 
 function collectionImageForSlug(slug: string): string {
   if (["new-arrivals", "trending", "seasonal-holiday-shine"].includes(slug)) {
-    return "/mock/collection-spring.jpg";
+    return "/products/silku-ocean-vibe.jpg.jpeg";
   }
-  return "/mock/collection-noir.jpg";
+  return "/products/silku-brown-glam.jpg.jpeg";
 }
 
 function mapCollection(c: ApiCollection): Collection {
