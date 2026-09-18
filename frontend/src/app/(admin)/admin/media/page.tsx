@@ -40,7 +40,7 @@ function MediaContent() {
         </div>
       </RoleGate>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        {uploaded.map((item) => <div key={item.key} className="overflow-hidden rounded-lg border border-line bg-white">{item.type === "video" ? <video src={item.url} controls preload="metadata" className="aspect-square w-full object-cover" /> : <img src={item.url} alt="" className="aspect-square w-full object-cover" />}</div>)}
+        {uploaded.map((item) => <div key={item.key} className="overflow-hidden rounded-lg border border-line bg-white">{item.type === "video" ? <video src={item.url} controls preload="metadata" className="aspect-square w-full object-cover"><track kind="captions" /></video> : <img src={item.url} alt="" className="aspect-square w-full object-cover" />}</div>)}
       </div>
     </div>
   );
