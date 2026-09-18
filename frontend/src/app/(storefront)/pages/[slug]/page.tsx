@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Breadcrumb } from "@/components/patterns/Breadcrumb";
 import { ContactAddressGate } from "@/components/patterns/ContactAddressGate";
+import { getFaqs } from "@/services/api/cms";
 
 // Storefront policy pages. Business-specific details are kept here until a CMS is introduced.
 const STATIC_PAGES: Record<string, { title: string; body: string }> = {
@@ -57,15 +58,30 @@ export function generateMetadata({ params }: Props): Metadata {
   return { title: page.title, alternates: { canonical: `/pages/${params.slug}` } };
 }
 
-export default function StaticPage({ params }: Props) {
+export default async function StaticPage({ params }: Props) {
   const page = STATIC_PAGES[params.slug];
   if (!page) notFound();
+
+  const faqs = params.slug === "faqs" ? await getFaqs() : [];
 
   return (
     <div className="py-12">
       <Breadcrumb items={[{ label: "Home", href: "/" }, { label: page.title }]} />
       <h1 className="mt-4 font-display text-[32px] leading-10 font-semibold text-ink">{page.title}</h1>
-      <p className="prose-copy mt-4 whitespace-pre-line text-base text-charcoal">{page.body}</p>
+
+      {params.slug === "faqs" && faqs.length > 0 ? (
+        <div className="mt-6 space-y-4">
+          {faqs.map((faq) => (
+            <details key={faq.id} className="rounded-lg border border-fog px-4 py-3">
+              <summary className="cursor-pointer font-semibold text-ink">{faq.question}</summary>
+              <p className="prose-copy mt-3 whitespace-pre-line text-base text-charcoal">{faq.answer}</p>
+            </details>
+          ))}
+        </div>
+      ) : (
+        <p className="prose-copy mt-4 whitespace-pre-line text-base text-charcoal">{page.body}</p>
+      )}
+
       {params.slug === "contact" ? <ContactAddressGate /> : null}
     </div>
   );
