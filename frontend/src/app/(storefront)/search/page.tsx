@@ -7,8 +7,13 @@ export const metadata: Metadata = {
   robots: { index: false },
 };
 
-export default async function SearchPage({ searchParams }: { searchParams: { q?: string } }) {
-  const query = searchParams.q ?? "";
+interface Props {
+  searchParams: Promise<{ q?: string }>;
+}
+
+export default async function SearchPage({ searchParams }: Props) {
+  const { q } = await searchParams;
+  const query = q ?? "";
   const allProducts = query ? await getAllProducts() : [];
   const results = query
     ? allProducts.filter((p) => p.name.toLowerCase().includes(query.toLowerCase()))
