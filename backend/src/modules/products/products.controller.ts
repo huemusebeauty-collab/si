@@ -28,6 +28,10 @@ export class ProductsController {
   @Get("availability/:sku")
   checkAvailability(@Param("sku") sku: string) { return this.products.checkAvailability(sku); }
 
+  @RequirePermission("products", "view")
+  @Get("admin")
+  listAdmin(@Query() query: ListProductsQueryDto) { return this.products.listAdminProducts(query); }
+
   @RequirePermission("products", "edit")
   @Post("admin")
   async createProduct(@Body() body: {
