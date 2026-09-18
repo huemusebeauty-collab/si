@@ -7,9 +7,9 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
   {
     heading: "Shop",
     links: [
-      { label: "Nail Lacquer", href: "/shop/nail-lacquer" },
-      { label: "Colour Cosmetics", href: "/shop/colour-cosmetics" },
-      { label: "Skin Care", href: "/shop/skin-care" },
+      { label: "Nail Lacquer", href: "/shop/nail-polish" },
+      { label: "Colour Cosmetics", href: "/shop/color-cosmetics" },
+      { label: "Skin Care", href: "/shop/skincare" },
       { label: "Hair Care", href: "/shop/hair-care" },
       { label: "Beauty Accessories", href: "/shop/beauty-accessories" },
       { label: "Collections", href: "/collections" },
