@@ -459,7 +459,7 @@ const SKINCARE_PRODUCT_SEEDS: ProductSeed[] = [
   ["silku-refresh-body-wash","Refresh Daily Body Wash","body-wash",299,"A refreshing daily body wash that cleanses comfortably and rinses away cleanly without an overly tight after-feel."],
   ["silku-smooth-body-polish","Smooth Body Polish","body-scrub",349,"A creamy body exfoliator for an occasional self-care ritual that leaves skin feeling smoother and refreshed."],
   ["silku-barrier-repair-cream","Barrier Repair Cream","skin-treatments",499,"A richer face cream designed for dry-feeling skin and simple barrier-focused routines, with ceramides, panthenol and squalane."],
-].map(([slug,name,categorySlug,price,description]) => ({
+].map(([slug,name,categorySlug,price,description]: [string,string,string,number,string]) => ({
   slug, name, categorySlug, collectionSlugs: ["new-arrivals"], price, description,
   content: {
     shortDescription: description,
