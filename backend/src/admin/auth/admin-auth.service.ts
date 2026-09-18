@@ -70,9 +70,10 @@ export class AdminAuthService {
     if (payload.purpose !== "admin_2fa" || !payload.sub) throw new UnauthorizedException("Invalid login challenge.");
     const user = await this.adminUsers.findOne({ where: { id: payload.sub } });
     if (!user?.active) throw new UnauthorizedException("Admin account is inactive.");
-    const requestedPhone = phoneNumber ? this.normalizePhone(phoneNumber) : user.phoneNumber;
+    const registeredPhone = user.phoneNumber ? this.normalizePhone(user.phoneNumber) : undefined;
+    const requestedPhone = phoneNumber ? this.normalizePhone(phoneNumber) : registeredPhone;
     if (!requestedPhone) throw new BadRequestException("Phone number is required for first-time admin 2FA setup.");
-    if (user.phoneNumber && requestedPhone !== user.phoneNumber) throw new UnauthorizedException("This phone number is not registered for this admin.");
+    if (registeredPhone && requestedPhone !== registeredPhone) throw new UnauthorizedException("This phone number is not registered for this admin.");
     if (!user.phoneNumber) user.phoneNumber = requestedPhone;
     const code = randomInt(100000, 1000000).toString();
     user.otpHash = this.hashOtp(code);
@@ -115,7 +116,8 @@ export class AdminAuthService {
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedPhone = this.normalizePhone(phoneNumber);
     const user = await this.adminUsers.findOne({ where: { email: normalizedEmail } });
-    if (!user?.active || !user.phoneNumber || user.phoneNumber !== normalizedPhone) {
+    const registeredPhone = user?.phoneNumber ? this.normalizePhone(user.phoneNumber) : undefined;
+    if (!user?.active || !registeredPhone || registeredPhone !== normalizedPhone) {
       throw new UnauthorizedException("Admin account or registered phone number could not be verified.");
     }
 
