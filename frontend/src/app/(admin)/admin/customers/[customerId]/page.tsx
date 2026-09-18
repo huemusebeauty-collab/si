@@ -1,4 +1,5 @@
 "use client";
+import { use } from "react";
 import Link from "next/link";
 import { RequireAdminAuth } from "@/admin/components/RequireAdminAuth";
 import { AdminShell } from "@/admin/components/AdminShell";
@@ -41,8 +42,8 @@ function CustomerDetailContent({ customerId }: { customerId: string }) {
   );
 }
 
-export default function CustomerDetailPage({ params }: { params: { customerId: string } }) {
-  const { customerId } = params;
+export default function CustomerDetailPage({ params }: { params: Promise<{ customerId: string }> }) {
+  const { customerId } = use(params);
   return (
     <RequireAdminAuth>
       <AdminShell><CustomerDetailContent customerId={customerId} /></AdminShell>
