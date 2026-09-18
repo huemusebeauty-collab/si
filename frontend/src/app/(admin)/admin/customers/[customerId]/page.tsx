@@ -41,8 +41,8 @@ function CustomerDetailContent({ customerId }: { customerId: string }) {
   );
 }
 
-export default function CustomerDetailPage({ params }: { params: { customerId: string } }) {
-  const { customerId } = params;
+export default async function CustomerDetailPage({ params }: { params: Promise<{ customerId: string }> }) {
+  const { customerId } = await params;
   return (
     <RequireAdminAuth>
       <AdminShell><CustomerDetailContent customerId={customerId} /></AdminShell>
