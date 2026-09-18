@@ -43,7 +43,7 @@ function QueueMonitorContent() {
         </table>
       </div>
       <p className="text-[13px] text-stone">
-        Failed jobs are inspectable via the backend's dead-letter endpoint
+        Failed jobs are inspectable via the backend&apos;s dead-letter endpoint
         (<code>GET /v1/integrations/dead-letter/:queueName</code>) — a dedicated UI for browsing individual
         dead-lettered jobs was not built this sprint (see Known Issues).
       </p>
