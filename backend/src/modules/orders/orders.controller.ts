@@ -21,6 +21,12 @@ export class OrdersController {
     return order;
   }
 
+  @RequirePermission("orders", "view")
+  @Get("admin/:orderId")
+  adminGet(@Param("orderId") orderId: string) {
+    return this.orders.getOrder(orderId);
+  }
+
   @Get()
   listMine(@CurrentUser() user: AuthenticatedUser) {
     return this.orders.listOrderHistory(user.id);
