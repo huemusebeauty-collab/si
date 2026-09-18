@@ -9,6 +9,7 @@ import { CacheInvalidationService } from "@/cache/cache-invalidation.service";
 import { DomainErrorCode, DomainException } from "@/common/exceptions/domain.exception";
 import { HttpStatus } from "@nestjs/common";
 import type { CategoryEntity } from "@/modules/categories/entities/category.entity";
+import { CategoriesService } from "@/modules/categories/categories.service";
 
 const LOW_STOCK_THRESHOLD = 10;
 
@@ -18,6 +19,7 @@ export class ProductsService {
     @InjectRepository(ProductEntity) private readonly products: Repository<ProductEntity>,
     @InjectRepository(ProductVariantEntity) private readonly variants: Repository<ProductVariantEntity>,
     private readonly cacheInvalidation: CacheInvalidationService,
+    private readonly categoriesService: CategoriesService,
   ) {}
 
   async getProduct(slug: string): Promise<ProductEntity> {
@@ -36,7 +38,11 @@ export class ProductsService {
       .leftJoinAndSelect("product.variants", "variants")
       .where("product.visibility = :visibility", { visibility: "visible" });
 
-    if (query.categorySlug) qb.andWhere("category.slug = :slug", { slug: query.categorySlug });
+    if (query.categorySlug) {
+      const category = await this.categoriesService.getCategory(query.categorySlug);
+      const categoryIds = [category.id, ...this.flattenCategoryIds(category.children)];
+      qb.andWhere("category.id IN (:...categoryIds)", { categoryIds });
+    }
     if (query.sort) {
       const direction = query.sort.startsWith("-") ? "DESC" : "ASC";
       const field = query.sort.replace(/^-/, "");
@@ -292,6 +298,10 @@ export class ProductsService {
     if (!Number.isInteger(data.stockQuantity) || data.stockQuantity < 0) {
       throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Stock quantity must be a non-negative integer.");
     }
+  }
+
+  private flattenCategoryIds(children: CategoryEntity[] = []): string[] {
+    return children.flatMap((child) => [child.id, ...this.flattenCategoryIds(child.children)]);
   }
 
   private computeStockState(quantity: number): StockState {
