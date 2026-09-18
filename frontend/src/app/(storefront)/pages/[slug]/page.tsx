@@ -8,7 +8,7 @@ import { getFaqs } from "@/services/api/cms";
 const STATIC_PAGES: Record<string, { title: string; body: string }> = {
   about: {
     title: "About Silku",
-    body: "Silku is the consumer brand of Shree Khatu Shyam Health Care, based in Jaipur, Rajasthan. We focus on beauty and cosmetic products designed for everyday self-expression and personal style. Silku serves customers in India and internationally, subject to applicable delivery and destination restrictions.",
+    body: "Silku is the consumer brand of Shree Khatu Shyam Health Care, based in Jaipur, Rajasthan. We focus on beauty and cosmetic products designed for everyday self-expression and personal style. Silku currently serves customers in India, subject to applicable delivery and PIN code restrictions.",
   },
   contact: {
     title: "Contact Us",
@@ -16,7 +16,7 @@ const STATIC_PAGES: Record<string, { title: string; body: string }> = {
   },
   "shipping-returns": {
     title: "Shipping & Returns",
-    body: "Silku ships within India and internationally, subject to service availability, destination restrictions, customs requirements, and courier coverage. General delivery is expected within 3–7 business days after dispatch for applicable domestic orders, but actual delivery time may vary by PIN code and destination. Orders are generally dispatched within 1–2 business days. International delivery timelines may vary based on destination, customs clearance, and local carrier conditions. For returns, eligible unopened products may be returned within 7 days of delivery, subject to the conditions below. Opened or used beauty/cosmetic products are not eligible for return for hygiene and product-safety reasons.",
+    body: "Silku currently ships within India only, subject to PIN code and courier coverage. Orders are generally dispatched within 1–2 business days after successful order processing. General domestic delivery is expected within 3–7 business days after dispatch, but actual delivery time may vary by PIN code and courier network. Orders of ₹500 or more qualify for free shipping. For returns, eligible unused and unopened products may be returned within 7 days of delivery, subject to the applicable conditions. Opened or used beauty/cosmetic products are not eligible for return for hygiene and product-safety reasons.",
   },
   "refund-cancellation": {
     title: "Refund & Cancellation Policy",
@@ -28,11 +28,11 @@ const STATIC_PAGES: Record<string, { title: string; body: string }> = {
   },
   terms: {
     title: "Terms & Conditions",
-    body: "By using the Silku website or placing an order, you agree to these Terms & Conditions. Product descriptions, availability, pricing, taxes, promotions, and delivery estimates are subject to change and may vary where required by law or operational conditions. Orders are subject to acceptance and successful payment or other applicable payment authorization. Silku may cancel or refuse an order where there is a pricing or listing error, suspected fraud or misuse, stock unavailability, delivery restrictions, or another legitimate operational or legal reason; any eligible payment refund will be handled according to the applicable refund process. Customers are responsible for providing accurate contact and delivery information. International customers are responsible for complying with destination-country import, customs, tax, and other applicable requirements unless otherwise stated. Nothing in these terms limits rights that cannot lawfully be excluded.",
+    body: "By using the Silku website or placing an order, you agree to these Terms & Conditions. Product descriptions, availability, pricing, taxes, promotions, and delivery estimates are subject to change and may vary where required by law or operational conditions. Orders are subject to acceptance and successful payment or other applicable payment authorization. Silku may cancel or refuse an order where there is a pricing or listing error, suspected fraud or misuse, stock unavailability, delivery restrictions, or another legitimate operational or legal reason; any eligible payment refund will be handled according to the applicable refund process. Customers are responsible for providing accurate contact and delivery information. Silku currently ships within India only, subject to applicable PIN code and courier coverage. Nothing in these terms limits rights that cannot lawfully be excluded.",
   },
   "shipping-delivery": {
     title: "Shipping & Delivery Policy",
-    body: "Silku offers shipping in India and internationally, subject to destination and courier availability. Orders are generally dispatched within 1–2 business days after successful order processing. General domestic delivery is expected within 3–7 business days after dispatch where service coverage permits; actual delivery depends on the destination PIN code and courier network. International delivery times can vary because of destination, customs processing, local carrier operations, and other factors outside Silku’s direct control. Delivery estimates are not a guarantee. Customers should ensure that the delivery address and contact information are complete and accurate. Customs duties, import taxes, or destination-country charges, where applicable, may be payable by the customer unless stated otherwise at checkout.",
+    body: "Silku currently offers shipping within India only, subject to PIN code and courier availability. Orders are generally dispatched within 1–2 business days after successful order processing. General domestic delivery is expected within 3–7 business days after dispatch where service coverage permits; actual delivery depends on the destination PIN code and courier network. Orders of ₹500 or more qualify for free shipping. Delivery estimates are not a guarantee. Customers should ensure that the delivery address and contact information are complete and accurate.",
   },
   "product-pricing": {
     title: "Product & Pricing Information",
