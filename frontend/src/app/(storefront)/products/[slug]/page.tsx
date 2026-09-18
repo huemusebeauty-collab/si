@@ -10,11 +10,12 @@ import { ProductViewTracker } from "@/components/ProductViewTracker";
 import { getAllProducts, getProductBySlug, getReviewsForProduct } from "@/services/api/products";
 
 interface Props {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const product = await getProductBySlug(params.slug);
+  const { slug } = await params;
+  const product = await getProductBySlug(slug);
   if (!product) return {};
   return {
     title: product.name,
