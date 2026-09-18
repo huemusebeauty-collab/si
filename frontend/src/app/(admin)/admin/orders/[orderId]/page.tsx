@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { use, useState } from "react";
 import { RequireAdminAuth } from "@/admin/components/RequireAdminAuth";
 import { AdminShell } from "@/admin/components/AdminShell";
 import { RoleGate } from "@/admin/components/RoleGate";
@@ -28,13 +28,11 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
         <h1 className="font-display text-[32px] font-semibold text-ink">Order {order.id.slice(0, 8)}</h1>
         <Badge tone="information">{order.status}</Badge>
       </div>
-
       <div className="rounded-md bg-white p-6 shadow-rest">
         <p><strong>Customer:</strong> {order.customerId}</p>
         <p><strong>Total:</strong> ${order.total} {order.currency}</p>
         <p><strong>Placed:</strong> {new Date(order.createdAt).toLocaleString()}</p>
       </div>
-
       <RoleGate module="orders" level="edit">
         <div className="rounded-md bg-white p-6 shadow-rest">
           <h2 className="mb-3 font-semibold text-ink">Update Status</h2>
@@ -48,21 +46,18 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
                   setToast(`Status updated to "${s}".`);
                   refetch();
                 }}
-              >
-                {s}
-              </Button>
+              >{s}</Button>
             ))}
           </div>
         </div>
       </RoleGate>
-
       {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
     </div>
   );
 }
 
-export default function OrderDetailPage({ params }: { params: { orderId: string } }) {
-  const { orderId } = params;
+export default function OrderDetailPage({ params }: { params: Promise<{ orderId: string }> }) {
+  const { orderId } = use(params);
   return (
     <RequireAdminAuth>
       <AdminShell><OrderDetailContent orderId={orderId} /></AdminShell>
