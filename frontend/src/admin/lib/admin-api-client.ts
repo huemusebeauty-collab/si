@@ -48,6 +48,9 @@ export const adminApi = {
   listInventory: () => request<AdminInventoryItem[]>("/products/admin/inventory"),
   setInventoryStock: (variantId: string, quantity: number, expectedVersion: number) => request<AdminInventoryItem>(`/products/admin/inventory/${variantId}`, { method: "PATCH", body: JSON.stringify({ quantity, expectedVersion }) }),
   listCategories: () => request<AdminCategory[]>("/categories"),
+  listAdminCategories: () => request<AdminCategory[]>("/categories/admin"),
+  createCategory: (body: CreateCategoryInput) => request<AdminCategory>("/categories/admin", { method: "POST", body: JSON.stringify(body) }),
+  updateCategory: (id: string, body: UpdateCategoryInput) => request<AdminCategory>(`/categories/admin/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   setCategoryVisibility: (id: string, visible: boolean) => request<AdminCategory>(`/categories/${id}/visibility`, { method: "PATCH", body: JSON.stringify({ visible }) }),
   setCategoryDisplayOrder: (id: string, displayOrder: number) => request<AdminCategory>(`/categories/${id}/display-order`, { method: "PATCH", body: JSON.stringify({ displayOrder }) }),
   listCollections: () => request<AdminCollection[]>("/collections"),
@@ -102,7 +105,9 @@ export interface SimpleList<T> { items: T[]; totalItems: number }
 export interface DashboardOverview { kpis: { todaysOrders: number; todaysRevenue: number; lowStockCount: number; pendingReviews: number }; pendingTasks: { type: string; count: number; label: string }[]; recentActivity: AuditLogEntry[] }
 export interface AdminProduct { id: string; slug: string; name: string; price: string; status: string; visibility: string; category?: { name: string } }
 export interface AdminInventoryItem { id: string; sku: string; name: string; stockQuantity: number; stockState: "in-stock" | "low-stock" | "out-of-stock" | "coming-soon" | "pre-order"; version: number; product: { id: string; name: string; slug: string; category: string } }
-export interface AdminCategory { id: string; slug: string; name: string; visible: boolean; displayOrder: number }
+export interface CreateCategoryInput { name: string; slug: string; parentId?: string | null; displayOrder?: number; visible?: boolean; metaTitle?: string; metaDescription?: string }
+export interface UpdateCategoryInput { name?: string; slug?: string; parentId?: string | null; displayOrder?: number; visible?: boolean; metaTitle?: string; metaDescription?: string }
+export interface AdminCategory { id: string; slug: string; name: string; visible: boolean; displayOrder: number; parentId?: string | null; children?: AdminCategory[] }
 export interface AdminCollection { id: string; slug: string; name: string; active: boolean; featured: boolean; displayOrder: number }
 export interface AdminOrder { id: string; customerId: string; status: string; total: string; currency: string; createdAt: string; lineItems?: unknown[] }
 export interface AdminCustomer { id: string; email: string; firstName: string; lastName: string; createdAt: string }

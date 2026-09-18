@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { TreeRepository } from "typeorm";
 import { CategoryEntity } from "./entities/category.entity";
@@ -43,6 +43,79 @@ export class CategoriesService {
   async deleteById(categoryId: string): Promise<void> {
     await this.categories.delete({ id: categoryId });
     await this.cacheInvalidation.invalidatePrefix("categories");
+  }
+
+  async listAdminCategories(): Promise<CategoryEntity[]> {
+    return this.categories.findTrees({ order: { displayOrder: "ASC" } });
+  }
+
+  async createCategory(data: {
+    slug: string;
+    name: string;
+    parentId?: string | null;
+    displayOrder?: number;
+    visible?: boolean;
+    metaTitle?: string;
+    metaDescription?: string;
+  }): Promise<CategoryEntity> {
+    const slug = data.slug.trim().toLowerCase();
+    if (await this.slugExists(slug)) throw new ConflictException("A category with this slug already exists.");
+    const parent = data.parentId ? await this.findOrThrow(data.parentId) : undefined;
+    const entity = this.categories.create({
+      slug,
+      name: data.name.trim(),
+      visible: data.visible ?? true,
+      displayOrder: data.displayOrder ?? 0,
+      metaTitle: data.metaTitle,
+      metaDescription: data.metaDescription,
+      parent,
+    });
+    const saved = await this.categories.save(entity);
+    await this.cacheInvalidation.invalidatePrefix("categories");
+    return saved;
+  }
+
+  async updateCategory(categoryId: string, data: {
+    slug?: string;
+    name?: string;
+    parentId?: string | null;
+    displayOrder?: number;
+    visible?: boolean;
+    metaTitle?: string;
+    metaDescription?: string;
+  }): Promise<CategoryEntity> {
+    const category = await this.findOrThrow(categoryId);
+    if (data.slug !== undefined) {
+      const slug = data.slug.trim().toLowerCase();
+      if (!slug) throw new BadRequestException("Category slug cannot be empty.");
+      if (await this.slugExists(slug, categoryId)) throw new ConflictException("A category with this slug already exists.");
+      category.slug = slug;
+    }
+    if (data.name !== undefined) {
+      const name = data.name.trim();
+      if (!name) throw new BadRequestException("Category name cannot be empty.");
+      category.name = name;
+    }
+    if (data.parentId !== undefined) {
+      if (data.parentId === categoryId) throw new BadRequestException("A category cannot be its own parent.");
+      if (data.parentId) {
+        const parent = await this.findOrThrow(data.parentId);
+        const descendants = await this.categories.findDescendants(category);
+        if (descendants.some((descendant) => descendant.id === parent.id)) {
+          throw new BadRequestException("A category cannot be moved below one of its descendants.");
+        }
+        category.parent = parent;
+      } else {
+        category.parent = undefined;
+      }
+    }
+    if (data.displayOrder !== undefined) category.displayOrder = data.displayOrder;
+    if (data.visible !== undefined) category.visible = data.visible;
+    if (data.metaTitle !== undefined) category.metaTitle = data.metaTitle;
+    if (data.metaDescription !== undefined) category.metaDescription = data.metaDescription;
+    const saved = await this.categories.save(category);
+    await this.cacheInvalidation.invalidatePrefix("categories");
+    return saved;
   }
 
   // getCategory(slug) -> Category (with subcategories)
