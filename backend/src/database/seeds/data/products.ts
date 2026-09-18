@@ -51,7 +51,7 @@ const CORE_PRODUCT_SEEDS: ProductSeed[] = [
     },
     metaTitle: "Muse Rose Nail Lacquer | Hue Muse Beauty",
     metaDescription: "Shop Muse Rose, our chip-resistant, one-coat nail lacquer in a glossy rose finish. 5-free formula. Free shipping over $50.",
-    mediaUrls: ["/mock/product-nail-polish-1.jpg", "/mock/product-nail-polish-1-alt.jpg"],
+    mediaUrls: [],
     variants: [
       { sku: "HMB-NP-001-ROSE", name: "Muse Rose", hexColor: "#B5486B", stockQuantity: 240 },
       { sku: "HMB-NP-001-BERRY", name: "Deep Berry", hexColor: "#4A1030", stockQuantity: 85 },
@@ -82,7 +82,7 @@ const CORE_PRODUCT_SEEDS: ProductSeed[] = [
     },
     metaTitle: "Plum Velvet Lipstick | Hue Muse Beauty",
     metaDescription: "Plum Velvet Lipstick delivers full-opacity, 8-hour matte color in deep plum. Comfort-wear formula. Now on sale.",
-    mediaUrls: ["/mock/product-lipstick-1.jpg", "/mock/product-lipstick-1-alt.jpg"],
+    mediaUrls: [],
     variants: [
       { sku: "HMB-LS-001-PLUM", name: "Deep Plum", hexColor: "#4A1030", stockQuantity: 90 },
       { sku: "HMB-LS-001-ROSE", name: "Muse Rose", hexColor: "#B5486B", stockQuantity: 45 },
@@ -109,7 +109,7 @@ const CORE_PRODUCT_SEEDS: ProductSeed[] = [
     },
     metaTitle: "Glass Shine Lip Gloss | Hue Muse Beauty",
     metaDescription: "Glass Shine Lip Gloss gives non-sticky, high-shine color with hyaluronic acid for a plumping effect. Shop new arrivals.",
-    mediaUrls: ["/mock/product-lip-gloss-1.jpg"],
+    mediaUrls: [],
     variants: [{ sku: "HMB-LG-001", name: "Sheer Plum", hexColor: "#B5486B", stockQuantity: 110 }],
   },
   {
@@ -133,7 +133,7 @@ const CORE_PRODUCT_SEEDS: ProductSeed[] = [
     },
     metaTitle: "Midnight Kajal Pencil | Hue Muse Beauty",
     metaDescription: "Midnight Kajal Pencil delivers 12-hour smudge-resistant definition in true black. Safe for the waterline. Shop best sellers.",
-    mediaUrls: ["/mock/product-kajal-1.jpg"],
+    mediaUrls: [],
     variants: [{ sku: "HMB-KJ-001", name: "True Black", hexColor: "#231F20", stockQuantity: 200 }],
   },
   {
@@ -157,7 +157,7 @@ const CORE_PRODUCT_SEEDS: ProductSeed[] = [
     },
     metaTitle: "Precision Liquid Eyeliner | Hue Muse Beauty",
     metaDescription: "Precision Liquid Eyeliner offers a fine-tip, budge-proof line for up to 16 hours. Shop the trending edit.",
-    mediaUrls: ["/mock/product-eyeliner-1.jpg"],
+    mediaUrls: [],
     variants: [{ sku: "HMB-EL-001", name: "Matte Black", hexColor: "#231F20", stockQuantity: 130 }],
   },
   {
@@ -184,7 +184,7 @@ const CORE_PRODUCT_SEEDS: ProductSeed[] = [
     },
     metaTitle: "Volume Lash Mascara | Hue Muse Beauty",
     metaDescription: "Volume Lash Mascara builds clump-free volume and length with a fiber-infused formula. Shop best sellers.",
-    mediaUrls: ["/mock/product-mascara-1.jpg"],
+    mediaUrls: [],
     variants: [{ sku: "HMB-MC-001", name: "Jet Black", hexColor: "#231F20", stockQuantity: 175 }],
   },
   {
@@ -211,7 +211,7 @@ const CORE_PRODUCT_SEEDS: ProductSeed[] = [
     },
     metaTitle: "Second Skin Foundation | Hue Muse Beauty",
     metaDescription: "Second Skin Foundation gives buildable, natural-looking coverage with a soft-focus finish and 12-hour wear.",
-    mediaUrls: ["/mock/product-foundation-1.jpg"],
+    mediaUrls: [],
     variants: [
       { sku: "HMB-FD-001-LIGHT", name: "Light", stockQuantity: 70 },
       { sku: "HMB-FD-001-MEDIUM", name: "Medium", stockQuantity: 95 },
@@ -238,7 +238,7 @@ const CORE_PRODUCT_SEEDS: ProductSeed[] = [
     },
     metaTitle: "Brighten-Up Concealer | Hue Muse Beauty",
     metaDescription: "Brighten-Up Concealer gives crease-resistant, brightening coverage that lasts 10+ hours. Shop now.",
-    mediaUrls: ["/mock/product-concealer-1.jpg"],
+    mediaUrls: [],
     variants: [{ sku: "HMB-CN-001", name: "Light-Medium", stockQuantity: 80 }],
   },
   {
@@ -262,7 +262,7 @@ const CORE_PRODUCT_SEEDS: ProductSeed[] = [
     },
     metaTitle: "Silk Finish Compact Powder | Hue Muse Beauty",
     metaDescription: "Silk Finish Compact Powder controls shine and blurs pores with a finely milled, weightless formula. Shop luxe essentials.",
-    mediaUrls: ["/mock/product-compact-powder-1.jpg"],
+    mediaUrls: [],
     variants: [{ sku: "HMB-CP-001", name: "Universal", stockQuantity: 100 }],
   },
   {
@@ -286,7 +286,7 @@ const CORE_PRODUCT_SEEDS: ProductSeed[] = [
     },
     metaTitle: "Flush of Rose Blush | Hue Muse Beauty",
     metaDescription: "Flush of Rose Blush gives a silky, buildable flush in a universally flattering rose tone. Shop the seasonal edit.",
-    mediaUrls: ["/mock/product-blush-1.jpg"],
+    mediaUrls: [],
     variants: [{ sku: "HMB-BL-001", name: "Rose Flush", hexColor: "#E8A0AE", stockQuantity: 90 }],
   },
   {
@@ -310,7 +310,7 @@ const CORE_PRODUCT_SEEDS: ProductSeed[] = [
     },
     metaTitle: "Champagne Glow Highlighter | Hue Muse Beauty",
     metaDescription: "Champagne Glow Highlighter gives a luminous, buildable glow in a warm champagne tone. Shop the limited-edition seasonal set.",
-    mediaUrls: ["/mock/product-highlighter-1.jpg"],
+    mediaUrls: [],
     variants: [{ sku: "HMB-HL-001", name: "Champagne", hexColor: "#E8DCC8", stockQuantity: 55 }],
   },
   {
@@ -334,7 +334,7 @@ const CORE_PRODUCT_SEEDS: ProductSeed[] = [
     },
     metaTitle: "Smooth Canvas Primer | Hue Muse Beauty",
     metaDescription: "Smooth Canvas Primer blurs pores and extends foundation wear with a lightweight, non-greasy formula. Shop new arrivals.",
-    mediaUrls: ["/mock/product-primer-1.jpg"],
+    mediaUrls: [],
     variants: [{ sku: "HMB-PR-001", name: "Universal", stockQuantity: 140 }],
   },
 ];
