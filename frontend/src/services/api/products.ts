@@ -73,11 +73,11 @@ function overallAvailability(variants: ApiProductVariant[]): AvailabilityStatus 
 }
 
 function resolveProductImage(mediaUrls: string[] | undefined, categorySlug: string, productSlug?: string): string {
-  const mediaUrl = mediaUrls?.find((url) => /^https?:\/\//.test(url));
-  if (mediaUrl) return mediaUrl;
-  if (productSlug === "muse-rose-nail-lacquer" || productSlug === "silku-nail-lacquer") {
+  if (productSlug === "muse-rose-nail-lacquer" || productSlug === "silku-nail-lacquer" || categorySlug === "nail-polish") {
     return "/products/silku-black-signature.jpg.jpeg";
   }
+  const mediaUrl = mediaUrls?.find((url) => /^https?:\/\//.test(url));
+  if (mediaUrl) return mediaUrl;
   return productImageForCategory(categorySlug);
 }
 
