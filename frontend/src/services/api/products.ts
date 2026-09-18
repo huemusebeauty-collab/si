@@ -78,16 +78,14 @@ function resolveProductImage(mediaUrls: string[] | undefined, categorySlug: stri
 }
 
 function productImageForCategory(categorySlug: string): string {
-  if (["nail-collection", "nail-polish", "gel-polish", "base-coat", "top-coat", "nail-treatments"].includes(categorySlug)) {
-    return "/mock/product-001.jpg";
+  if (categorySlug === "nail-polish") return "/products/silku-black-signature.jpg.jpeg";
+  if (["color-cosmetics", "lipstick", "lip-gloss", "kajal", "eyeliner", "mascara", "blush", "highlighter", "foundation", "concealer", "compact-powder", "primer"].includes(categorySlug)) {
+    return "/products/silku-brown-glam.jpg.jpeg";
   }
-  if (["color-cosmetics", "lipstick", "lip-gloss", "kajal", "eyeliner", "mascara", "blush", "highlighter"].includes(categorySlug)) {
-    return "/mock/product-002.jpg";
+  if (["skincare", "face-wash", "cleansing-balm", "toner", "serum", "moisturizer", "sunscreen", "face-scrub", "face-mask", "eye-care", "lip-care", "body-lotion", "body-wash", "body-scrub", "skin-treatments"].includes(categorySlug)) {
+    return "/products/silku-ocean-vibe.jpg.jpeg";
   }
-  if (["skincare", "foundation", "concealer", "compact-powder", "primer"].includes(categorySlug)) {
-    return "/mock/product-003.jpg";
-  }
-  return "/mock/product-004.jpg";
+  return "/products/silku-black-signature.jpg.jpeg";
 }
 
 function mapProduct(p: ApiProduct): Product {
@@ -118,13 +116,14 @@ function mapProduct(p: ApiProduct): Product {
 }
 
 function categoryImageForSlug(slug: string): string {
-  if (["nail-collection", "nail-polish", "gel-polish", "base-coat", "top-coat", "nail-treatments"].includes(slug)) {
-    return "/mock/category-nail.jpg";
+  if (slug === "nail-polish") return "/products/silku-black-signature.jpg.jpeg";
+  if (["color-cosmetics", "lipstick", "lip-gloss", "kajal", "eyeliner", "mascara", "blush", "highlighter", "foundation", "concealer", "compact-powder", "primer"].includes(slug)) {
+    return "/products/silku-brown-glam.jpg.jpeg";
   }
-  if (["color-cosmetics", "lipstick", "lip-gloss", "kajal", "eyeliner", "mascara", "blush", "highlighter"].includes(slug)) {
-    return "/mock/category-cosmetics.jpg";
+  if (["skincare", "face-wash", "cleansing-balm", "toner", "serum", "moisturizer", "sunscreen", "face-scrub", "face-mask", "eye-care", "lip-care", "body-lotion", "body-wash", "body-scrub", "skin-treatments"].includes(slug)) {
+    return "/products/silku-ocean-vibe.jpg.jpeg";
   }
-  return "/mock/category-skincare.jpg";
+  return "/products/silku-black-signature.jpg.jpeg";
 }
 
 function mapCategory(c: ApiCategory, itemCount = 0): Category {

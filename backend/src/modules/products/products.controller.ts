@@ -20,7 +20,7 @@ export class ProductsController {
   ) {}
 
   @Public()
-  @Cacheable({ ttlSeconds: 60, keyPrefix: "products-v2" })
+  @Cacheable({ ttlSeconds: 60, keyPrefix: "products-v3" })
   @Get()
   list(@Query() query: ListProductsQueryDto) { return this.products.listProducts(query); }
 
@@ -92,7 +92,7 @@ export class ProductsController {
   addVariant(@Param("productId") productId: string, @Body() dto: CreateVariantDto) { return this.products.addVariant(productId, dto); }
 
   @Public()
-  @Cacheable({ ttlSeconds: 60, keyPrefix: "products-v2" })
+  @Cacheable({ ttlSeconds: 60, keyPrefix: "products-v3" })
   @Get(":slug")
   getBySlug(@Param("slug") slug: string) { return this.products.getProduct(slug); }
 

@@ -46,8 +46,8 @@ export class CategoriesService {
   }
 
   async listAdminCategories(): Promise<CategoryEntity[]> {
-    const trees = await this.categories.findTrees();
-    return trees.sort((a, b) => a.displayOrder - b.displayOrder);
+    const all = await this.categories.find({ relations: ["parent"], order: { displayOrder: "ASC" } });
+    return this.buildTrees(all, false);
   }
 
   async createCategory(data: {
@@ -120,21 +120,47 @@ export class CategoriesService {
   }
 
   // getCategory(slug) -> Category (with subcategories)
+  // Build from the authoritative parentId relation rather than the closure
+  // table. This keeps storefront taxonomy correct even if a legacy direct
+  // database update left closure-table rows stale.
   async getCategory(slug: string): Promise<CategoryEntity> {
-    const category = await this.categories.findOne({ where: { slug, visible: true } });
+    const all = await this.categories.find({ relations: ["parent"], order: { displayOrder: "ASC" } });
+    const category = all.find((item) => item.slug === slug && item.visible);
     if (!category) throw new NotFoundException("Category not found.");
-    return this.categories.findDescendantsTree(category);
+    const tree = this.buildTrees(all, true).flatMap((root) => [root, ...this.flattenTree(root)]).find((item) => item.id === category.id);
+    if (!tree) throw new NotFoundException("Category not found.");
+    return tree;
   }
 
   // listCategories() -> Category[]
-  // Sprint 4.3 — visible-only, ordered by displayOrder (Phase 1 §4's
-  // fixed 5-category structure benefits from stable, intentional
-  // ordering rather than insertion order).
+  // Sprint 4.3 — visible-only, ordered by displayOrder.
   async listCategories(): Promise<CategoryEntity[]> {
-    const trees = await this.categories.findTrees();
-    return trees
-      .filter((c) => c.visible)
-      .sort((a, b) => a.displayOrder - b.displayOrder);
+    const all = await this.categories.find({ relations: ["parent"], order: { displayOrder: "ASC" } });
+    return this.buildTrees(all, true);
+  }
+
+  private buildTrees(categories: CategoryEntity[], visibleOnly: boolean): CategoryEntity[] {
+    const allowed = visibleOnly ? categories.filter((category) => category.visible) : categories;
+    const byId = new Map(allowed.map((category) => [category.id, category]));
+    allowed.forEach((category) => {
+      category.children = [];
+    });
+
+    const roots: CategoryEntity[] = [];
+    allowed.forEach((category) => {
+      const parent = category.parent;
+      if (parent && byId.has(parent.id)) {
+        byId.get(parent.id)!.children.push(category);
+      } else {
+        roots.push(category);
+      }
+    });
+
+    return roots.sort((a, b) => a.displayOrder - b.displayOrder);
+  }
+
+  private flattenTree(category: CategoryEntity): CategoryEntity[] {
+    return category.children.flatMap((child) => [child, ...this.flattenTree(child)]);
   }
 
   private async findOrThrow(categoryId: string): Promise<CategoryEntity> {
