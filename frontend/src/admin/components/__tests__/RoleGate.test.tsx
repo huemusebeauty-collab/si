@@ -9,7 +9,7 @@ import type { AdminRole } from "@/admin/lib/permissions";
 // RoleGate's own rendering logic in isolation).
 function renderWithRole(role: AdminRole | null, ui: React.ReactElement) {
   return render(
-    <AdminAuthContext.Provider value={{ role, email: null, isLoading: false, login: async () => {}, logout: () => {} }}>
+    <AdminAuthContext.Provider value={{ role, email: null, isLoading: false, login: async () => {}, sendOtp: async () => ({}), loginWithOtp: async () => {}, requestPasswordReset: async () => ({ resetToken: "", phoneNumber: "" }), confirmPasswordReset: async () => {}, logout: () => {} }}>
       {ui}
     </AdminAuthContext.Provider>,
   );
