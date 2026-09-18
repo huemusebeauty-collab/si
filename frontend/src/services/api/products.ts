@@ -72,6 +72,11 @@ function overallAvailability(variants: ApiProductVariant[]): AvailabilityStatus 
   return "out-of-stock";
 }
 
+function resolveProductImage(mediaUrls: string[] | undefined, categorySlug: string): string {
+  const mediaUrl = mediaUrls?.find((url) => url && !url.startsWith("/mock/"));
+  return mediaUrl || productImageForCategory(categorySlug);
+}
+
 function productImageForCategory(categorySlug: string): string {
   if (["nail-collection", "nail-polish", "gel-polish", "base-coat", "top-coat", "nail-treatments"].includes(categorySlug)) {
     return "/mock/product-001.jpg";
@@ -94,7 +99,7 @@ function mapProduct(p: ApiProduct): Product {
     price: Number.parseFloat(p.price),
     salePrice: p.salePrice ? Number.parseFloat(p.salePrice) : undefined,
     currency: p.currency,
-    imageUrl: p.mediaUrls?.[0] || productImageForCategory(p.category.slug),
+    imageUrl: resolveProductImage(p.mediaUrls, p.category.slug),
     imageAlt: p.name,
     badges: [],
     availability: overallAvailability(p.variants),
@@ -163,9 +168,10 @@ export async function getProductBySlug(slug: string): Promise<Product | undefine
 }
 
 export async function getProductsByCategory(category: Category): Promise<Product[]> {
-  const all = await getAllProducts();
-  const ids = new Set<string>([category.id, ...(category.subcategories ?? []).map((s) => s.id)]);
-  return all.filter((p) => ids.has(p.categoryId));
+  const list = await apiFetch<ApiProductList>(
+    `/products?categorySlug=${encodeURIComponent(category.slug)}&pageSize=100`,
+  );
+  return list ? list.items.map(mapProduct) : [];
 }
 
 export async function getAllCategories(): Promise<Category[]> {
