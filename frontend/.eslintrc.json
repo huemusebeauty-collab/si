@@ -1,7 +1,6 @@
 {
   "root": true,
   "extends": [
-    "../config/eslint/.eslintrc.base.json",
     "next/core-web-vitals",
     "plugin:jsx-a11y/recommended"
   ],
