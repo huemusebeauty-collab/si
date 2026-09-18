@@ -1,9 +1,6 @@
 // Sprint 7.4 — Category hierarchy. Five main categories are fixed per
-// Phase 1 §4 (unchanged since Sprint 3's seed); Sprint 7.4 adds the 16
-// named subcategories, nested under whichever main category they
-// actually belong to per Phase 2's product taxonomy — not evenly split,
-// since nail/color-cosmetics genuinely have more subcategories than
-// skincare does in this catalog.
+// Phase 1 §4. This taxonomy keeps complexion makeup under Color Cosmetics
+// and reserves Skincare for general face, sun, body, and treatment care.
 export interface CategorySeedNode {
   slug: string;
   name: string;
@@ -36,6 +33,10 @@ export const CATEGORY_TREE: CategorySeedNode[] = [
       { slug: "mascara", name: "Mascara", displayOrder: 5 },
       { slug: "blush", name: "Blush", displayOrder: 6 },
       { slug: "highlighter", name: "Highlighter", displayOrder: 7 },
+      { slug: "foundation", name: "Foundation", displayOrder: 8 },
+      { slug: "concealer", name: "Concealer", displayOrder: 9 },
+      { slug: "compact-powder", name: "Compact Powder", displayOrder: 10 },
+      { slug: "primer", name: "Primer", displayOrder: 11 },
     ],
   },
   {
@@ -43,10 +44,20 @@ export const CATEGORY_TREE: CategorySeedNode[] = [
     name: "Skincare",
     displayOrder: 3,
     children: [
-      { slug: "foundation", name: "Foundation", displayOrder: 1 },
-      { slug: "concealer", name: "Concealer", displayOrder: 2 },
-      { slug: "compact-powder", name: "Compact Powder", displayOrder: 3 },
-      { slug: "primer", name: "Primer", displayOrder: 4 },
+      { slug: "face-wash", name: "Face Wash & Cleansers", displayOrder: 1 },
+      { slug: "cleansing-balm", name: "Cleansing Balm & Oil", displayOrder: 2 },
+      { slug: "toner", name: "Toners & Essences", displayOrder: 3 },
+      { slug: "serum", name: "Serums", displayOrder: 4 },
+      { slug: "moisturizer", name: "Moisturizers & Face Cream", displayOrder: 5 },
+      { slug: "sunscreen", name: "Sunscreen & Sun Care", displayOrder: 6 },
+      { slug: "face-scrub", name: "Face Scrubs & Exfoliators", displayOrder: 7 },
+      { slug: "face-mask", name: "Face Masks", displayOrder: 8 },
+      { slug: "eye-care", name: "Eye Care", displayOrder: 9 },
+      { slug: "lip-care", name: "Lip Care", displayOrder: 10 },
+      { slug: "body-lotion", name: "Body Lotion", displayOrder: 11 },
+      { slug: "body-wash", name: "Body Wash", displayOrder: 12 },
+      { slug: "body-scrub", name: "Body Scrub", displayOrder: 13 },
+      { slug: "skin-treatments", name: "Skin Treatments", displayOrder: 14 },
     ],
   },
   { slug: "hair-care", name: "Hair Care", displayOrder: 4 },
