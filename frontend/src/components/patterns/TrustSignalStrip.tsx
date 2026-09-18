@@ -5,7 +5,7 @@ import { Icon } from "@/components/basic/Icon";
 // checkout) used across PDP and cart.
 const SIGNALS = [
   { label: "Free shipping over Rs 500" },
-  { label: "30-day returns" },
+  { label: "7-day returns" },
   { label: "Secure checkout" },
   { label: "Cruelty-free formulas" },
 ];
