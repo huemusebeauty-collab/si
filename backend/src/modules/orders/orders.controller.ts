@@ -27,6 +27,33 @@ export class OrdersController {
     return this.orders.getOrder(orderId);
   }
 
+  @RequirePermission("orders", "view")
+  @Get("admin/customer/:customerId")
+  adminOrdersForCustomer(@Param("customerId") customerId: string) {
+    return this.orders.listOrderHistory(customerId);
+  }
+
+  @RequirePermission("orders", "view")
+  @Get("admin/search")
+  adminSearch(
+    @Query("status") status?: OrderStatus,
+    @Query("dateFrom") dateFrom?: string,
+    @Query("dateTo") dateTo?: string,
+    @Query("customerQuery") customerQuery?: string,
+    @Query("page") page = "1",
+    @Query("pageSize") pageSize = "20",
+  ) {
+    return this.orders.searchOrders({
+      status,
+      dateFrom,
+      dateTo,
+      customerQuery,
+      page: Number(page),
+      pageSize: Number(pageSize),
+    });
+  }
+
+
   @Get()
   listMine(@CurrentUser() user: AuthenticatedUser) {
     return this.orders.listOrderHistory(user.id);
@@ -112,29 +139,6 @@ export class OrdersController {
     return this.orders.checkRefundEligibility(orderId);
   }
 
-  @RequirePermission("orders", "view")
-  @Get("admin/customer/:customerId")
-  adminOrdersForCustomer(@Param("customerId") customerId: string) {
-    return this.orders.listOrderHistory(customerId);
-  }
 
-  @RequirePermission("orders", "view")
-  @Get("admin/search")
-  adminSearch(
-    @Query("status") status?: OrderStatus,
-    @Query("dateFrom") dateFrom?: string,
-    @Query("dateTo") dateTo?: string,
-    @Query("customerQuery") customerQuery?: string,
-    @Query("page") page = "1",
-    @Query("pageSize") pageSize = "20",
-  ) {
-    return this.orders.searchOrders({
-      status,
-      dateFrom,
-      dateTo,
-      customerQuery,
-      page: Number(page),
-      pageSize: Number(pageSize),
-    });
-  }
+
 }
