@@ -17,20 +17,21 @@ function canonicalCategorySlug(slug: string): string {
 }
 
 interface Props {
-  params: { category: string };
-  searchParams: { finish?: string | string[] };
+  params: Promise<{ category: string }>;
+  searchParams: Promise<{ finish?: string | string[] }>;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const canonicalSlug = canonicalCategorySlug(params.category);
-  if (canonicalSlug !== params.category) redirect(`/shop/${canonicalSlug}`);
+  const { category } = await params;
+  const canonicalSlug = canonicalCategorySlug(category);
+  if (canonicalSlug !== category) redirect(`/shop/${canonicalSlug}`);
 
-  const category = await getCategoryBySlug(canonicalSlug);
-  if (!category) return {};
+  const categoryData = await getCategoryBySlug(canonicalSlug);
+  if (!categoryData) return {};
   return {
-    title: category.name,
-    description: `Shop ${category.name} at Silku.`,
-    alternates: { canonical: `/shop/${category.slug}` },
+    title: categoryData.name,
+    description: `Shop ${categoryData.name} at Silku.`,
+    alternates: { canonical: `/shop/${categoryData.slug}` },
   };
 }
 
@@ -44,8 +45,10 @@ function slugify(value: string): string {
 }
 
 export default async function CategoryPage({ params, searchParams }: Props) {
-  const canonicalSlug = canonicalCategorySlug(params.category);
-  if (canonicalSlug !== params.category) redirect(`/shop/${canonicalSlug}`);
+  const { category: categoryParam } = await params;
+  const { finish } = await searchParams;
+  const canonicalSlug = canonicalCategorySlug(categoryParam);
+  if (canonicalSlug !== categoryParam) redirect(`/shop/${canonicalSlug}`);
 
   const category = await getCategoryBySlug(canonicalSlug);
   if (!category) notFound();
@@ -60,7 +63,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
     options: finishValues.map((f) => ({ id: slugify(f), label: f })),
   }];
 
-  const selectedFinish = toArray(searchParams.finish);
+  const selectedFinish = toArray(finish);
   const products = selectedFinish.length > 0
     ? allProducts.filter((p) => p.finish && selectedFinish.includes(slugify(p.finish)))
     : allProducts;
