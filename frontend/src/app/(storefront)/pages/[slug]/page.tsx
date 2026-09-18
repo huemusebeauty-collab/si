@@ -52,7 +52,7 @@ interface Props {
   params: Promise<{ slug: string }>;
 }
 
-export function generateMetadata({ params }: Props): Metadata {
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const page = STATIC_PAGES[slug];
   if (!page) return {};
@@ -60,6 +60,7 @@ export function generateMetadata({ params }: Props): Metadata {
 }
 
 export default async function StaticPage({ params }: Props) {
+  const { slug } = await params;
   const page = STATIC_PAGES[slug];
   if (!page) notFound();
 
