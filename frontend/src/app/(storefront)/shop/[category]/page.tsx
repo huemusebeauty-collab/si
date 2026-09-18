@@ -31,7 +31,10 @@ function slugify(value: string): string {
 }
 
 export default async function CategoryPage({ params, searchParams }: Props) {
-  const category = await getCategoryBySlug(params.category);
+  const canonicalSlug = canonicalCategorySlug(params.category);
+  if (canonicalSlug !== params.category) redirect(`/shop/${canonicalSlug}`);
+
+  const category = await getCategoryBySlug(canonicalSlug);
   if (!category) notFound();
 
   const allProducts = await getProductsByCategory(category);
