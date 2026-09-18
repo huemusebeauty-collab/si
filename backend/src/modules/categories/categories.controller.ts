@@ -12,7 +12,7 @@ export class CategoriesController {
   constructor(private readonly categories: CategoriesService) {}
 
   @Public()
-  @Cacheable({ ttlSeconds: 300, keyPrefix: "categories-v2" })
+  @Cacheable({ ttlSeconds: 300, keyPrefix: "categories-v3" })
   @Get()
   list() {
     return this.categories.listCategories();
@@ -25,7 +25,7 @@ export class CategoriesController {
   }
 
   @Public()
-  @Cacheable({ ttlSeconds: 300, keyPrefix: "categories-v2" })
+  @Cacheable({ ttlSeconds: 300, keyPrefix: "categories-v3" })
   @Get(":slug")
   getBySlug(@Param("slug") slug: string) {
     return this.categories.getCategory(slug);
