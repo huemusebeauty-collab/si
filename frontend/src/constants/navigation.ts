@@ -18,10 +18,7 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
   {
     heading: "Discover",
     links: [
-      { label: "Buying Guides", href: "/pages/guides" },
-      { label: "Shade & Finish Finder", href: "/pages/shade-finder" },
-      { label: "Editorial / Journal", href: "/pages/journal" },
-      { label: "Gifting Guides", href: "/pages/gifting" },
+      // Future content routes are intentionally hidden until their pages are implemented.
       { label: "FAQs", href: "/pages/faqs" },
     ],
   },
@@ -38,9 +35,7 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
     heading: "Company",
     links: [
       { label: "About Silku", href: "/pages/about" },
-      { label: "Brand Story", href: "/pages/brand-story" },
-      { label: "Sustainability", href: "/pages/sustainability" },
-      { label: "Press", href: "/pages/press" },
+      // Future company content routes are intentionally hidden until implemented.
     ],
   },
   {
@@ -48,7 +43,7 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
     links: [
       { label: "Contact Us", href: "/pages/contact" },
       { label: "Shipping & Returns", href: "/pages/shipping-returns" },
-      { label: "Order Help", href: "/pages/order-help" },
+      // Dedicated order-help page is not implemented yet; Contact Us remains the support entry point.
       { label: "Accessibility Statement", href: "/pages/accessibility" },
       { label: "Privacy Policy", href: "/pages/privacy" },
       { label: "Terms of Service", href: "/pages/terms" },
