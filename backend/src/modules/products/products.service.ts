@@ -31,6 +31,35 @@ export class ProductsService {
     return product;
   }
 
+  async listAdminProducts(query: ListProductsQueryDto): Promise<PaginatedResponse<ProductEntity>> {
+    const qb = this.products
+      .createQueryBuilder("product")
+      .leftJoinAndSelect("product.category", "category")
+      .leftJoinAndSelect("product.variants", "variants");
+
+    if (query.categorySlug) {
+      const category = await this.categoriesService.getCategory(query.categorySlug);
+      const categoryIds = [category.id, ...this.flattenCategoryIds(category.children)];
+      qb.andWhere("category.id IN (:...categoryIds)", { categoryIds });
+    }
+
+    if (query.sort) {
+      const direction = query.sort.startsWith("-") ? "DESC" : "ASC";
+      const field = query.sort.replace(/^-/, "");
+      const allowed = new Set(["price", "createdAt", "name"]);
+      if (allowed.has(field)) qb.orderBy(`product.${field}`, direction);
+    } else {
+      qb.orderBy("product.createdAt", "DESC");
+    }
+
+    const [items, totalItems] = await qb
+      .skip((query.page - 1) * query.pageSize)
+      .take(query.pageSize)
+      .getManyAndCount();
+
+    return PaginatedResponse.of(items, totalItems, query.page, query.pageSize);
+  }
+
   async listProducts(query: ListProductsQueryDto): Promise<PaginatedResponse<ProductEntity>> {
     const qb = this.products
       .createQueryBuilder("product")
