@@ -46,7 +46,8 @@ export class CategoriesService {
   }
 
   async listAdminCategories(): Promise<CategoryEntity[]> {
-    return this.categories.findTrees({ order: { displayOrder: "ASC" } });
+    const trees = await this.categories.findTrees();
+    return trees.sort((a, b) => a.displayOrder - b.displayOrder);
   }
 
   async createCategory(data: {
