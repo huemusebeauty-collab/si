@@ -1,10 +1,20 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Breadcrumb } from "@/components/patterns/Breadcrumb";
 import { FilterPanel } from "@/components/patterns/FilterPanel";
 import { ProductListingGrid } from "@/components/sections/ProductListingGrid";
 import { getCategoryBySlug, getProductsByCategory } from "@/services/api/products";
+
+const LEGACY_CATEGORY_ALIASES: Record<string, string> = {
+  "nail-lacquer": "nail-polish",
+  "colour-cosmetics": "color-cosmetics",
+  "skin-care": "skincare",
+};
+
+function canonicalCategorySlug(slug: string): string {
+  return LEGACY_CATEGORY_ALIASES[slug] ?? slug;
+}
 
 interface Props {
   params: { category: string };
@@ -12,7 +22,10 @@ interface Props {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const category = await getCategoryBySlug(params.category);
+  const canonicalSlug = canonicalCategorySlug(params.category);
+  if (canonicalSlug !== params.category) redirect(`/shop/${canonicalSlug}`);
+
+  const category = await getCategoryBySlug(canonicalSlug);
   if (!category) return {};
   return {
     title: category.name,
