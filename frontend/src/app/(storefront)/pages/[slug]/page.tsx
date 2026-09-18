@@ -56,11 +56,11 @@ export function generateMetadata({ params }: Props): Metadata {
   const { slug } = await params;
   const page = STATIC_PAGES[slug];
   if (!page) return {};
-  return { title: page.title, alternates: { canonical: `/pages/${params.slug}` } };
+  return { title: page.title, alternates: { canonical: `/pages/${slug}` } };
 }
 
 export default async function StaticPage({ params }: Props) {
-  const page = STATIC_PAGES[params.slug];
+  const page = STATIC_PAGES[slug];
   if (!page) notFound();
 
   const faqs = slug === "faqs" ? await getFaqs() : [];
