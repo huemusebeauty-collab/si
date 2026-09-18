@@ -5,11 +5,12 @@ import { ProductListingGrid } from "@/components/sections/ProductListingGrid";
 import { getCollectionBySlug, getProductsForCollection } from "@/services/api/products";
 
 interface Props {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const collection = await getCollectionBySlug(params.slug);
+  const { slug } = await params;
+  const collection = await getCollectionBySlug(slug);
   if (!collection) return {};
   return {
     title: collection.name,
@@ -19,10 +20,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function CollectionPage({ params }: Props) {
-  const collection = await getCollectionBySlug(params.slug);
+  const { slug } = await params;
+  const collection = await getCollectionBySlug(slug);
   if (!collection) notFound();
 
-  const products = await getProductsForCollection(params.slug);
+  const products = await getProductsForCollection(slug);
 
   return (
     <div className="py-6">
