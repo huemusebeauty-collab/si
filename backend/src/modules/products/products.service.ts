@@ -990,12 +990,25 @@ export class ProductsService {
       where: { id: variantId },
       lock: { mode: "pessimistic_write" },
     });
-    const nextQuantity = variant.stockQuantity + delta;
+    const previousQuantity = variant.stockQuantity;
+    const nextQuantity = previousQuantity + delta;
     if (nextQuantity < 0) throw new DomainException(DomainErrorCode.INSUFFICIENT_STOCK, `Only ${variant.stockQuantity} unit(s) of ${variant.sku} remain in stock.`);
     variant.stockQuantity = nextQuantity;
     variant.stockState = this.computeStockState(nextQuantity);
     try {
-      return await repo.save(variant);
+      const saved = await repo.save(variant);
+      if (delta !== 0) {
+        const movementRepo = manager.getRepository(InventoryMovementEntity);
+        const movement = movementRepo.create({
+          variantId: variant.id,
+          delta,
+          quantityBefore: previousQuantity,
+          quantityAfter: nextQuantity,
+          reason: "stock_adjustment",
+        });
+        await movementRepo.save(movement);
+      }
+      return saved;
     } catch (error) {
       if (error instanceof OptimisticLockVersionMismatchError) throw new DomainException(DomainErrorCode.STALE_WRITE_CONFLICT, "Stock for this shade changed while processing your request — please try again.", HttpStatus.CONFLICT);
       throw error;
