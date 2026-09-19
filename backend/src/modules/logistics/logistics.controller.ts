@@ -43,32 +43,13 @@ export class LogisticsController {
 
   @RequirePermission("logistics", "edit")
   @Post("shipments")
-  create(@Body() body: CreateShipmentDto,
-    orderId: string;
-    carrier?: string;
-    serviceLevel?: string;
-    weightGrams?: number;
-    lengthCm?: number;
-    widthCm?: number;
-    heightCm?: number;
-    estimatedDeliveryAt?: string;
-  }) {
+  create(@Body() body: CreateShipmentDto) {
     return this.logistics.createShipment(body);
   }
 
   @RequirePermission("logistics", "edit")
   @Patch("shipments/:shipmentId/status")
-  updateStatus(
-    @Param("shipmentId") shipmentId: string,
-    @Body() body: {
-      status: ShipmentStatus;
-      description?: string;
-      location?: string;
-      awbNumber?: string;
-      trackingUrl?: string;
-      failureReason?: string;
-    },
-  ) {
+  updateStatus(@Param("shipmentId") shipmentId: string, @Body() body: UpdateShipmentStatusDto) {
     const { status, ...details } = body;
     return this.logistics.updateStatus(shipmentId, status, details);
   }
