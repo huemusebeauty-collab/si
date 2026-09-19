@@ -20,6 +20,18 @@ export class OrderEntity {
   @Column({ type: "varchar", length: 128, nullable: true })
   idempotencyKey?: string;
 
+  @Column({ type: "varchar", length: 15, nullable: true })
+  customerGstin?: string;
+
+  @Column({ type: "varchar", length: 200, nullable: true })
+  customerLegalName?: string;
+
+  @Column({ type: "varchar", length: 100, nullable: true })
+  placeOfSupplyState?: string;
+
+  @Column({ type: "varchar", length: 2, nullable: true })
+  placeOfSupplyStateCode?: string;
+
   @Column({ type: "decimal", precision: 10, scale: 2, default: 0 })
   subtotal!: string;
 

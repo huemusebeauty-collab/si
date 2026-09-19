@@ -23,6 +23,12 @@ export class AddressDto {
   @MaxLength(100)
   region!: string;
 
+  @ApiProperty({ required: false, description: "Two-digit Indian state/UT code when known." })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2)
+  stateCode?: string;
+
   @ApiProperty()
   @IsString()
   @MaxLength(20)

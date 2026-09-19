@@ -12,6 +12,7 @@ import { ShipmentEventEntity } from "@/modules/logistics/entities/shipment-event
 import { CartService } from "@/modules/cart/cart.service";
 import { ProductsService } from "@/modules/products/products.service";
 import { TransactionService } from "@/database/transaction.service";
+import { SettingsService } from "@/admin/settings/settings.service";
 import { DomainException } from "@/common/exceptions/domain.exception";
 
 function createMockRepo<T extends object>() {

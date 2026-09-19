@@ -14,6 +14,7 @@ import { TransactionService } from "@/database/transaction.service";
 import { DomainErrorCode, DomainException } from "@/common/exceptions/domain.exception";
 import { resolveInvoiceLayout, type InvoiceFormat, type InvoiceSize } from "./invoice.types";
 import { calculateGstWithinMrp, roundMoney } from "./tax.utils";
+import { SettingsService } from "@/admin/settings/settings.service";
 
 const CANCELLABLE_BEFORE: OrderStatus[] = ["pending_payment", "confirmed", "processing"];
 const RETURNABLE_AFTER: OrderStatus[] = ["delivered"];
@@ -44,6 +45,7 @@ export class OrdersService {
     private readonly cart: CartService,
     private readonly products: ProductsService,
     private readonly transactions: TransactionService,
+    private readonly settings: SettingsService,
   ) {}
 
   async getOrder(orderId: string): Promise<OrderEntity> {
@@ -147,8 +149,15 @@ export class OrdersService {
     return { orderCount: orders.length, averageOrderValue: orders.length ? roundMoney(totalRevenue / orders.length) : 0, totalRevenue: roundMoney(totalRevenue), statusBreakdown };
   }
 
-  async createOrder(customerId: string, cartId: string, shippingAddress: Record<string, unknown>, idempotencyKey?: string): Promise<OrderEntity> {
+  async createOrder(customerId: string, cartId: string, shippingAddress: Record<string, unknown>, idempotencyKey?: string, customerGstin?: string, customerLegalName?: string): Promise<OrderEntity> {
     const normalizedIdempotencyKey = idempotencyKey?.trim();
+    const normalizedGstin = customerGstin?.trim().toUpperCase() || undefined;
+    if (normalizedGstin && !/^\\d{2}[A-Z0-9]{10}[A-Z]\\d[A-Z]Z[A-Z0-9]$/.test(normalizedGstin)) {
+      throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Customer GSTIN format is invalid.");
+    }
+    const normalizedLegalName = customerLegalName?.trim() || undefined;
+    const placeOfSupplyState = typeof shippingAddress.region === "string" ? shippingAddress.region.trim() || undefined : undefined;
+    const placeOfSupplyStateCode = typeof shippingAddress.stateCode === "string" ? shippingAddress.stateCode.trim() || undefined : undefined;
     if (normalizedIdempotencyKey && (normalizedIdempotencyKey.length < 1 || normalizedIdempotencyKey.length > 128)) {
       throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Idempotency-Key must be between 1 and 128 characters.");
     }
@@ -224,7 +233,7 @@ export class OrdersService {
       }
 
       if (total < 0 || (subtotal > 0 && total > subtotal + 0.005 && discountAmount === 0)) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Invalid tax calculation.");
-      const order = manager.create(OrderEntity, { customerId, idempotencyKey: normalizedIdempotencyKey, status: "pending_payment", subtotal: subtotal.toFixed(2), discountAmount: discountAmount.toFixed(2), taxableAmount: taxableAmount.toFixed(2), taxAmount: taxAmount.toFixed(2), total: total.toFixed(2), currency: "INR", shippingAddress });
+      const order = manager.create(OrderEntity, { customerId, idempotencyKey: normalizedIdempotencyKey, customerGstin: normalizedGstin, customerLegalName: normalizedLegalName, placeOfSupplyState, placeOfSupplyStateCode, status: "pending_payment", subtotal: subtotal.toFixed(2), discountAmount: discountAmount.toFixed(2), taxableAmount: taxableAmount.toFixed(2), taxAmount: taxAmount.toFixed(2), total: total.toFixed(2), currency: "INR", shippingAddress });
       const savedOrder = await manager.save(order);
       for (const snapshot of snapshotLines) await manager.save(manager.create(OrderLineItemEntity, { ...snapshot, order: savedOrder }));
       await manager.save(manager.create(OrderStatusHistoryEntity, { order: savedOrder, status: "pending_payment" }));
@@ -433,7 +442,7 @@ export class OrdersService {
       const issuedAt = now;
       const snapshot = {
         orderId: order.id,
-        customerId: order.customerId,
+        customerId: order.customerId,\n        recipient: {\n          legalName: order.customerLegalName ?? null,\n          gstin: order.customerGstin ?? null,\n          deliveryAddress: order.shippingAddress,\n        },\n        placeOfSupply: { state: order.placeOfSupplyState ?? null, stateCode: order.placeOfSupplyStateCode ?? null },
         shippingAddress: order.shippingAddress,
         lineItems: order.lineItems,
         subtotal: order.subtotal,

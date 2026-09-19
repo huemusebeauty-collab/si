@@ -127,7 +127,7 @@ export class OrdersController {
   create(
     @CurrentUser() user: AuthenticatedUser | undefined,
     @Headers("idempotency-key") idempotencyKey: string | undefined,
-    @Body() body: { customerId: string; cartId: string; shippingAddress: Record<string, unknown> },
+    @Body() body: { customerId: string; cartId: string; shippingAddress: Record<string, unknown>; customerGstin?: string; customerLegalName?: string },
   ) {
     if (user && user.id !== body.customerId) {
       throw new DomainException(
@@ -135,7 +135,7 @@ export class OrdersController {
         "The order's customerId must match the authenticated customer.",
       );
     }
-    return this.orders.createOrder(body.customerId, body.cartId, body.shippingAddress, idempotencyKey);
+    return this.orders.createOrder(body.customerId, body.cartId, body.shippingAddress, idempotencyKey, body.customerGstin, body.customerLegalName);
   }
 
   @Public()

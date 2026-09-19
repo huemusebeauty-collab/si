@@ -13,6 +13,7 @@ import { MarketingCommerceController } from "./marketing-commerce.controller";
 import { CartModule } from "@/modules/cart/cart.module";
 import { ProductsModule } from "@/modules/products/products.module";
 import { DatabaseModule } from "@/database/database.module";
+import { SettingsModule } from "@/admin/settings/settings.module";
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { DatabaseModule } from "@/database/database.module";
     CartModule,
     ProductsModule,
     DatabaseModule, // Sprint 4.9 — TransactionService
+    SettingsModule,
   ],
   controllers: [OrdersController, MarketingCommerceController],
   providers: [OrdersService],
