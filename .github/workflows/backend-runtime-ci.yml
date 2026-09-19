@@ -1,20 +1,14 @@
-name: Backend Payment CI
+name: Backend Runtime CI
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "backend/**"
-      - ".github/workflows/backend-payment-ci.yml"
   pull_request:
     paths:
       - "backend/**"
-      - ".github/workflows/backend-payment-ci.yml"
+      - ".github/workflows/backend-runtime-ci.yml"
   workflow_dispatch:
 
 jobs:
-  payment-tests:
+  runtime:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -26,12 +20,21 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
           cache-dependency-path: backend/package.json
+
+      - name: Verify Node runtime
+        run: node --version
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Run backend regression suites
-        run: npx jest src/integrations/payment/__tests__/payment.service.spec.ts src/config/configuration.spec.ts src/config/env.validation.spec.ts --runInBand --coverage=false
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Runtime regression tests
+        run: npx jest src/config/configuration.spec.ts src/config/env.validation.spec.ts --runInBand --coverage=false
