@@ -265,6 +265,9 @@ export class ProductsService {
       entity.metaTitle = data.metaTitle;
       entity.metaDescription = data.metaDescription;
       entity.mediaUrls = data.mediaUrls;
+      entity.hsnCode = data.hsnCode?.trim() || undefined;
+      entity.gstRate = data.gstRate === undefined ? undefined : data.gstRate.toFixed(2);
+      entity.taxInclusiveMrp = data.taxInclusiveMrp ?? true;
       const saved = await productRepo.save(entity);
 
       const existingBySku = new Map((existing?.variants ?? []).map((variant) => [variant.sku, variant]));
@@ -339,10 +342,13 @@ export class ProductsService {
     if (!Number.isFinite(data.price) || data.price <= 0) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Product price must be greater than zero.");
     if (data.salePrice !== undefined && (!Number.isFinite(data.salePrice) || data.salePrice < 0 || data.salePrice > data.price)) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Sale price must be between zero and the regular price.");
     if (!Array.isArray(data.mediaUrls) || data.mediaUrls.some((url) => typeof url !== "string" || !url.trim())) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Product media URLs must be non-empty strings.");
+    if (!Number.isFinite((data as { gstRate?: number }).gstRate ?? 0) || ((data as { gstRate?: number }).gstRate ?? 0) < 0 || ((data as { gstRate?: number }).gstRate ?? 0) > 100) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "GST rate must be between 0 and 100 percent.");
+    if (!Array.isArray(data.variants) || data.variants.length === 0) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "At least one product variant is required.");
     const seenSkus = new Set<string>();
     for (const variant of data.variants) {
       this.validateVariantInput(variant);
       if (variant.mrp !== undefined && (!Number.isFinite(variant.mrp) || variant.mrp < 0)) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Variant MRP must be a non-negative number.");
+      if (variant.mrp !== undefined && variant.mrp < data.price) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, `Variant MRP for ${variant.sku} cannot be lower than the product price.`);
       if (seenSkus.has(variant.sku)) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, `Duplicate SKU ${variant.sku} in product variants.`);
       seenSkus.add(variant.sku);
     }
