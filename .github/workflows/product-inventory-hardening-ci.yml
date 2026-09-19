@@ -34,3 +34,5 @@ jobs:
         run: npm run build
       - name: Product service tests
         run: npx jest src/modules/products/products.service.spec.ts --runInBand --coverage=false
+      - name: Logistics service tests
+        run: npx jest src/modules/logistics/logistics.service.spec.ts --runInBand --coverage=false
