@@ -92,6 +92,13 @@ export const adminApi = {
   },
   getIntegrationsStatus: () => request<IntegrationsStatus>("/integrations/status"),
   getDeadLetterJobs: (queueName: string) => request<DeadLetterJob[]>(`/integrations/dead-letter/${queueName}`),
+  getLogisticsDashboard: () => request<LogisticsDashboard>("/admin/logistics/dashboard"),
+  listShipments: (status?: string) => request<AdminShipment[]>(`/admin/logistics/shipments${status ? `?status=${encodeURIComponent(status)}` : ""}`),
+  getShipment: (id: string) => request<AdminShipment>(`/admin/logistics/shipments/${id}`),
+  getShipmentTracking: (id: string) => request<ShipmentEvent[]>(`/admin/logistics/shipments/${id}/tracking`),
+  getOrderShipment: (orderId: string) => request<AdminShipment | null>(`/admin/logistics/orders/${orderId}`),
+  createShipment: (body: CreateShipmentInput) => request<AdminShipment>("/admin/logistics/shipments", { method: "POST", body: JSON.stringify(body) }),
+  updateShipmentStatus: (id: string, body: UpdateShipmentStatusInput) => request<AdminShipment>(`/admin/logistics/shipments/${id}/status`, { method: "PATCH", body: JSON.stringify(body) }),
 };
 
 export interface CreateProductInput {
@@ -134,5 +141,10 @@ export interface OrdersReport { orderCount: number; averageOrderValue: number; t
 export interface CustomersReport { newCustomers: number; totalCustomers: number }
 export interface ProductsReport { lowestStock: { id: string; sku: string; name: string; stockQuantity: number }[] }
 export interface AuditLogEntry { id: string; actorEmail: string; module: string; action: string; entityId?: string; createdAt: string }
+export interface CreateShipmentInput { orderId: string; carrier?: string; serviceLevel?: string; weightGrams?: number; lengthCm?: number; widthCm?: number; heightCm?: number; estimatedDeliveryAt?: string }
+export interface UpdateShipmentStatusInput { status: string; description?: string; location?: string; awbNumber?: string; trackingUrl?: string; failureReason?: string }
+export interface AdminShipment { id: string; orderId: string; status: string; carrier?: string; serviceLevel?: string; awbNumber?: string; trackingUrl?: string; weightGrams?: number; shippingAddress: Record<string, unknown>; estimatedDeliveryAt?: string; shippedAt?: string; deliveredAt?: string; failureReason?: string; createdAt: string; updatedAt: string }
+export interface ShipmentEvent { id: string; shipmentId: string; status: string; description?: string; location?: string; eventAt: string }
+export interface LogisticsDashboard { total: number; counts: Record<string, number>; exceptions: number; terminal: number }
 export interface IntegrationsStatus { providers: { provider: string; circuitState: string; lastSuccessAt: string | null; lastFailureAt: string | null; lastError: string | null }[]; queues: { name: string; waiting: number; active: number; completed: number; failed: number; delayed: number }[] }
 export interface DeadLetterJob { id?: string; name: string; data: unknown; failedReason: string; attemptsMade: number }
