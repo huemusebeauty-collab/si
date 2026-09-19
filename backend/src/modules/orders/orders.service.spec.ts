@@ -175,21 +175,31 @@ describe("OrdersService", () => {
     await expect(service.requestReturn("o1", ["li1"], "wrong shade")).rejects.toThrow(DomainException);
   });
 
-  it("persists a return request on the delivered shipment", async () => {
-    orderRepo.findOne.mockResolvedValue({ id: "o1", status: "delivered", lineItems: [{ id: "li1", variantId: "v1", quantity: 1 }], statusHistory: [{ status: "delivered", changedAt: new Date() }], updatedAt: new Date() } as unknown as OrderEntity);
-    transactionService.runInTransaction.mockImplementationOnce(async (work: (qr: unknown) => Promise<unknown>) => work({
-      manager: {
-        findOne: jest.fn()
-          .mockResolvedValueOnce({ id: "o1", status: "delivered", lineItems: [{ id: "li1" }], statusHistory: [] })
-          .mockResolvedValueOnce({ id: "s1", orderId: "o1", status: "delivered" }),
-        create: jest.fn((_: unknown, entity: unknown) => entity),
-        save: jest.fn(async (entity: unknown) => entity),
-      },
-    }));
+  it("persists a return request on the delivered shipment without restoring stock", async () => {
+    const shipment = { id: "s1", orderId: "o1", status: "delivered" };
+    const manager = {
+      findOne: jest.fn()
+        .mockResolvedValueOnce({ id: "o1", status: "delivered", lineItems: [{ id: "li1" }], statusHistory: [] })
+        .mockResolvedValueOnce(shipment),
+      create: jest.fn((_: unknown, entity: unknown) => entity),
+      save: jest.fn(async (entity: unknown) => entity),
+    };
+    transactionService.runInTransaction.mockImplementationOnce(async (work: (qr: unknown) => Promise<unknown>) => work({ manager }));
     const result = await service.requestReturn("o1", ["li1"], "wrong shade");
+
     expect(result.accepted).toBe(true);
-    expect(transactionService.runInTransaction).toHaveBeenCalledTimes(1);
-    expect((transactionService.runInTransaction.mock.calls[0][0])).toBeDefined();
+    expect(shipment.status).toBe("return_requested");
+    expect(manager.save).toHaveBeenCalledTimes(2);
+    expect(manager.save).toHaveBeenNthCalledWith(1, shipment);
+    expect(manager.save).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        shipmentId: "s1",
+        status: "return_requested",
+        description: "wrong shade",
+      }),
+    );
+    expect(productService.adjustStock).not.toHaveBeenCalled();
   });
 
   it("rejects a duplicate return request once shipment return processing has started", async () => {
