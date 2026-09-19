@@ -34,7 +34,7 @@ export class ProductsService {
     slug: string; name: string; category: CategoryEntity; price: number; salePrice?: number;
     description: string; content: ProductContent; metaTitle: string; metaDescription: string;
     mediaUrls: string[]; hsnCode?: string; gstRate?: number; taxInclusiveMrp?: boolean;
-    variants: { sku: string; name: string; hexColor?: string; stockQuantity: number; mrp?: number }[];
+    variants: { id?: string; sku: string; name: string; hexColor?: string; stockQuantity: number; mrp?: number }[];
   }): Promise<ProductEntity> {
     const current = await this.findProductOrThrow(productId);
     if (current.slug !== data.slug) {
@@ -50,14 +50,18 @@ export class ProductsService {
       if (!locked) throw new NotFoundException("Product not found.");
       const variantRepo = manager.getRepository(ProductVariantEntity);
       const existingBySku = new Map(locked.variants.map((variant) => [variant.sku, variant]));
+      const existingById = new Map(locked.variants.map((variant) => [variant.id, variant]));
       const incomingSkus = new Set<string>();
       for (const seed of data.variants) {
         this.validateVariantInput(seed);
         if (seed.mrp !== undefined && seed.mrp < data.price) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, `Variant MRP for ${seed.sku} cannot be lower than the product price.`);
         if (incomingSkus.has(seed.sku)) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, `Duplicate SKU ${seed.sku} in product variants.`);
         incomingSkus.add(seed.sku);
+        const identifiedVariant = seed.id ? existingById.get(seed.id) : undefined;
+        if (seed.id && !identifiedVariant) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, `Variant ${seed.id} does not belong to this product.`);
         const owner = await variantRepo.findOne({ where: { sku: seed.sku }, relations: ["product"] });
         if (owner && owner.product?.id !== productId) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, `SKU ${seed.sku} is already assigned to another product.`);
+        if (owner && identifiedVariant && owner.id !== identifiedVariant.id) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, `SKU ${seed.sku} is already assigned to another variant of this product.`);
       }
       locked.slug = data.slug;
       locked.name = data.name;
@@ -74,8 +78,9 @@ export class ProductsService {
       if (data.taxInclusiveMrp !== undefined) locked.taxInclusiveMrp = data.taxInclusiveMrp;
       const saved = await productRepo.save(locked);
       for (const seed of data.variants) {
-        const variant = existingBySku.get(seed.sku) ?? variantRepo.create({ product: saved, sku: seed.sku });
+        const variant = (seed.id ? existingById.get(seed.id) : undefined) ?? existingBySku.get(seed.sku) ?? variantRepo.create({ product: saved, sku: seed.sku });
         variant.product = saved;
+        variant.sku = seed.sku;
         variant.name = seed.name;
         variant.hexColor = seed.hexColor;
         variant.stockQuantity = seed.stockQuantity;
