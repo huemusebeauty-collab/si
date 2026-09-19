@@ -183,8 +183,15 @@ export class ProductsService {
     return { lowestStock };
   }
 
-  async findVariantById(variantId: string): Promise<ProductVariantEntity> {
-    const variant = await this.variants.findOne({ where: { id: variantId }, relations: ["product"] });
+  async findVariantById(variantId: string, manager?: EntityManager): Promise<ProductVariantEntity> {
+    const repo = manager ? manager.getRepository(ProductVariantEntity) : this.variants;
+    const variant = manager
+      ? await repo.createQueryBuilder("variant")
+          .leftJoinAndSelect("variant.product", "product")
+          .where("variant.id = :variantId", { variantId })
+          .setLock("pessimistic_write")
+          .getOne()
+      : await repo.findOne({ where: { id: variantId }, relations: ["product"] });
     if (!variant) throw new NotFoundException("Variant not found.");
     return variant;
   }
@@ -336,7 +343,7 @@ export class ProductsService {
     }
   }
 
-  private validateVariantInput(data: { sku: string; name: string; stockQuantity: number }): void {
+  private validateVariantInput(data: { sku: string; name: string; stockQuantity: number; mrp?: number }): void {
     if (!data.sku?.trim() || !data.name?.trim()) {
       throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Variant SKU and name are required.");
     }
@@ -360,7 +367,13 @@ export class ProductsService {
 
   async adjustStock(variantId: string, delta: number, manager?: EntityManager): Promise<ProductVariantEntity> {
     const repo = manager ? manager.getRepository(ProductVariantEntity) : this.variants;
-    const variant = await repo.findOneOrFail({ where: { id: variantId } });
+    const variant = manager
+      ? await repo.createQueryBuilder("variant")
+          .where("variant.id = :variantId", { variantId })
+          .setLock("pessimistic_write")
+          .getOne()
+      : await repo.findOneOrFail({ where: { id: variantId } });
+    if (!variant) throw new NotFoundException("Variant not found.");
     const nextQuantity = variant.stockQuantity + delta;
     if (nextQuantity < 0) throw new DomainException(DomainErrorCode.INSUFFICIENT_STOCK, `Only ${variant.stockQuantity} unit(s) of ${variant.sku} remain in stock.`);
     variant.stockQuantity = nextQuantity;
