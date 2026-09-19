@@ -46,6 +46,11 @@ export class ProductContentDto {
 }
 
 export class CreateProductVariantDto {
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  mrp?: number;
+
   @IsString()
   sku!: string;
 
