@@ -1,6 +1,6 @@
 import { Type } from "class-transformer";
 import {
-  ArrayMinSize, IsArray, IsBoolean, IsInt, IsNumber, IsOptional, IsString, IsUrl, Max, Min, ValidateNested,
+  ArrayMinSize, IsArray, IsBoolean, IsInt, IsNumber, IsOptional, IsString, IsUrl, IsUUID, Max, Min, ValidateNested,
 } from "class-validator";
 
 export class ProductFaqDto {
@@ -46,6 +46,10 @@ export class ProductContentDto {
 }
 
 export class CreateProductVariantDto {
+  @IsOptional()
+  @IsUUID()
+  id?: string;
+
   @IsOptional()
   @IsNumber()
   @Min(0)
