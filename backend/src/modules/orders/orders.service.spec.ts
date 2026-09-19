@@ -176,6 +176,13 @@ describe("OrdersService", () => {
   });
 
   it("persists a return request on the delivered shipment without restoring stock", async () => {
+    orderRepo.findOne.mockResolvedValue({
+      id: "o1",
+      status: "delivered",
+      lineItems: [{ id: "li1", variantId: "v1", quantity: 1 }],
+      statusHistory: [{ status: "delivered", changedAt: new Date() }],
+      updatedAt: new Date(),
+    } as unknown as OrderEntity);
     const shipment = { id: "s1", orderId: "o1", status: "delivered" };
     const manager = {
       findOne: jest.fn()
