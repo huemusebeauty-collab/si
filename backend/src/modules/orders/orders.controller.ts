@@ -138,11 +138,6 @@ export class OrdersController {
     return this.orders.createOrder(body.customerId, body.cartId, body.shippingAddress, idempotencyKey, body.customerGstin, body.customerLegalName);
   }
 
-  @Public()
-  @Post(":orderId/confirm")
-  confirm(@Param("orderId") orderId: string, @Body("paymentReference") paymentReference: string) {
-    return this.orders.confirmOrder(orderId, paymentReference);
-  }
 
   @Public()
   @Post(":orderId/fail")
