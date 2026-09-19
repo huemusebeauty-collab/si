@@ -5,6 +5,7 @@ import { OrderStatusHistoryEntity } from "./order-status-history.entity";
 export type OrderStatus = "pending_payment" | "confirmed" | "payment_failed" | "processing" | "shipped" | "delivered" | "cancelled" | "returned";
 
 @Entity("orders")
+@Index(["customerId", "idempotencyKey"], { unique: true })
 export class OrderEntity {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
@@ -16,7 +17,6 @@ export class OrderEntity {
   @Column({ type: "varchar", default: "pending_payment" })
   status!: OrderStatus;
 
-  @Index({ unique: true })
   @Column({ type: "varchar", length: 128, nullable: true })
   idempotencyKey?: string;
 
