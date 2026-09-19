@@ -28,6 +28,8 @@ export class LogisticsFoundation20260919000000 implements MigrationInterface {
       CONSTRAINT "UQ_shipments_orderId" UNIQUE ("orderId")
     )`);
     await queryRunner.query(`CREATE INDEX "IDX_shipments_awbNumber" ON "shipments" ("awbNumber")`);
+    await queryRunner.query(`ALTER TABLE "shipments" ADD CONSTRAINT "FK_shipments_order" FOREIGN KEY ("orderId") REFERENCES "orders"("id") ON DELETE RESTRICT`);
+
     await queryRunner.query(`CREATE TABLE "shipment_events" (
       "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
       "shipmentId" uuid NOT NULL,
@@ -41,14 +43,17 @@ export class LogisticsFoundation20260919000000 implements MigrationInterface {
     )`);
     await queryRunner.query(`CREATE INDEX "IDX_shipment_events_shipmentId" ON "shipment_events" ("shipmentId")`);
     await queryRunner.query(`CREATE INDEX "IDX_shipment_events_eventAt" ON "shipment_events" ("eventAt")`);
+    await queryRunner.query(`CREATE UNIQUE INDEX "IDX_shipment_events_externalEventId" ON "shipment_events" ("externalEventId") WHERE "externalEventId" IS NOT NULL`);
     await queryRunner.query(`ALTER TABLE "shipment_events" ADD CONSTRAINT "FK_shipment_events_shipment" FOREIGN KEY ("shipmentId") REFERENCES "shipments"("id") ON DELETE CASCADE`);
   }
 
   async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`ALTER TABLE "shipment_events" DROP CONSTRAINT "FK_shipment_events_shipment"`);
+    await queryRunner.query(`DROP INDEX "IDX_shipment_events_externalEventId"`);
     await queryRunner.query(`DROP INDEX "IDX_shipment_events_eventAt"`);
     await queryRunner.query(`DROP INDEX "IDX_shipment_events_shipmentId"`);
     await queryRunner.query(`DROP TABLE "shipment_events"`);
+    await queryRunner.query(`ALTER TABLE "shipments" DROP CONSTRAINT "FK_shipments_order"`);
     await queryRunner.query(`DROP INDEX "IDX_shipments_awbNumber"`);
     await queryRunner.query(`DROP TABLE "shipments"`);
   }
