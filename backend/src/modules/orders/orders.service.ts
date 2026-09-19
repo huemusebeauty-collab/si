@@ -4,6 +4,8 @@ import { Repository } from "typeorm";
 import { OrderEntity, type OrderStatus } from "./entities/order.entity";
 import { OrderLineItemEntity } from "./entities/order-line-item.entity";
 import { OrderStatusHistoryEntity } from "./entities/order-status-history.entity";
+import { InvoiceEntity } from "./entities/invoice.entity";
+import { InvoiceSequenceEntity } from "./entities/invoice-sequence.entity";
 import { CartService } from "@/modules/cart/cart.service";
 import { ProductsService } from "@/modules/products/products.service";
 import { TransactionService } from "@/database/transaction.service";
@@ -33,6 +35,8 @@ export class OrdersService {
     @InjectRepository(OrderEntity) private readonly orders: Repository<OrderEntity>,
     @InjectRepository(OrderLineItemEntity) private readonly lineItems: Repository<OrderLineItemEntity>,
     @InjectRepository(OrderStatusHistoryEntity) private readonly history: Repository<OrderStatusHistoryEntity>,
+    @InjectRepository(InvoiceEntity) private readonly invoices: Repository<InvoiceEntity>,
+    @InjectRepository(InvoiceSequenceEntity) private readonly invoiceSequences: Repository<InvoiceSequenceEntity>,
     private readonly cart: CartService,
     private readonly products: ProductsService,
     private readonly transactions: TransactionService,
@@ -318,23 +322,71 @@ export class OrdersService {
     return { eligible: false, reason: `Orders in "${order.status}" status are not refund-eligible.` };
   }
 
-  async generateInvoice(orderId: string, size?: string, format?: string): Promise<{
-    orderId: string;
-    lineItems: unknown[];
-    subtotal: string;
-    discountAmount: string;
-    taxableAmount: string;
-    taxAmount: string;
-    total: string;
-    currency: string;
-    issuedAt: string;
-    layout: { size: InvoiceSize; format: InvoiceFormat; width: "full" | "compact" | "80mm" | "58mm" };
-  }> {
+  async generateInvoice(orderId: string, size?: string, format?: string) {
     const order = await this.getOrder(orderId);
+    const invoice = await this.invoices.findOne({ where: { orderId } });
     const layout = resolveInvoiceLayout(size, format);
-    return { orderId: order.id, lineItems: order.lineItems, subtotal: order.subtotal, discountAmount: order.discountAmount, taxableAmount: order.taxableAmount, taxAmount: order.taxAmount, total: order.total, currency: order.currency, issuedAt: new Date().toISOString(), layout };
+    if (invoice) {
+      return { ...invoice.snapshot, invoiceId: invoice.id, invoiceNumber: invoice.invoiceNumber, issuedAt: invoice.issuedAt.toISOString(), layout };
+    }
+    return {
+      orderId: order.id,
+      lineItems: order.lineItems,
+      subtotal: order.subtotal,
+      discountAmount: order.discountAmount,
+      taxableAmount: order.taxableAmount,
+      taxAmount: order.taxAmount,
+      total: order.total,
+      currency: order.currency,
+      issuedAt: null,
+      invoiceNumber: null,
+      layout,
+    };
   }
 
+  async issueInvoice(orderId: string) {
+    return this.transactions.runInTransaction(async (queryRunner) => {
+      const orderRepo = queryRunner.manager.getRepository(OrderEntity);
+      const invoiceRepo = queryRunner.manager.getRepository(InvoiceEntity);
+      const sequenceRepo = queryRunner.manager.getRepository(InvoiceSequenceEntity);
+      const order = await orderRepo.findOne({ where: { id: orderId }, relations: ["lineItems"], lock: { mode: "pessimistic_write" } });
+      if (!order) throw new NotFoundException("Order not found.");
+      if (!REVENUE_STATUSES.includes(order.status)) {
+        throw new DomainException(DomainErrorCode.INVALID_ORDER_STATUS, "An invoice can only be issued for a confirmed or fulfilled order.");
+      }
+      const existing = await invoiceRepo.findOne({ where: { orderId } });
+      if (existing) return { ...existing.snapshot, invoiceId: existing.id, invoiceNumber: existing.invoiceNumber, issuedAt: existing.issuedAt.toISOString() };
+
+      const now = new Date();
+      const startYear = now.getUTCMonth() >= 3 ? now.getUTCFullYear() : now.getUTCFullYear() - 1;
+      const financialYear = `${startYear}/${String(startYear + 1).slice(-2)}`;
+      const seqRows = await sequenceRepo.query(
+        `INSERT INTO "invoice_sequences" ("financialYear", "nextNumber") VALUES ($1, 2)
+         ON CONFLICT ("financialYear") DO UPDATE SET "nextNumber" = "invoice_sequences"."nextNumber" + 1
+         RETURNING "nextNumber" - 1 AS "issuedNumber"`,
+        [financialYear],
+      );
+      const issuedNumber = Number(seqRows[0]?.issuedNumber);
+      if (!Number.isInteger(issuedNumber) || issuedNumber < 1) throw new Error("Unable to allocate invoice number.");
+      const invoiceNumber = `SLK/${financialYear}/${String(issuedNumber).padStart(6, "0")}`;
+      const issuedAt = now;
+      const snapshot = {
+        orderId: order.id,
+        customerId: order.customerId,
+        shippingAddress: order.shippingAddress,
+        lineItems: order.lineItems,
+        subtotal: order.subtotal,
+        discountAmount: order.discountAmount,
+        taxableAmount: order.taxableAmount,
+        taxAmount: order.taxAmount,
+        total: order.total,
+        currency: order.currency,
+        orderCreatedAt: order.createdAt.toISOString(),
+      };
+      const invoice = await invoiceRepo.save(invoiceRepo.create({ orderId: order.id, invoiceNumber, financialYear, issuedAt, snapshot }));
+      return { ...snapshot, invoiceId: invoice.id, invoiceNumber: invoice.invoiceNumber, issuedAt: invoice.issuedAt.toISOString() };
+    });
+  }
   async getTrackingStatus(orderId: string): Promise<{ orderId: string; timeline: OrderStatusHistoryEntity[] }> {
     const order = await this.getOrder(orderId);
     return { orderId: order.id, timeline: order.statusHistory };
