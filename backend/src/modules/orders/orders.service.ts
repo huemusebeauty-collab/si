@@ -227,7 +227,34 @@ export class OrdersService {
 
   async updateStatus(orderId: string, status: OrderStatus): Promise<OrderEntity> {
     const order = await this.getOrder(orderId);
-    if (!VALID_TRANSITIONS[order.status].includes(status)) throw new DomainException(DomainErrorCode.INVALID_STATUS_TRANSITION, `Cannot transition an order from "${order.status}" to "${status}".`);
+    if (!VALID_TRANSITIONS[order.status].includes(status)) {
+      throw new DomainException(
+        DomainErrorCode.INVALID_STATUS_TRANSITION,
+        `Cannot transition an order from "${order.status}" to "${status}".`,
+      );
+    }
+
+    // Inventory must be restored when an order is cancelled or marked
+    // returned through the admin status API. The customer cancellation path
+    // already performs this restoration itself, so it does not call this
+    // method and cannot double-restore stock.
+    if (status === "cancelled" || status === "returned") {
+      return this.transactions.runInTransaction(async (queryRunner) => {
+        const manager = queryRunner.manager;
+        for (const line of order.lineItems) {
+          await this.products.adjustStock(line.variantId, line.quantity, manager);
+        }
+        await manager.update(OrderEntity, order.id, { status });
+        await manager.save(manager.create(OrderStatusHistoryEntity, { order, status }));
+        const updated = await manager.findOne(OrderEntity, {
+          where: { id: order.id },
+          relations: ["lineItems", "statusHistory"],
+        });
+        if (!updated) throw new NotFoundException("Order not found.");
+        return updated;
+      });
+    }
+
     order.status = status;
     await this.orders.save(order);
     await this.history.save(this.history.create({ order, status }));
