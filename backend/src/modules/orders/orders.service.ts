@@ -299,6 +299,11 @@ export class OrdersService {
   async requestReturn(orderId: string, lineItemIds: string[], reason: string): Promise<{ orderId: string; lineItemIds: string[]; reason: string; accepted: boolean }> {
     const order = await this.getOrder(orderId);
     if (!RETURNABLE_AFTER.includes(order.status)) throw new DomainException(DomainErrorCode.ORDER_NOT_RETURNABLE, `Returns can only be requested after delivery (current status: "${order.status}").`);
+    const requestedIds = new Set(lineItemIds);
+    const orderLineIds = new Set(order.lineItems.map((line) => line.id));
+    if (requestedIds.size === 0 || requestedIds.size !== orderLineIds.size || [...requestedIds].some((id) => !orderLineIds.has(id))) {
+      throw new DomainException(DomainErrorCode.ORDER_NOT_RETURNABLE, "Partial returns are not supported by the current order lifecycle; request a return for all order line items.");
+    }
     const deliveredEntry = order.statusHistory.find((h) => h.status === "delivered");
     const deliveredAt = deliveredEntry?.changedAt ?? order.updatedAt;
     const daysSinceDelivery = (Date.now() - deliveredAt.getTime()) / (1000 * 60 * 60 * 24);
