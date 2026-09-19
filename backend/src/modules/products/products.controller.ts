@@ -48,12 +48,7 @@ export class ProductsController {
 
   @RequirePermission("products", "edit")
   @Patch("admin/:productId/tax")
-  updateTaxConfig(@Param("productId") productId: string, @Body() body: {
-    hsnCode?: string | null;
-    gstRate?: number | null;
-    taxInclusiveMrp?: boolean;
-    variants?: Array<{ variantId: string; mrp: number }>;
-  }) {
+  updateTaxConfig(@Param("productId") productId: string, @Body() body: UpdateProductTaxDto) {
     return this.productTax.updateTaxConfig(productId, body);
   }
 
