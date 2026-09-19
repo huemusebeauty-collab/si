@@ -104,6 +104,6 @@ Result: **PENDING**.
 The pilot requires individually verified:
 - silku-scalp-balance-shampoo_img1_standard.jpg
 - silku-scalp-balance-shampoo_img2_standard.jpg
-- silku-scalance-shampoo_video_standard.mp4
+- silku-scalp-balance-shampoo_video_standard.mp4
 
 Only assets that pass identity, exact 250 mL specification, technical quality, and authenticity/label QA should be mapped to production.
