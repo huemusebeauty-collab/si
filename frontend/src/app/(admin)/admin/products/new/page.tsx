@@ -67,10 +67,12 @@ function NewProductContent() {
           usageInstructions: [], warnings: "", storageInstructions: "",
           specifications: {}, faqs: [],
         },
+        hsnCode: hsnCode.trim() || undefined,
+        gstRate: gstValue,
+        taxInclusiveMrp,
         variants: [{ sku, name: variantName || "Default", stockQuantity: Number(stock) || 0, mrp: mrpValue }],
       });
-      await adminApi.updateProductTax(created.id, { hsnCode: hsnCode.trim() || undefined, gstRate: gstValue, taxInclusiveMrp });
-      setSuccess("Product draft saved with MRP, HSN and GST configuration.");
+      setSuccess(`Product draft saved successfully (${created.entity?.id ?? created.id}).`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to save product.");
     } finally { setSaving(false); }
