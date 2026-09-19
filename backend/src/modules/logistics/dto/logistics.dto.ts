@@ -12,7 +12,7 @@ export class CreateShipmentDto {
 
   @IsOptional()
   @IsString()
-  @Max(80)
+  @MaxLength(80)
   serviceLevel?: string;
 
   @IsOptional()
