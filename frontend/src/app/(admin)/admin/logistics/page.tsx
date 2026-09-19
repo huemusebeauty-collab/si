@@ -24,7 +24,7 @@ const VALID_NEXT_STATUSES: Record<string, string[]> = {
   return_in_transit: ["returned", "delivery_failed"],
   returned: [],
   cancelled: [],
-};
+};\nconst STATUSES = Object.keys(VALID_NEXT_STATUSES).filter((value) => value !== "draft");
 
 function LogisticsContent() {
   const [dashboard, setDashboard] = useState<LogisticsDashboard | null>(null);
