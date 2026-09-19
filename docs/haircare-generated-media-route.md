@@ -1,4 +1,4 @@
-# Hair Care Generated Media Route — Phase 4L.20.14–4L.20.15
+# Hair Care Generated Media Route — Phase 4L.20.14–4L.20.16
 
 ## Purpose
 
@@ -25,32 +25,43 @@ Define the safe route for generated/rendered Hair Care visuals when verified rea
 
 ## Phase 4L.20.15 Result
 
-A new generated 250 mL concept board was produced for the pilot, containing front packshot, secondary water-use view, and a video concept.
+A generated 250 mL concept board was produced for the pilot, containing front packshot, secondary water-use view, and a video concept.
 
 QA result: **NOT APPROVED FOR PRODUCTION MAPPING**.
 
 Reasons:
-- The generated output is a composite presentation board, not three individual production assets.
-- The individual visual panels are below the required source resolution for the production image gate when separated from the board.
-- Some generated panels contain synthetic back-label claims/barcode/details that are not independently verified against the production catalog and therefore cannot be promoted.
-- The video area is a still/video-preview concept, not a verified MP4 product video.
+- Composite presentation board, not three individual production assets.
+- Synthetic label/details are not independently verified against the production catalog.
+- Video area is a still/video-preview concept, not a verified MP4.
 - No production DB mapping was made.
 
-Draft crops were created locally only for QA inspection:
-- silku-scalp-balance-shampoo_img1_standard.jpg
-- silku-scalp-balance-shampoo_img2_standard.jpg
+## Phase 4L.20.16 Result
 
-They remain **draft/rejected** and are not in GitHub production media.
+A second generated presentation board was produced to attempt the individual-media gate.
 
-Production DB changes: 0.
+QA result: **NOT APPROVED FOR PRODUCTION MAPPING**.
 
-Existing verified Hair Care SVGs: preserved.
+Reasons:
+- It remains a composite board rather than individually delivered production files.
+- The “video” is a static preview; no actual MP4 file was produced.
+- Generated package/label details cannot be treated as verified documentary product information.
+- The generated images are concept/rendered visuals and must not be represented as real product photography.
+- Therefore the 2-image + 1-video production gate remains open.
 
-Admin engineer work: untouched.
+No generated asset was promoted to GitHub product media or the production DB.
+
+## Current verified status
+
+- Existing verified Hair Care SVGs: preserved.
+- Silku Scalp Balance Shampoo verified production asset: /products/silku-scalp-balance-shampoo.svg
+- Additional QA-passed production images: 0
+- QA-passed production videos: 0
+- Production DB media mutation in this phase: 0
+- Admin engineer work: untouched.
 
 ## Acceptance Gate Still Open
 
-The pilot still requires individually verified:
+The pilot requires individually verified:
 - silku-scalp-balance-shampoo_img1_standard.jpg
 - silku-scalp-balance-shampoo_img2_standard.jpg
 - silku-scalp-balance-shampoo_video_standard.mp4
