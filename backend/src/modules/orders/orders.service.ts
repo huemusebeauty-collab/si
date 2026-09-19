@@ -277,9 +277,21 @@ export class OrdersService {
     if (!CANCELLABLE_BEFORE.includes(order.status)) throw new DomainException(DomainErrorCode.ORDER_NOT_CANCELLABLE, `Order cannot be cancelled once it has reached "${order.status}" status.`);
     await this.transactions.runInTransaction(async (queryRunner) => {
       const manager = queryRunner.manager;
-      for (const line of order.lineItems) await this.products.adjustStock(line.variantId, line.quantity, manager);
-      await manager.update(OrderEntity, order.id, { status: "cancelled" });
-      await manager.save(manager.create(OrderStatusHistoryEntity, { order, status: "cancelled" }));
+      const lockedOrder = await manager.findOne(OrderEntity, {
+        where: { id: order.id },
+        relations: ["lineItems", "statusHistory"],
+        lock: { mode: "pessimistic_write" },
+      });
+      if (!lockedOrder) throw new NotFoundException("Order not found.");
+      if (!CANCELLABLE_BEFORE.includes(lockedOrder.status)) {
+        throw new DomainException(
+          DomainErrorCode.ORDER_NOT_CANCELLABLE,
+          \`Order cannot be cancelled once it has reached "\${lockedOrder.status}" status.\`,
+        );
+      }
+      for (const line of lockedOrder.lineItems) await this.products.adjustStock(line.variantId, line.quantity, manager);
+      await manager.update(OrderEntity, lockedOrder.id, { status: "cancelled" });
+      await manager.save(manager.create(OrderStatusHistoryEntity, { order: lockedOrder, status: "cancelled" }));
     });
     return { orderId, reason, accepted: true };
   }
