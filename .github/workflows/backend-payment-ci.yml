@@ -33,5 +33,5 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Run payment reliability suite
-        run: npx jest src/integrations/payment/__tests__/payment.service.spec.ts --runInBand --coverage=false
+      - name: Run backend regression suites
+        run: npx jest src/integrations/payment/__tests__/payment.service.spec.ts src/config/configuration.spec.ts src/config/env.validation.spec.ts --runInBand --coverage=false
