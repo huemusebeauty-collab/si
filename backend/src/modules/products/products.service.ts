@@ -452,22 +452,99 @@ export class ProductsService {
   }
 
   private validateProductInput(data: {
-    slug: string; name: string; price: number; salePrice?: number;
-    mediaUrls: string[]; hsnCode?: string; gstRate?: number; taxInclusiveMrp?: boolean;
+    slug: string;
+    name: string;
+    price: number;
+    salePrice?: number;
+    mediaUrls: string[];
+    hsnCode?: string;
+    gstRate?: number;
+    taxInclusiveMrp?: boolean;
     variants: { sku: string; name: string; stockQuantity: number; mrp?: number }[];
   }): void {
-    if (!data.slug?.trim() || !data.name?.trim()) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Product name and slug are required.");
-    if (!Number.isFinite(data.price) || data.price <= 0) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Product price must be greater than zero.");
-    if (data.salePrice !== undefined && (!Number.isFinite(data.salePrice) || data.salePrice < 0 || data.salePrice > data.price)) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Sale price must be between zero and the regular price.");
-    if (!Array.isArray(data.mediaUrls) || data.mediaUrls.some((url) => typeof url !== "string" || !url.trim())) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Product media URLs must be non-empty strings.");
-    if (data.gstRate !== undefined && (!Number.isFinite(data.gstRate) || data.gstRate < 0 || data.gstRate > 100)) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "GST rate must be between 0 and 100 percent.");
-    if (!Array.isArray(data.variants) || data.variants.length === 0) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "At least one product variant is required.");
+    if (!data.slug?.trim() || !data.name?.trim()) {
+      throw new DomainException(
+        DomainErrorCode.INVALID_PRODUCT_DATA,
+        "Product name and slug are required.",
+      );
+    }
+
+    if (!Number.isFinite(data.price) || data.price <= 0) {
+      throw new DomainException(
+        DomainErrorCode.INVALID_PRODUCT_DATA,
+        "Product price must be greater than zero.",
+      );
+    }
+
+    if (
+      data.salePrice !== undefined &&
+      (!Number.isFinite(data.salePrice) ||
+        data.salePrice < 0 ||
+        data.salePrice > data.price)
+    ) {
+      throw new DomainException(
+        DomainErrorCode.INVALID_PRODUCT_DATA,
+        "Sale price must be between zero and the regular price.",
+      );
+    }
+
+    if (
+      !Array.isArray(data.mediaUrls) ||
+      data.mediaUrls.some((url) => typeof url !== "string" || !url.trim())
+    ) {
+      throw new DomainException(
+        DomainErrorCode.INVALID_PRODUCT_DATA,
+        "Product media URLs must be non-empty strings.",
+      );
+    }
+
+    if (
+      data.gstRate !== undefined &&
+      (!Number.isFinite(data.gstRate) ||
+        data.gstRate < 0 ||
+        data.gstRate > 100)
+    ) {
+      throw new DomainException(
+        DomainErrorCode.INVALID_PRODUCT_DATA,
+        "GST rate must be between 0 and 100 percent.",
+      );
+    }
+
+    if (!Array.isArray(data.variants) || data.variants.length === 0) {
+      throw new DomainException(
+        DomainErrorCode.INVALID_PRODUCT_DATA,
+        "At least one product variant is required.",
+      );
+    }
+
     const seenSkus = new Set<string>();
     for (const variant of data.variants) {
       this.validateVariantInput(variant);
-      if (variant.mrp !== undefined && (!Number.isFinite(variant.mrp) || variant.mrp < 0)) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Variant MRP must be a non-negative number.");
-      if (variant.mrp !== undefined && variant.mrp < data.price) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, `Variant MRP for ${variant.sku} cannot be lower than the product price.`);
-      if (seenSkus.has(variant.sku)) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, `Duplicate SKU ${variant.sku} in product variants.`);
+
+      if (
+        variant.mrp !== undefined &&
+        (!Number.isFinite(variant.mrp) || variant.mrp < 0)
+      ) {
+        throw new DomainException(
+          DomainErrorCode.INVALID_PRODUCT_DATA,
+          "Variant MRP must be a non-negative number.",
+        );
+      }
+
+      if (variant.mrp !== undefined && variant.mrp < data.price) {
+        throw new DomainException(
+          DomainErrorCode.INVALID_PRODUCT_DATA,
+          `Variant MRP for ${variant.sku} cannot be lower than the product price.`,
+        );
+      }
+
+      if (seenSkus.has(variant.sku)) {
+        throw new DomainException(
+          DomainErrorCode.INVALID_PRODUCT_DATA,
+          `Duplicate SKU ${variant.sku} in product variants.`,
+        );
+      }
+
       seenSkus.add(variant.sku);
     }
   }
