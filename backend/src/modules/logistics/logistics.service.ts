@@ -6,6 +6,7 @@ import { OrderStatusHistoryEntity } from "@/modules/orders/entities/order-status
 import { ShipmentEntity, type ShipmentStatus } from "./entities/shipment.entity";
 import { ShipmentEventEntity } from "./entities/shipment-event.entity";
 import { TransactionService } from "@/database/transaction.service";
+import { ProductsService } from "@/modules/products/products.service";
 import { DomainErrorCode, DomainException } from "@/common/exceptions/domain.exception";
 
 const TERMINAL: ShipmentStatus[] = ["delivered", "rto", "returned", "cancelled"];
@@ -43,6 +44,7 @@ export class LogisticsService {
     @InjectRepository(ShipmentEntity) private readonly shipments: Repository<ShipmentEntity>,
     @InjectRepository(ShipmentEventEntity) private readonly events: Repository<ShipmentEventEntity>,
     @InjectRepository(OrderEntity) private readonly orders: Repository<OrderEntity>,
+    private readonly products: ProductsService,
     private readonly transactions: TransactionService,
   ) {}
 
@@ -151,6 +153,7 @@ export class LogisticsService {
       if (mappedOrderStatus && shipment.orderId) {
         const lockedOrder = await manager.findOne(OrderEntity, {
           where: { id: shipment.orderId },
+          relations: ["lineItems"],
           lock: { mode: "pessimistic_write" },
         });
         if (!lockedOrder) throw new NotFoundException("Order not found.");
@@ -160,6 +163,11 @@ export class LogisticsService {
               DomainErrorCode.INVALID_STATUS_TRANSITION,
               `Cannot synchronize order "${lockedOrder.status}" with shipment "${status}".`,
             );
+          }
+          if (mappedOrderStatus === "returned") {
+            for (const line of lockedOrder.lineItems ?? []) {
+              await this.products.adjustStock(line.variantId, line.quantity, manager);
+            }
           }
           lockedOrder.status = mappedOrderStatus;
           await manager.save(lockedOrder);
