@@ -37,7 +37,7 @@ export class ProductsController {
   @Post("admin")
   async createProduct(@Body() body: CreateProductDto) {
     const category = await this.categories.getCategory(body.categorySlug);
-    return this.products.upsertFullProduct({ ...body, category });
+    return this.products.upsertFullProduct({ ...body, category, content: { ...body.content, specifications: body.content.specifications ?? {} } });
   }
 
   @RequirePermission("products", "view")
