@@ -131,7 +131,9 @@ export interface AdminInvoice {
   taxAmount: string;
   total: string;
   currency: string;
-  issuedAt: string;
+  issuedAt: string | null;
+  invoiceId?: string | null;
+  invoiceNumber?: string | null;
   layout: { size: string; format: string; width: string };
 }
 export interface AdminCustomer { id: string; email: string; firstName: string; lastName: string; createdAt: string }
