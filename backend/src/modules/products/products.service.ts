@@ -43,6 +43,9 @@ export class ProductsService {
         throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, `Slug ${data.slug} is already assigned to another product.`);
       }
     }
+    if (data.salePrice !== undefined && (!Number.isFinite(data.salePrice) || data.salePrice < 0 || data.salePrice > data.price)) {
+      throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Sale price must be between zero and the regular price.");
+    }
     const result = await this.transactions.runInTransaction(async (queryRunner) => {
       const manager = queryRunner.manager;
       const productRepo = manager.getRepository(ProductEntity);
@@ -51,6 +54,14 @@ export class ProductsService {
       const variantRepo = manager.getRepository(ProductVariantEntity);
       const existingBySku = new Map(locked.variants.map((variant) => [variant.sku, variant]));
       const existingById = new Map(locked.variants.map((variant) => [variant.id, variant]));
+      for (const existingVariant of locked.variants) {
+        if (existingVariant.mrp !== undefined && Number(existingVariant.mrp) < data.price) {
+          throw new DomainException(
+            DomainErrorCode.INVALID_PRODUCT_DATA,
+            `Variant MRP for ${existingVariant.sku} cannot be lower than the product price.`,
+          );
+        }
+      }
       const incomingSkus = new Set<string>();
       for (const seed of data.variants) {
         this.validateVariantInput(seed);
@@ -318,6 +329,14 @@ export class ProductsService {
       const variantRepo = manager.getRepository(ProductVariantEntity);
       const existing = await productRepo.findOne({ where: { slug: data.slug }, relations: ["variants"] });
       const existingSkus = new Set((existing?.variants ?? []).map((v) => v.sku));
+      for (const existingVariant of existing?.variants ?? []) {
+        if (existingVariant.mrp !== undefined && Number(existingVariant.mrp) < data.price) {
+          throw new DomainException(
+            DomainErrorCode.INVALID_PRODUCT_DATA,
+            `Variant MRP for ${existingVariant.sku} cannot be lower than the product price.`,
+          );
+        }
+      }
 
       for (const variantSeed of data.variants) {
         if (!existingSkus.has(variantSeed.sku)) {
@@ -403,6 +422,12 @@ export class ProductsService {
       throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Variant MRP must be a non-negative number.");
     }
     const product = await this.findProductOrThrow(productId);
+    if (data.mrp !== undefined && data.mrp < Number(product.price)) {
+      throw new DomainException(
+        DomainErrorCode.INVALID_PRODUCT_DATA,
+        `Variant MRP for ${data.sku} cannot be lower than the product price.`,
+      );
+    }
     if (await this.skuExists(data.sku)) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, `SKU ${data.sku} is already assigned to another product.`);
     const variant = this.variants.create({ product, sku: data.sku, name: data.name, hexColor: data.hexColor, stockQuantity: data.stockQuantity, stockState: this.computeStockState(data.stockQuantity), mrp: data.mrp == null ? undefined : String(data.mrp) });
     const saved = await this.variants.save(variant);
