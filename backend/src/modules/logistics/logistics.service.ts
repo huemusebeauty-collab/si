@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { OrderEntity } from "@/modules/orders/entities/order.entity";
+import { OrderStatusHistoryEntity } from "@/modules/orders/entities/order-status-history.entity";
 import { ShipmentEntity, type ShipmentStatus } from "./entities/shipment.entity";
 import { ShipmentEventEntity } from "./entities/shipment-event.entity";
 import { TransactionService } from "@/database/transaction.service";
@@ -162,6 +163,7 @@ export class LogisticsService {
           }
           lockedOrder.status = mappedOrderStatus;
           await manager.save(lockedOrder);
+          await manager.save(manager.create(OrderStatusHistoryEntity, { order: lockedOrder, status: mappedOrderStatus }));
         }
       }
       if (details?.awbNumber !== undefined) shipment.awbNumber = details.awbNumber;
