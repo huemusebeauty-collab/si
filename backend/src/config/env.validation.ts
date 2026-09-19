@@ -16,9 +16,15 @@ class EnvironmentVariables {
   @IsEnum(Environment)
   NODE_ENV!: Environment;
 
+  @IsOptional()
   @IsInt()
   @Min(1)
-  API_PORT!: number;
+  PORT?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  API_PORT?: number;
 
   @IsString()
   DATABASE_URL!: string;
