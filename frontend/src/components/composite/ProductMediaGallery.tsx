@@ -38,7 +38,9 @@ export function ProductMediaGallery({ product, selectedImageUrl }: { product: Pr
             className={"relative h-16 w-16 shrink-0 overflow-hidden rounded-md border bg-paper sm:h-[68px] sm:w-[68px] " + (url === active ? "border-ink" : "border-transparent")}
           >
             {isVideo(url) ? (
-              <video src={url} muted playsInline preload="metadata" className="h-full w-full object-cover" />
+              <video src={url} muted playsInline preload="metadata" className="h-full w-full object-cover">
+                <track kind="captions" srcLang="en" label="Product video" />
+              </video>
             ) : (
               <img src={url} alt="" className="h-full w-full object-cover" />
             )}
@@ -47,7 +49,9 @@ export function ProductMediaGallery({ product, selectedImageUrl }: { product: Pr
       </div>
       <div className="order-1 aspect-square overflow-hidden rounded-md bg-paper sm:order-2">
         {isVideo(active) ? (
-          <video key={active} src={active} controls playsInline preload="metadata" className="h-full w-full object-contain" />
+          <video key={active} src={active} controls playsInline preload="metadata" className="h-full w-full object-contain">
+            <track kind="captions" srcLang="en" label="Product video" />
+          </video>
         ) : (
           <ProductSwatchImage product={product} imageUrl={active} className="h-full w-full" />
         )}
