@@ -3,15 +3,17 @@ import { getRepositoryToken } from "@nestjs/typeorm";
 import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { OrdersService } from "./orders.service";
 import { OrderEntity } from "./entities/order.entity";
+import { OrderLineItemEntity } from "./entities/order-line-item.entity";
 import { OrderStatusHistoryEntity } from "./entities/order-status-history.entity";
+import { CartService } from "@/modules/cart/cart.service";
+import { ProductsService } from "@/modules/products/products.service";
+import { TransactionService } from "@/database/transaction.service";
 
-// Sprint 3.9 — Mock Infrastructure: repository mocked at the boundary so
-// this test exercises real business-rule logic (Phase 16 §16.8's
-// cancellation/return status-gating) without a live database.
 function createMockRepo<T extends object>() {
   return {
     findOne: jest.fn(),
     find: jest.fn(),
+    createQueryBuilder: jest.fn(),
     save: jest.fn((entity: T) => Promise.resolve(entity)),
     create: jest.fn((entity: Partial<T>) => entity as T),
   };
@@ -20,16 +22,38 @@ function createMockRepo<T extends object>() {
 describe("OrdersService", () => {
   let service: OrdersService;
   let orderRepo: ReturnType<typeof createMockRepo<OrderEntity>>;
+  let historyRepo: ReturnType<typeof createMockRepo<OrderStatusHistoryEntity>>;
+  let productService: { adjustStock: jest.Mock; findVariantById: jest.Mock; listInventory: jest.Mock };
+  let transactionService: { runInTransaction: jest.Mock };
 
   beforeEach(async () => {
     orderRepo = createMockRepo<OrderEntity>();
-    const historyRepo = createMockRepo<OrderStatusHistoryEntity>();
+    historyRepo = createMockRepo<OrderStatusHistoryEntity>();
+    productService = {
+      adjustStock: jest.fn(),
+      findVariantById: jest.fn(),
+      listInventory: jest.fn(),
+    };
+
+    const manager = {
+      update: jest.fn().mockResolvedValue(undefined),
+      create: jest.fn((_: unknown, entity: unknown) => entity),
+      save: jest.fn((entity: unknown) => Promise.resolve(entity)),
+      findOne: jest.fn(),
+    };
+    transactionService = {
+      runInTransaction: jest.fn(async (work: (qr: unknown) => Promise<unknown>) => work({ manager })),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         OrdersService,
         { provide: getRepositoryToken(OrderEntity), useValue: orderRepo },
+        { provide: getRepositoryToken(OrderLineItemEntity), useValue: createMockRepo<OrderLineItemEntity>() },
         { provide: getRepositoryToken(OrderStatusHistoryEntity), useValue: historyRepo },
+        { provide: CartService, useValue: {} },
+        { provide: ProductsService, useValue: productService },
+        { provide: TransactionService, useValue: transactionService },
       ],
     }).compile();
 
@@ -41,25 +65,89 @@ describe("OrdersService", () => {
     await expect(service.getOrder("missing-id")).rejects.toThrow(NotFoundException);
   });
 
-  it("allows cancellation while an order is still processing", async () => {
-    orderRepo.findOne.mockResolvedValue({ id: "o1", status: "processing", lineItems: [], statusHistory: [] } as unknown as OrderEntity);
+  it("allows cancellation while an order is still processing and restores stock", async () => {
+    orderRepo.findOne.mockResolvedValue({
+      id: "o1",
+      status: "processing",
+      lineItems: [{ variantId: "v1", quantity: 2 }],
+      statusHistory: [],
+    } as unknown as OrderEntity);
+
     const result = await service.requestCancellation("o1", "changed my mind");
+
     expect(result.accepted).toBe(true);
+    expect(productService.adjustStock).toHaveBeenCalledWith(
+      "v1",
+      2,
+      expect.any(Object),
+    );
   });
 
-  it("rejects cancellation once an order has shipped (Phase 16 §16.8)", async () => {
-    orderRepo.findOne.mockResolvedValue({ id: "o1", status: "shipped", lineItems: [], statusHistory: [] } as unknown as OrderEntity);
+  it("rejects cancellation once an order has shipped", async () => {
+    orderRepo.findOne.mockResolvedValue({
+      id: "o1",
+      status: "shipped",
+      lineItems: [],
+      statusHistory: [],
+    } as unknown as OrderEntity);
+
     await expect(service.requestCancellation("o1", "too late")).rejects.toThrow(BadRequestException);
   });
 
   it("rejects a return request before delivery", async () => {
-    orderRepo.findOne.mockResolvedValue({ id: "o1", status: "shipped", lineItems: [], statusHistory: [] } as unknown as OrderEntity);
+    orderRepo.findOne.mockResolvedValue({
+      id: "o1",
+      status: "shipped",
+      lineItems: [],
+      statusHistory: [],
+    } as unknown as OrderEntity);
+
     await expect(service.requestReturn("o1", ["li1"], "wrong shade")).rejects.toThrow(BadRequestException);
   });
 
   it("allows a return request after delivery", async () => {
-    orderRepo.findOne.mockResolvedValue({ id: "o1", status: "delivered", lineItems: [], statusHistory: [] } as unknown as OrderEntity);
+    orderRepo.findOne.mockResolvedValue({
+      id: "o1",
+      status: "delivered",
+      lineItems: [],
+      statusHistory: [{ status: "delivered", changedAt: new Date() }],
+      updatedAt: new Date(),
+    } as unknown as OrderEntity);
+
     const result = await service.requestReturn("o1", ["li1"], "wrong shade");
     expect(result.accepted).toBe(true);
+  });
+
+  it("restores stock when admin changes an order to cancelled", async () => {
+    const updatedOrder = {
+      id: "o1",
+      status: "cancelled",
+      lineItems: [{ variantId: "v1", quantity: 3 }],
+      statusHistory: [],
+    } as unknown as OrderEntity;
+
+    orderRepo.findOne.mockResolvedValue({
+      id: "o1",
+      status: "confirmed",
+      lineItems: [{ variantId: "v1", quantity: 3 }],
+      statusHistory: [],
+    } as unknown as OrderEntity);
+
+    // The transaction manager reloads the final order.
+    transactionService.runInTransaction.mockImplementationOnce(async (work: (qr: unknown) => Promise<unknown>) =>
+      work({
+        manager: {
+          update: jest.fn().mockResolvedValue(undefined),
+          create: jest.fn((_: unknown, entity: unknown) => entity),
+          save: jest.fn((entity: unknown) => Promise.resolve(entity)),
+          findOne: jest.fn().mockResolvedValue(updatedOrder),
+        },
+      }),
+    );
+
+    const result = await service.updateStatus("o1", "cancelled");
+
+    expect(result.status).toBe("cancelled");
+    expect(productService.adjustStock).toHaveBeenCalledWith("v1", 3, expect.any(Object));
   });
 });
