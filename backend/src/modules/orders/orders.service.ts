@@ -232,7 +232,7 @@ export class OrdersService {
       return createdOrder;
     }).catch(async (error: unknown) => {
       const driverError = error instanceof QueryFailedError ? (error as QueryFailedError & { driverError?: { code?: string; constraint?: string } }).driverError : undefined;
-      if (normalizedIdempotencyKey && driverError?.code === "23505" && driverError.constraint === "UQ_orders_idempotencyKey") {
+      if (normalizedIdempotencyKey && driverError?.code === "23505" && ["UQ_orders_customerId_idempotencyKey", "UQ_orders_idempotencyKey"].includes(driverError.constraint ?? "")) {
         const existingOrder = await this.orders.findOne({
           where: { customerId, idempotencyKey: normalizedIdempotencyKey },
           relations: ["lineItems", "statusHistory"],
