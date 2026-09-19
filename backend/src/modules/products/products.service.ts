@@ -54,7 +54,7 @@ export class ProductsService {
         if (seed.mrp !== undefined && seed.mrp < data.price) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, `Variant MRP for ${seed.sku} cannot be lower than the product price.`);
         if (incomingSkus.has(seed.sku)) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, `Duplicate SKU ${seed.sku} in product variants.`);
         incomingSkus.add(seed.sku);
-        const owner = await variantRepo.findOne({ where: { sku: seed.sku } });
+        const owner = await variantRepo.findOne({ where: { sku: seed.sku }, relations: ["product"] });
         if (owner && owner.product?.id !== productId) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, `SKU ${seed.sku} is already assigned to another product.`);
       }
       locked.slug = data.slug;
