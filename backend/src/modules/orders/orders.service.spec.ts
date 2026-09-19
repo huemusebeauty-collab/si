@@ -154,7 +154,7 @@ describe("OrdersService", () => {
     orderRepo.findOne.mockResolvedValue({ id: "o1", status: "processing", lineItems: [{ variantId: "v1", quantity: 2 }], statusHistory: [] } as unknown as OrderEntity);
     const result = await service.requestCancellation("o1", "changed my mind");
     expect(result.accepted).toBe(true);
-    expect(productService.adjustStock).toHaveBeenCalledWith("v1", 2, expect.any(Object));
+    expect(productService.adjustStock).toHaveBeenCalledWith("v1", 2, expect.any(Object), { reason: "order_cancellation", referenceType: "order", referenceId: "o1" });
   });
 
   it("rejects cancellation once an order has shipped", async () => {
@@ -188,6 +188,6 @@ describe("OrdersService", () => {
 
     const result = await service.updateStatus("o1", "cancelled");
     expect(result.status).toBe("cancelled");
-    expect(productService.adjustStock).toHaveBeenCalledWith("v1", 3, expect.any(Object));
+    expect(productService.adjustStock).toHaveBeenCalledWith("v1", 3, expect.any(Object), { reason: "order_cancellation", referenceType: "order", referenceId: "o1" });
   });
 });
