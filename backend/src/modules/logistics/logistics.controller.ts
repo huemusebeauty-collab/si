@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { RequirePermission } from "@/admin/common/require-permission.decorator";
 import { LogisticsService } from "./logistics.service";
 import type { ShipmentStatus } from "./entities/shipment.entity";
+import { CreateShipmentDto, UpdateShipmentStatusDto } from "./dto/logistics.dto";
 
 @ApiTags("admin-logistics")
 @ApiBearerAuth()
@@ -42,7 +43,7 @@ export class LogisticsController {
 
   @RequirePermission("logistics", "edit")
   @Post("shipments")
-  create(@Body() body: {
+  create(@Body() body: CreateShipmentDto,
     orderId: string;
     carrier?: string;
     serviceLevel?: string;
