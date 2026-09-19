@@ -46,7 +46,7 @@ export function calculateGstWithinMrp(params: {
     return { ...base, taxType: "none", cgstRate: 0, cgstAmount: 0, sgstRate: 0, sgstAmount: 0, igstRate: 0, igstAmount: 0 };
   }
   if (params.gstRegistered !== true) {
-    throw new Error("GST calculation requires a GST-registered supplier.");
+    return { grossAmount, taxableAmount: grossAmount, taxAmount: 0, taxType: "none", cgstRate: 0, cgstAmount: 0, sgstRate: 0, sgstAmount: 0, igstRate: 0, igstAmount: 0 };
   }
   const supplier = params.supplierStateCode?.trim();
   const place = params.placeOfSupplyStateCode?.trim();

@@ -53,15 +53,18 @@ describe("calculateGstWithinMrp", () => {
     expect(result.taxAmount).toBe(0);
   });
 
-  it("rejects taxable GST when supplier is not GST registered", () => {
-    expect(() => calculateGstWithinMrp({
+  it("does not add GST when the supplier is not GST registered", () => {
+    const result = calculateGstWithinMrp({
       amountAfterDiscount: 118,
       gstRate: 18,
       taxInclusiveMrp: true,
       supplierStateCode: "08",
       placeOfSupplyStateCode: "08",
       gstRegistered: false,
-    })).toThrow("GST calculation requires a GST-registered supplier.");
+    });
+    expect(result.taxableAmount).toBe(118);
+    expect(result.taxAmount).toBe(0);
+    expect(result.taxType).toBe("none");
   });
 
   it("rejects taxable GST when state codes are missing", () => {
