@@ -61,6 +61,7 @@ export const adminApi = {
   getOrder: (id: string) => request<AdminOrder>(`/orders/admin/${id}`),
   getAdminInvoice: (id: string, size = "A4", format = "STANDARD") =>
     request<AdminInvoice>(`/orders/admin/${id}/invoice?size=${encodeURIComponent(size)}&format=${encodeURIComponent(format)}`),
+  issueAdminInvoice: (id: string) => request<AdminInvoice>(`/orders/admin/${id}/invoice`, { method: "POST" }),
   updateOrderStatus: (id: string, status: string) => request<AdminOrder>(`/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
   searchCustomers: (params: URLSearchParams) => request<SimpleList<AdminCustomer>>(`/admin/customers?${params}`),
   getCustomer: (id: string) => request<AdminCustomer>(`/admin/customers/${id}`),
