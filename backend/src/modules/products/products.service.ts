@@ -558,10 +558,15 @@ export class ProductsService {
     return children.flatMap((child) => [child.id, ...this.flattenCategoryIds(child.children)]);
   }
 
-  async adjustStock(variantId: string, delta: number, manager?: EntityManager): Promise<ProductVariantEntity> {
+  async adjustStock(
+    variantId: string,
+    delta: number,
+    manager?: EntityManager,
+    movementContext: { reason?: string; referenceType?: string; referenceId?: string } = {},
+  ): Promise<ProductVariantEntity> {
     if (!manager) {
       return this.transactions.runInTransaction(async (queryRunner) => {
-        return this.adjustStock(variantId, delta, queryRunner.manager);
+        return this.adjustStock(variantId, delta, queryRunner.manager, movementContext);
       }).then(async (saved) => {
         await this.cacheInvalidation.invalidatePrefix("products");
         return saved;
@@ -591,7 +596,9 @@ export class ProductsService {
           delta,
           quantityBefore: previousQuantity,
           quantityAfter: nextQuantity,
-          reason: "stock_adjustment",
+          reason: movementContext.reason ?? "stock_adjustment",
+          referenceType: movementContext.referenceType,
+          referenceId: movementContext.referenceId,
         });
         await movementRepo.save(movement);
       }
