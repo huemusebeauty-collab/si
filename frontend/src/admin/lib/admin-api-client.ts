@@ -85,7 +85,10 @@ export const adminApi = {
   uploadMedia: async (file: File): Promise<{ key: string; url: string }> => {
     const token = getToken(); const form = new FormData(); form.append("file", file);
     const response = await fetch(`${API_BASE}/storage/upload`, { method: "POST", headers: token ? { Authorization: `Bearer ${token}` } : {}, body: form });
-    if (!response.ok) throw new AdminApiError(response.status, "UPLOAD_FAILED", "Upload failed.");
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({ errorCode: "UNKNOWN", message: response.statusText }));
+      throw new AdminApiError(response.status, body.errorCode ?? "UPLOAD_FAILED", body.message ?? "Upload failed.");
+    }
     return (await response.json()).data;
   },
   getIntegrationsStatus: () => request<IntegrationsStatus>("/integrations/status"),
