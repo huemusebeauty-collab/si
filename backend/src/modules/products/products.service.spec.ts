@@ -70,6 +70,20 @@ describe("ProductsService — stock adjustment", () => {
     expect(result.stockState).toBe("low-stock");
   });
 
+  it("records a business reference on stock movements", async () => {
+    variantRepo.findOneOrFail.mockResolvedValue({ id: "v1", sku: "SKU-1", stockQuantity: 10, stockState: "in-stock" });
+    await service.adjustStock("v1", -2, undefined, {
+      reason: "order_reservation",
+      referenceType: "cart_checkout",
+      referenceId: "cart-1",
+    });
+    expect(movementRepo.create).toHaveBeenCalledWith(expect.objectContaining({
+      reason: "order_reservation",
+      referenceType: "cart_checkout",
+      referenceId: "cart-1",
+    }));
+  });
+
   it("uses a pessimistic row lock for standalone stock adjustments", async () => {
     variantRepo.findOneOrFail.mockResolvedValue({ id: "v1", sku: "SKU-1", stockQuantity: 10, stockState: "in-stock" });
     await service.adjustStock("v1", -1);
