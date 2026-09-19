@@ -1,7 +1,4 @@
-// Shared TypeScript types. Sprint 2 uses these against mock data only —
-// they will be aligned to the real API response shape in Sprint 3+
-// (backend) without changing component code, since components only ever
-// consume these types, never raw API payloads directly.
+// Shared frontend product contract. API adapters map backend responses into this shape.
 
 export type ProductBadge = "New" | "Best Seller" | "Limited Edition" | "Luxury";
 
@@ -17,6 +14,7 @@ export interface Shade {
   name: string;
   hex: string;
   inStock: boolean;
+  imageUrl?: string;
 }
 
 export interface Product {
@@ -28,6 +26,7 @@ export interface Product {
   salePrice?: number;
   currency: string;
   imageUrl: string;
+  imageUrls: string[];
   imageAlt: string;
   badges: ProductBadge[];
   availability: AvailabilityStatus;
