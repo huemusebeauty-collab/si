@@ -22,6 +22,16 @@ export class OrdersController {
   }
 
   @RequirePermission("orders", "view")
+  @Get("admin/:orderId/invoice")
+  adminInvoice(
+    @Param("orderId") orderId: string,
+    @Query("size") size?: string,
+    @Query("format") format?: string,
+  ) {
+    return this.orders.generateInvoice(orderId, size, format);
+  }
+
+  @RequirePermission("orders", "view")
   @Get("admin/:orderId")
   adminGet(@Param("orderId") orderId: string) {
     return this.orders.getOrder(orderId);
