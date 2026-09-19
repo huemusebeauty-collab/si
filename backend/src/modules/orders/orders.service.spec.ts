@@ -43,6 +43,7 @@ describe("OrdersService", () => {
       findOne: jest.fn().mockResolvedValue({ id: "o1", status: "processing", lineItems: [{ variantId: "v1", quantity: 2 }], statusHistory: [] }),
     };
     transactionService = { runInTransaction: jest.fn(async (work: (qr: unknown) => Promise<unknown>) => work({ manager })) };
+    const settingsService = { getBusinessSettings: jest.fn().mockResolvedValue({ storeName: "Silku", gstRegistered: false, reverseChargeDefault: false }) };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -57,6 +58,7 @@ describe("OrdersService", () => {
         { provide: CartService, useValue: {} },
         { provide: ProductsService, useValue: productService },
         { provide: TransactionService, useValue: transactionService },
+        { provide: SettingsService, useValue: settingsService },
       ],
     }).compile();
     service = module.get(OrdersService);
