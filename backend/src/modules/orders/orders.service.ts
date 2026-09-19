@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { QueryFailedError, Repository } from "typeorm";
 import { OrderEntity, type OrderStatus } from "./entities/order.entity";
 import { OrderLineItemEntity } from "./entities/order-line-item.entity";
 import { OrderStatusHistoryEntity } from "./entities/order-status-history.entity";
@@ -143,7 +143,20 @@ export class OrdersService {
     return { orderCount: orders.length, averageOrderValue: orders.length ? roundMoney(totalRevenue / orders.length) : 0, totalRevenue: roundMoney(totalRevenue), statusBreakdown };
   }
 
-  async createOrder(customerId: string, cartId: string, shippingAddress: Record<string, unknown>): Promise<OrderEntity> {
+  async createOrder(customerId: string, cartId: string, shippingAddress: Record<string, unknown>, idempotencyKey?: string): Promise<OrderEntity> {
+    const normalizedIdempotencyKey = idempotencyKey?.trim();
+    if (normalizedIdempotencyKey && (normalizedIdempotencyKey.length < 1 || normalizedIdempotencyKey.length > 128)) {
+      throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Idempotency-Key must be between 1 and 128 characters.");
+    }
+
+    if (normalizedIdempotencyKey) {
+      const existingOrder = await this.orders.findOne({
+        where: { customerId, idempotencyKey: normalizedIdempotencyKey },
+        relations: ["lineItems", "statusHistory"],
+      });
+      if (existingOrder) return existingOrder;
+    }
+
     const cart = await this.cart.findById(cartId);
     if (cart.customerId && cart.customerId !== customerId) throw new DomainException(DomainErrorCode.REAUTHENTICATION_REQUIRED, "The cart does not belong to the authenticated customer.");
     const activeLines = cart.lineItems.filter((li) => !li.savedForLater);
@@ -207,7 +220,7 @@ export class OrdersService {
       }
 
       if (total < 0 || (subtotal > 0 && total > subtotal + 0.005 && discountAmount === 0)) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Invalid tax calculation.");
-      const order = manager.create(OrderEntity, { customerId, status: "pending_payment", subtotal: subtotal.toFixed(2), discountAmount: discountAmount.toFixed(2), taxableAmount: taxableAmount.toFixed(2), taxAmount: taxAmount.toFixed(2), total: total.toFixed(2), currency: "INR", shippingAddress });
+      const order = manager.create(OrderEntity, { customerId, idempotencyKey: normalizedIdempotencyKey, status: "pending_payment", subtotal: subtotal.toFixed(2), discountAmount: discountAmount.toFixed(2), taxableAmount: taxableAmount.toFixed(2), taxAmount: taxAmount.toFixed(2), total: total.toFixed(2), currency: "INR", shippingAddress });
       const savedOrder = await manager.save(order);
       for (const snapshot of snapshotLines) await manager.save(manager.create(OrderLineItemEntity, { ...snapshot, order: savedOrder }));
       await manager.save(manager.create(OrderStatusHistoryEntity, { order: savedOrder, status: "pending_payment" }));
@@ -217,6 +230,16 @@ export class OrdersService {
       });
       if (!createdOrder) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Created order could not be loaded.");
       return createdOrder;
+    }).catch(async (error: unknown) => {
+      const driverError = error instanceof QueryFailedError ? (error as QueryFailedError & { driverError?: { code?: string; constraint?: string } }).driverError : undefined;
+      if (normalizedIdempotencyKey && driverError?.code === "23505" && driverError.constraint === "UQ_orders_idempotencyKey") {
+        const existingOrder = await this.orders.findOne({
+          where: { customerId, idempotencyKey: normalizedIdempotencyKey },
+          relations: ["lineItems", "statusHistory"],
+        });
+        if (existingOrder) return existingOrder;
+      }
+      throw error;
     });
   }
 
