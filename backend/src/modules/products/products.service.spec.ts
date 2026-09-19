@@ -26,7 +26,7 @@ describe("ProductsService — stock adjustment", () => {
         { provide: getRepositoryToken(ProductVariantEntity), useValue: variantRepo },
         { provide: CacheInvalidationService, useValue: { invalidatePrefix: jest.fn() } },
         { provide: CategoriesService, useValue: {} },
-        { provide: TransactionService, useValue: { runInTransaction: jest.fn(async (work: (qr: unknown) => Promise<unknown>) => work({ manager: variantRepo })) } },
+        { provide: TransactionService, useValue: { runInTransaction: jest.fn(async (work: (qr: unknown) => Promise<unknown>) => work({ manager: { getRepository: () => variantRepo } })) } },
       ],
     }).compile();
     service = module.get(ProductsService);
@@ -62,6 +62,15 @@ describe("ProductsService — stock adjustment", () => {
     const result = await service.adjustStock("v1", 5);
     expect(result.stockQuantity).toBe(5);
     expect(result.stockState).toBe("low-stock");
+  });
+
+  it("uses a pessimistic row lock for standalone stock adjustments", async () => {
+    variantRepo.findOneOrFail.mockResolvedValue({ id: "v1", sku: "SKU-1", stockQuantity: 10, stockState: "in-stock" });
+    await service.adjustStock("v1", -1);
+    expect(variantRepo.findOneOrFail).toHaveBeenCalledWith({
+      where: { id: "v1" },
+      lock: { mode: "pessimistic_write" },
+    });
   });
 });
 
