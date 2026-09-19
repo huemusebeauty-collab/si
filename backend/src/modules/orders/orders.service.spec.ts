@@ -70,7 +70,7 @@ describe("OrdersService", () => {
   });
 
   it("allows a return request after delivery", async () => {
-    orderRepo.findOne.mockResolvedValue({ id: "o1", status: "delivered", lineItems: [], statusHistory: [{ status: "delivered", changedAt: new Date() }], updatedAt: new Date() } as unknown as OrderEntity);
+    orderRepo.findOne.mockResolvedValue({ id: "o1", status: "delivered", lineItems: [{ id: "li1", variantId: "v1", quantity: 1 }], statusHistory: [{ status: "delivered", changedAt: new Date() }], updatedAt: new Date() } as unknown as OrderEntity);
     const result = await service.requestReturn("o1", ["li1"], "wrong shade");
     expect(result.accepted).toBe(true);
   });
