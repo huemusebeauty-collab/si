@@ -21,7 +21,7 @@ const HAIR_CARE: ProductSeed[] = [
     },
     metaTitle: "Silku Scalp Balance Shampoo | Silku",
     metaDescription: "A gentle daily shampoo designed to cleanse the scalp and hair without an overly stripped after-feel.",
-    mediaUrls: [],
+    mediaUrls: ["/products/silku-scalp-balance-shampoo.svg"],
     variants: [{ sku: "HMB-HC-SH-001", name: "Standard", stockQuantity: 0 }],
   },
   {
@@ -44,7 +44,7 @@ const HAIR_CARE: ProductSeed[] = [
     },
     metaTitle: "Silku Anti-Dandruff Scalp Shampoo | Silku",
     metaDescription: "A scalp-focused shampoo designed for routine cleansing when flakes and excess scalp buildup are a concern.",
-    mediaUrls: [],
+    mediaUrls: ["/products/silku-anti-dandruff-scalp-shampoo.svg"],
     variants: [{ sku: "HMB-HC-SH-002", name: "Standard", stockQuantity: 0 }],
   },
   {
@@ -67,7 +67,7 @@ const HAIR_CARE: ProductSeed[] = [
     },
     metaTitle: "Silku Smooth & Hydrate Conditioner | Silku",
     metaDescription: "A lightweight conditioner that helps soften and detangle hair while leaving lengths smooth and manageable.",
-    mediaUrls: [],
+    mediaUrls: ["/products/silku-smooth-hydrate-conditioner.svg"],
     variants: [{ sku: "HMB-HC-CD-001", name: "Standard", stockQuantity: 0 }],
   },
   {
@@ -90,7 +90,7 @@ const HAIR_CARE: ProductSeed[] = [
     },
     metaTitle: "Silku Damage Repair Hair Mask | Silku",
     metaDescription: "A richer rinse-out hair mask for dry-feeling, stressed lengths that need extra conditioning and softness.",
-    mediaUrls: [],
+    mediaUrls: ["/products/silku-damage-repair-hair-mask.svg"],
     variants: [{ sku: "HMB-HC-MK-001", name: "Standard", stockQuantity: 0 }],
   },
   {
@@ -113,7 +113,7 @@ const HAIR_CARE: ProductSeed[] = [
     },
     metaTitle: "Silku Bond Repair Treatment | Silku",
     metaDescription: "A leave-on hair treatment designed for damaged-feeling lengths that need a focused smoothing and conditioning step.",
-    mediaUrls: [],
+    mediaUrls: ["/products/silku-bond-repair-treatment.svg"],
     variants: [{ sku: "HMB-HC-BR-001", name: "Standard", stockQuantity: 0 }],
   },
   {
@@ -136,7 +136,7 @@ const HAIR_CARE: ProductSeed[] = [
     },
     metaTitle: "Silku Frizz Control Hair Serum | Silku",
     metaDescription: "A lightweight smoothing serum that helps tame the look of frizz and flyaways while adding a polished finish.",
-    mediaUrls: [],
+    mediaUrls: ["/products/silku-frizz-control-hair-serum.svg"],
     variants: [{ sku: "HMB-HC-SR-001", name: "Standard", stockQuantity: 0 }],
   },
   {
@@ -159,7 +159,7 @@ const HAIR_CARE: ProductSeed[] = [
     },
     metaTitle: "Silku Heat Shield Hair Serum | Silku",
     metaDescription: "A lightweight pre-styling serum designed to condition hair before heat styling and leave lengths smoother-looking.",
-    mediaUrls: [],
+    mediaUrls: ["/products/silku-heat-shield-hair-serum.svg"],
     variants: [{ sku: "HMB-HC-SR-002", name: "Standard", stockQuantity: 0 }],
   },
   {
@@ -182,7 +182,7 @@ const HAIR_CARE: ProductSeed[] = [
     },
     metaTitle: "Silku Scalp Strength Serum | Silku",
     metaDescription: "A lightweight scalp serum designed for targeted scalp care with a simple leave-on routine.",
-    mediaUrls: [],
+    mediaUrls: ["/products/silku-scalp-strength-serum.svg"],
     variants: [{ sku: "HMB-HC-SR-003", name: "Standard", stockQuantity: 0 }],
   },
   {
@@ -205,7 +205,7 @@ const HAIR_CARE: ProductSeed[] = [
     },
     metaTitle: "Silku Lightweight Hair Oil | Silku",
     metaDescription: "A lightweight finishing hair oil for dry-feeling lengths that need softness, shine and easier manageability.",
-    mediaUrls: [],
+    mediaUrls: ["/products/silku-lightweight-hair-oil.svg"],
     variants: [{ sku: "HMB-HC-OIL-001", name: "Standard", stockQuantity: 0 }],
   },
   {
@@ -228,7 +228,7 @@ const HAIR_CARE: ProductSeed[] = [
     },
     metaTitle: "Silku Pre-Wash Scalp Oil | Silku",
     metaDescription: "A pre-wash scalp and hair oil designed as an occasional conditioning step before shampooing.",
-    mediaUrls: [],
+    mediaUrls: ["/products/silku-pre-wash-scalp-oil.svg"],
     variants: [{ sku: "HMB-HC-OIL-002", name: "Standard", stockQuantity: 0 }],
   },
   {
@@ -251,7 +251,7 @@ const HAIR_CARE: ProductSeed[] = [
     },
     metaTitle: "Silku Leave-In Repair Cream | Silku",
     metaDescription: "A lightweight leave-in cream that helps condition dry-feeling lengths and improve everyday manageability.",
-    mediaUrls: [],
+    mediaUrls: ["/products/silku-leave-in-repair-cream.svg"],
     variants: [{ sku: "HMB-HC-LI-001", name: "Standard", stockQuantity: 0 }],
   },
   {
@@ -274,7 +274,7 @@ const HAIR_CARE: ProductSeed[] = [
     },
     metaTitle: "Silku Curl Define Leave-In | Silku",
     metaDescription: "A lightweight leave-in cream designed to condition curls and waves while supporting softer, more defined-looking texture.",
-    mediaUrls: [],
+    mediaUrls: ["/products/silku-curl-define-leave-in.svg"],
     variants: [{ sku: "HMB-HC-LI-002", name: "Standard", stockQuantity: 0 }],
   },
   {
@@ -297,7 +297,7 @@ const HAIR_CARE: ProductSeed[] = [
     },
     metaTitle: "Silku Volume Boost Shampoo | Silku",
     metaDescription: "A lightweight shampoo designed to cleanse without leaving hair feeling weighed down, supporting a fuller-looking finish.",
-    mediaUrls: [],
+    mediaUrls: ["/products/silku-volume-boost-shampoo.svg"],
     variants: [{ sku: "HMB-HC-SH-003", name: "Standard", stockQuantity: 0 }],
   },
   {
@@ -320,7 +320,7 @@ const HAIR_CARE: ProductSeed[] = [
     },
     metaTitle: "Silku Color Protect Shampoo | Silku",
     metaDescription: "A gentle shampoo designed for color-treated hair routines, cleansing while helping maintain a smooth, conditioned feel.",
-    mediaUrls: [],
+    mediaUrls: ["/products/silku-color-protect-shampoo.svg"],
     variants: [{ sku: "HMB-HC-SH-004", name: "Standard", stockQuantity: 0 }],
   },
   {
@@ -343,7 +343,7 @@ const HAIR_CARE: ProductSeed[] = [
     },
     metaTitle: "Silku Deep Hydration Conditioner | Silku",
     metaDescription: "A richer conditioner for dry-feeling lengths that helps improve softness, detangling and smoothness.",
-    mediaUrls: [],
+    mediaUrls: ["/products/silku-deep-hydration-conditioner.svg"],
     variants: [{ sku: "HMB-HC-CD-002", name: "Standard", stockQuantity: 0 }],
   },
 ];
