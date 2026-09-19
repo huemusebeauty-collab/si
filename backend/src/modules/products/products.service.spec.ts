@@ -214,3 +214,52 @@ describe("ProductsService — product upsert variant persistence", () => {
     })).toThrow(DomainException);
   });
 });
+
+describe("ProductsService — pricing invariants", () => {
+  it("rejects a product price increase that would leave an existing variant MRP below price", async () => {
+    const productRepo = createMockRepo();
+    const variantRepo = createMockRepo();
+    const cache = { invalidatePrefix: jest.fn() };
+    const existingVariant = { id: "v1", sku: "SKU-1", name: "Shade", stockQuantity: 5, stockState: "low-stock", mrp: "300" };
+    const lockedProduct = { id: "p1", slug: "product", variants: [existingVariant] };
+
+    productRepo.findOne
+      .mockResolvedValueOnce(lockedProduct)
+      .mockResolvedValueOnce(lockedProduct);
+    const manager = {
+      getRepository: jest.fn((entity: unknown) => entity === ProductEntity ? productRepo : variantRepo),
+    };
+    const service = new ProductsService(productRepo as never, variantRepo as never, cache as never, {} as CategoriesService, {
+      runInTransaction: jest.fn(async (work: (qr: unknown) => Promise<unknown>) => work({ manager })),
+    } as never);
+
+    await expect(service.updateProductById("p1", {
+      slug: "product",
+      name: "Product",
+      category: { id: "c1" } as never,
+      price: 400,
+      description: "Test",
+      content: {} as never,
+      metaTitle: "Product",
+      metaDescription: "Product",
+      mediaUrls: [],
+      variants: [{ id: "v1", sku: "SKU-1", name: "Shade", stockQuantity: 5, mrp: 450 }],
+    })).rejects.toThrow(DomainException);
+  });
+
+  it("rejects adding a variant whose MRP is below the product price", async () => {
+    const productRepo = createMockRepo();
+    const variantRepo = createMockRepo();
+    productRepo.findOne.mockResolvedValue({ id: "p1", price: "500", variants: [] });
+    variantRepo.findOne.mockResolvedValue(null);
+    const service = new ProductsService(productRepo as never, variantRepo as never, {} as never, {} as CategoriesService, {} as never);
+
+    await expect(service.addVariant("p1", {
+      sku: "SKU-NEW",
+      name: "New Shade",
+      stockQuantity: 1,
+      mrp: 499,
+    })).rejects.toThrow(DomainException);
+  });
+});
+
