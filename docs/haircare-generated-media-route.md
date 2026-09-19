@@ -1,4 +1,4 @@
-# Hair Care Generated Media Route — Phase 4L.20.14–4L.20.16
+# Hair Care Generated Media Route — Phase 4L.20.14–4L.20.17
 
 ## Purpose
 
@@ -50,6 +50,45 @@ Reasons:
 
 No generated asset was promoted to GitHub product media or the production DB.
 
+## Phase 4L.20.17 Result — Available Source Audit
+
+All currently available conversation assets relevant to the pilot were audited.
+
+### Uploaded source
+
+The uploaded Scalp Balance Shampoo source image shows:
+- Silku Scalp Balance Shampoo
+- 300 mL
+
+Production catalog requires 250 mL, so this source remains **REJECTED** for production.
+
+### Generated individual candidates
+
+Two generated individual files were available:
+- silku-scalp-balance-shampoo_img1_standard.jpg
+- silku-scalp-balance-shampoo_img2_standard.jpg
+
+Text/identity QA:
+- Product name: matches
+- Package size: 250 mL
+- Product-specific: yes
+- Generated/rendered: yes
+
+Technical QA:
+- img1 dimensions: 452 × 700 px
+- img2 dimensions: 409 × 700 px
+- Required production image gate: minimum 1500 × 1500 px
+
+Result: **REJECTED for production mapping due to insufficient resolution**.
+
+They remain QA/draft assets only and are not mapped to GitHub product media.
+
+### Video
+
+No individual verified MP4 product video is available in the current conversation assets.
+
+Result: **PENDING**.
+
 ## Current verified status
 
 - Existing verified Hair Care SVGs: preserved.
@@ -57,6 +96,7 @@ No generated asset was promoted to GitHub product media or the production DB.
 - Additional QA-passed production images: 0
 - QA-passed production videos: 0
 - Production DB media mutation in this phase: 0
+- Wrong/unverified/reused media promoted: 0
 - Admin engineer work: untouched.
 
 ## Acceptance Gate Still Open
@@ -64,6 +104,6 @@ No generated asset was promoted to GitHub product media or the production DB.
 The pilot requires individually verified:
 - silku-scalp-balance-shampoo_img1_standard.jpg
 - silku-scalp-balance-shampoo_img2_standard.jpg
-- silku-scalp-balance-shampoo_video_standard.mp4
+- silku-scalance-shampoo_video_standard.mp4
 
 Only assets that pass identity, exact 250 mL specification, technical quality, and authenticity/label QA should be mapped to production.
