@@ -5,6 +5,7 @@ import { OrderEntity } from "@/modules/orders/entities/order.entity";
 import { ShipmentEntity, type ShipmentStatus } from "./entities/shipment.entity";
 import { ShipmentEventEntity } from "./entities/shipment-event.entity";
 import { TransactionService } from "@/database/transaction.service";
+import { DomainErrorCode, DomainException } from "@/common/exceptions/domain.exception";
 
 const TERMINAL: ShipmentStatus[] = ["delivered", "rto", "returned", "cancelled"];
 
@@ -68,7 +69,7 @@ export class LogisticsService {
       });
       if (!order) throw new NotFoundException("Order not found.");
       if (!["confirmed", "processing"].includes(order.status)) {
-        throw new Error(`Shipment can only be created for a confirmed or processing order (current: "${order.status}").`);
+        throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, `Shipment can only be created for a confirmed or processing order (current: "${order.status}").`);
       }
 
       const existing = await manager.findOne(ShipmentEntity, { where: { orderId: input.orderId } });
@@ -121,7 +122,7 @@ export class LogisticsService {
       }
 
       if (shipment.status !== status && !VALID_TRANSITIONS[shipment.status].includes(status)) {
-        throw new Error(`Cannot transition shipment from "${shipment.status}" to "${status}".`);
+        throw new DomainException(DomainErrorCode.INVALID_STATUS_TRANSITION, `Cannot transition shipment from "${shipment.status}" to "${status}".`);
       }
 
       shipment.status = status;
