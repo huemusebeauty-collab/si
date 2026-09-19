@@ -229,6 +229,63 @@ export class ProductsService {
     return Boolean(existing && existing.id !== excludeVariantId);
   }
 
+  async upsertFullProduct(data: {
+    slug: string; name: string; category: CategoryEntity; price: number; salePrice?: number;
+    description: string; content: ProductContent; metaTitle: string; metaDescription: string;
+    mediaUrls: string[]; variants: { sku: string; name: string; hexColor?: string; stockQuantity: number; mrp?: number }[];
+  }): Promise<{ entity: ProductEntity; wasCreated: boolean }> {
+    this.validateProductInput(data);
+
+    const result = await this.transactions.runInTransaction(async (queryRunner) => {
+      const manager = queryRunner.manager;
+      const productRepo = manager.getRepository(ProductEntity);
+      const variantRepo = manager.getRepository(ProductVariantEntity);
+      const existing = await productRepo.findOne({ where: { slug: data.slug }, relations: ["variants"] });
+      const existingSkus = new Set((existing?.variants ?? []).map((v) => v.sku));
+
+      for (const variantSeed of data.variants) {
+        if (!existingSkus.has(variantSeed.sku)) {
+          const conflict = await variantRepo.findOne({ where: { sku: variantSeed.sku } });
+          if (conflict) {
+            throw new DomainException(
+              DomainErrorCode.INVALID_PRODUCT_DATA,
+              `SKU ${variantSeed.sku} is already assigned to another product.`,
+            );
+          }
+        }
+      }
+
+      const entity = existing ?? productRepo.create({ slug: data.slug, status: "draft", visibility: "hidden" });
+      entity.name = data.name;
+      entity.category = data.category;
+      entity.price = String(data.price);
+      entity.salePrice = data.salePrice !== undefined ? String(data.salePrice) : undefined;
+      entity.description = data.description;
+      entity.content = data.content;
+      entity.metaTitle = data.metaTitle;
+      entity.metaDescription = data.metaDescription;
+      entity.mediaUrls = data.mediaUrls;
+      const saved = await productRepo.save(entity);
+
+      const existingBySku = new Map((existing?.variants ?? []).map((variant) => [variant.sku, variant]));
+      for (const variantSeed of data.variants) {
+        const variant = existingBySku.get(variantSeed.sku) ?? variantRepo.create({ product: saved, sku: variantSeed.sku });
+        variant.product = saved;
+        variant.name = variantSeed.name;
+        variant.hexColor = variantSeed.hexColor;
+        variant.stockQuantity = variantSeed.stockQuantity;
+        variant.stockState = this.computeStockState(variantSeed.stockQuantity);
+        if (variantSeed.mrp !== undefined) variant.mrp = String(variantSeed.mrp);
+        await variantRepo.save(variant);
+      }
+
+      return { entity: saved, wasCreated: !existing };
+    });
+
+    await this.cacheInvalidation.invalidatePrefix("products");
+    return result;
+  }
+
   async deleteById(productId: string): Promise<void> {
     await this.variants.delete({ product: { id: productId } });
     await this.products.delete({ id: productId });
