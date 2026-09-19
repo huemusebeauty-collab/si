@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from "@nestjs/common";
+import { Body, Controller, Get, Headers, Param, Patch, Post, Query } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { OrdersService } from "./orders.service";
 import type { OrderStatus } from "./entities/order.entity";
@@ -19,6 +19,22 @@ export class OrdersController {
       throw new DomainException(DomainErrorCode.REAUTHENTICATION_REQUIRED, "You do not have access to this order.");
     }
     return order;
+  }
+
+  @RequirePermission("orders", "view")
+  @Get("admin/:orderId/invoice")
+  adminInvoice(
+    @Param("orderId") orderId: string,
+    @Query("size") size?: string,
+    @Query("format") format?: string,
+  ) {
+    return this.orders.generateInvoice(orderId, size, format);
+  }
+
+  @RequirePermission("orders", "edit")
+  @Post("admin/:orderId/invoice")
+  issueAdminInvoice(@Param("orderId") orderId: string) {
+    return this.orders.issueInvoice(orderId);
   }
 
   @RequirePermission("orders", "view")
@@ -110,7 +126,8 @@ export class OrdersController {
   @Post()
   create(
     @CurrentUser() user: AuthenticatedUser | undefined,
-    @Body() body: { customerId: string; cartId: string; shippingAddress: Record<string, unknown> },
+    @Headers("idempotency-key") idempotencyKey: string | undefined,
+    @Body() body: { customerId: string; cartId: string; shippingAddress: Record<string, unknown>; customerGstin?: string; customerLegalName?: string },
   ) {
     if (user && user.id !== body.customerId) {
       throw new DomainException(
@@ -118,19 +135,7 @@ export class OrdersController {
         "The order's customerId must match the authenticated customer.",
       );
     }
-    return this.orders.createOrder(body.customerId, body.cartId, body.shippingAddress);
-  }
-
-  @Public()
-  @Post(":orderId/confirm")
-  confirm(@Param("orderId") orderId: string, @Body("paymentReference") paymentReference: string) {
-    return this.orders.confirmOrder(orderId, paymentReference);
-  }
-
-  @Public()
-  @Post(":orderId/fail")
-  fail(@Param("orderId") orderId: string, @Body("reason") reason: string) {
-    return this.orders.failOrder(orderId, reason);
+    return this.orders.createOrder(body.customerId, body.cartId, body.shippingAddress, idempotencyKey, body.customerGstin, body.customerLegalName);
   }
 
   @Get(":orderId/refund-eligibility")

@@ -1,7 +1,6 @@
 import { Column, CreateDateColumn, Entity, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
 import { CustomerEntity } from "./customer.entity";
 
-// Sprint 3.4/3.5 — Address entity, per Phase 8 §4 (Customer domain).
 @Entity("addresses")
 export class AddressEntity {
   @PrimaryGeneratedColumn("uuid")
@@ -21,6 +20,9 @@ export class AddressEntity {
 
   @Column()
   region!: string;
+
+  @Column({ type: "varchar", length: 2, nullable: true })
+  stateCode?: string;
 
   @Column()
   postalCode!: string;

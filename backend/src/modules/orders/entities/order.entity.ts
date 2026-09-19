@@ -5,6 +5,7 @@ import { OrderStatusHistoryEntity } from "./order-status-history.entity";
 export type OrderStatus = "pending_payment" | "confirmed" | "payment_failed" | "processing" | "shipped" | "delivered" | "cancelled" | "returned";
 
 @Entity("orders")
+@Index(["customerId", "idempotencyKey"], { unique: true })
 export class OrderEntity {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
@@ -15,6 +16,21 @@ export class OrderEntity {
 
   @Column({ type: "varchar", default: "pending_payment" })
   status!: OrderStatus;
+
+  @Column({ type: "varchar", length: 128, nullable: true })
+  idempotencyKey?: string;
+
+  @Column({ type: "varchar", length: 15, nullable: true })
+  customerGstin?: string;
+
+  @Column({ type: "varchar", length: 200, nullable: true })
+  customerLegalName?: string;
+
+  @Column({ type: "varchar", length: 100, nullable: true })
+  placeOfSupplyState?: string;
+
+  @Column({ type: "varchar", length: 2, nullable: true })
+  placeOfSupplyStateCode?: string;
 
   @Column({ type: "decimal", precision: 10, scale: 2, default: 0 })
   subtotal!: string;

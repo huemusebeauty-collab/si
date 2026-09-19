@@ -42,8 +42,11 @@ export default function CheckoutPage() {
     addressLine2: "",
     city: "",
     state: "",
+    stateCode: "",
     postalCode: "",
-    country: "India",
+    country: "IN",
+    customerGstin: "",
+    customerLegalName: "",
   });
 
   useEffect(() => {
@@ -108,6 +111,7 @@ export default function CheckoutPage() {
     setError(null);
     setSubmitting(true);
     try {
+      if (form.country === "IN" && !/^\\d{2}$/.test(form.stateCode)) throw new Error("Please enter the two-digit state/UT code for the delivery address.");
       const createdOrder = await createOrder(form);
       const idempotencyKey = crypto.randomUUID();
       const nextPayment = await initiatePayment(createdOrder, idempotencyKey);
@@ -230,7 +234,7 @@ export default function CheckoutPage() {
           <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
             {([
               ["fullName", "Full name"], ["phone", "Phone"], ["addressLine1", "Address line 1"], ["addressLine2", "Address line 2 (optional)"],
-              ["city", "City"], ["state", "State"], ["postalCode", "PIN code"], ["country", "Country"],
+              ["city", "City"], ["state", "State"], ["stateCode", "State/UT code (2 digits)"], ["postalCode", "PIN code"], ["country", "Country"], ["customerLegalName", "Legal name (optional)"], ["customerGstin", "GSTIN (optional)"],
             ] as const).map(([field, label]) => (
               <label key={field} className={field === "addressLine1" || field === "addressLine2" ? "sm:col-span-2" : ""}>
                 <span className="text-sm font-medium text-ink">{label}</span>
@@ -240,6 +244,7 @@ export default function CheckoutPage() {
                   onChange={(event) => updateField(field, event.target.value)}
                   className="mt-1 w-full rounded-md border border-fog bg-white px-3 py-3 text-sm text-ink outline-none focus:border-ink"
                   autoComplete={field === "postalCode" ? "postal-code" : field === "fullName" ? "name" : undefined}
+                  maxLength={field === "stateCode" ? 2 : field === "customerGstin" ? 15 : undefined}
                 />
               </label>
             ))}
