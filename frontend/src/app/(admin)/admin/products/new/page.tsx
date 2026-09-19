@@ -72,7 +72,7 @@ function NewProductContent() {
         taxInclusiveMrp,
         variants: [{ sku, name: variantName || "Default", stockQuantity: Number(stock) || 0, mrp: mrpValue }],
       });
-      setSuccess(`Product draft saved successfully (${created.entity?.id ?? created.id}).`);
+      setSuccess(`Product draft saved successfully (${created.entity.id}).`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to save product.");
     } finally { setSaving(false); }
