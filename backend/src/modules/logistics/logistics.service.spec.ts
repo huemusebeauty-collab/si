@@ -129,6 +129,30 @@ describe("LogisticsService", () => {
     expect(products.adjustStock).toHaveBeenCalledWith("v1", 2, expect.any(Object), { reason: "order_return", referenceType: "order", referenceId: "order-1" });
   });
 
+  it("completes the return shipment lifecycle and restores stock only at final return", async () => {
+    const shipment = { id: "shipment-1", status: "return_requested", orderId: "order-1" };
+    shipments.findOne.mockResolvedValue(shipment);
+    orders.findOne.mockResolvedValue({ id: "order-1", status: "delivered", lineItems: [{ variantId: "v1", quantity: 2 }] });
+
+    const inTransit = await service.updateStatus("shipment-1", "return_in_transit", {
+      externalEventId: "return-event-1",
+    });
+    expect(inTransit.status).toBe("return_in_transit");
+    expect(products.adjustStock).not.toHaveBeenCalled();
+
+    const returned = await service.updateStatus("shipment-1", "returned", {
+      externalEventId: "return-event-2",
+    });
+    expect(returned.status).toBe("returned");
+    expect(products.adjustStock).toHaveBeenCalledTimes(1);
+    expect(products.adjustStock).toHaveBeenCalledWith(
+      "v1",
+      2,
+      expect.any(Object),
+      { reason: "order_return", referenceType: "order", referenceId: "order-1" },
+    );
+  });
+
   it("rejects shipment completion when the linked order cannot make the required transition", async () => {
     const shipment = { id: "shipment-1", status: "out_for_delivery", orderId: "order-1" };
     shipments.findOne.mockResolvedValue(shipment);
