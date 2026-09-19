@@ -39,10 +39,6 @@ export class ProductTaxService {
       throw new Error("GST rate must be between 0 and 100 percent.");
     }
 
-    if (input.hsnCode !== undefined) product.hsnCode = input.hsnCode?.trim() || undefined;
-    if (input.gstRate !== undefined) product.gstRate = input.gstRate == null ? undefined : input.gstRate.toFixed(2);
-    if (input.taxInclusiveMrp !== undefined) product.taxInclusiveMrp = input.taxInclusiveMrp;
-
     await this.transactions.runInTransaction(async (queryRunner) => {
       const manager = queryRunner.manager;
       const transactionalProduct = await manager.findOne(ProductEntity, {
@@ -68,12 +64,14 @@ export class ProductTaxService {
 
       await manager.save(transactionalProduct);
     });
+    const updated = await this.products.findOne({ where: { id: productId }, relations: ["variants"] });
+    if (!updated) throw new NotFoundException("Product not found.");
     return {
-      productId: product.id,
-      hsnCode: product.hsnCode,
-      gstRate: product.gstRate,
-      taxInclusiveMrp: product.taxInclusiveMrp,
-      variants: product.variants.map((variant) => ({ variantId: variant.id, sku: variant.sku, mrp: variant.mrp })),
+      productId: updated.id,
+      hsnCode: updated.hsnCode,
+      gstRate: updated.gstRate,
+      taxInclusiveMrp: updated.taxInclusiveMrp,
+      variants: updated.variants.map((variant) => ({ variantId: variant.id, sku: variant.sku, mrp: variant.mrp })),
     };
   }
 }
