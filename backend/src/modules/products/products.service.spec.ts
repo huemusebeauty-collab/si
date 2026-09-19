@@ -10,17 +10,9 @@ import { CategoriesService } from "@/modules/categories/categories.service";
 import { TransactionService } from "@/database/transaction.service";
 
 function createMockRepo() {
-  return {
-    findOne: jest.fn(),
-    findOneOrFail: jest.fn(),
-    save: jest.fn((e: unknown) => Promise.resolve(e)),
-    create: jest.fn((e: unknown) => e),
-  };
+  return { findOne: jest.fn(), findOneOrFail: jest.fn(), save: jest.fn((e: unknown) => Promise.resolve(e)), create: jest.fn((e: unknown) => e) };
 }
 
-// Sprint 4.12/4.2/4.9 — Business Rule Tests: stock adjustment (Sprint
-// 4.2's inventory rules) and optimistic-lock conflict translation
-// (Sprint 4.9).
 describe("ProductsService — stock adjustment", () => {
   let service: ProductsService;
   let variantRepo: ReturnType<typeof createMockRepo>;
@@ -44,7 +36,7 @@ describe("ProductsService — stock adjustment", () => {
     variantRepo.findOneOrFail.mockResolvedValue({ id: "v1", sku: "SKU-1", stockQuantity: 15, stockState: "in-stock" });
     const result = await service.adjustStock("v1", -10);
     expect(result.stockQuantity).toBe(5);
-    expect(result.stockState).toBe("low-stock"); // <= 10 threshold
+    expect(result.stockState).toBe("low-stock");
   });
 
   it("transitions to out-of-stock at zero", async () => {
@@ -78,41 +70,20 @@ describe("ProductsService — product upsert variant persistence", () => {
     const productRepo = createMockRepo();
     const variantRepo = createMockRepo();
     const cache = { invalidatePrefix: jest.fn() };
-    const categoryService = {} as CategoriesService;
-
-    const existingVariant = {
-      id: "v1",
-      sku: "SKU-1",
-      name: "Old Shade",
-      hexColor: "#000000",
-      stockQuantity: 2,
-      stockState: "low-stock",
-    };
-    const existingProduct = {
-      id: "p1",
-      slug: "test-product",
-      variants: [existingVariant],
-    };
+    const existingVariant = { id: "v1", sku: "SKU-1", name: "Old Shade", hexColor: "#000000", stockQuantity: 2, stockState: "low-stock" };
+    const existingProduct = { id: "p1", slug: "test-product", variants: [existingVariant] };
 
     productRepo.findOne.mockResolvedValue(existingProduct);
-    productRepo.save.mockImplementation((e: unknown) => Promise.resolve(e));
+    variantRepo.findOne.mockResolvedValue(null);
     variantRepo.save.mockImplementation((e: unknown) => Promise.resolve(e));
 
-    const service = new ProductsService(
-      productRepo as never,
-      variantRepo as never,
-      cache as never,
-      categoryService,
-      {
-        runInTransaction: jest.fn(async (work: (qr: unknown) => Promise<unknown>) => work({
-          manager: {
-            findOne: jest.fn((entity: unknown) => entity === ProductEntity ? productRepo.findOne() : Promise.resolve(null)),
-            save: jest.fn((entity: unknown) => Promise.resolve(entity)),
-            create: jest.fn((_entity: unknown, value: unknown) => value),
-          },
-        })),
-      } as never,
-    );
+    const manager = {
+      getRepository: jest.fn((entity: unknown) => entity === ProductEntity ? productRepo : variantRepo),
+    };
+
+    const service = new ProductsService(productRepo as never, variantRepo as never, cache as never, {} as CategoriesService, {
+      runInTransaction: jest.fn(async (work: (qr: unknown) => Promise<unknown>) => work({ manager })),
+    } as never);
 
     await service.upsertFullProduct({
       slug: "test-product",
