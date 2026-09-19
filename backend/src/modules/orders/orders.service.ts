@@ -234,20 +234,31 @@ export class OrdersService {
       );
     }
 
-    // Inventory must be restored when an order is cancelled or marked
-    // returned through the admin status API. The customer cancellation path
-    // already performs this restoration itself, so it does not call this
-    // method and cannot double-restore stock.
+    // Inventory restoration must lock and re-read the order inside the
+    // transaction. Otherwise two concurrent cancellation/return requests
+    // could both observe the old status and restore stock twice.
     if (status === "cancelled" || status === "returned") {
       return this.transactions.runInTransaction(async (queryRunner) => {
         const manager = queryRunner.manager;
-        for (const line of order.lineItems) {
+        const lockedOrder = await manager.findOne(OrderEntity, {
+          where: { id: order.id },
+          relations: ["lineItems", "statusHistory"],
+          lock: { mode: "pessimistic_write" },
+        });
+        if (!lockedOrder) throw new NotFoundException("Order not found.");
+        if (!VALID_TRANSITIONS[lockedOrder.status].includes(status)) {
+          throw new DomainException(
+            DomainErrorCode.INVALID_STATUS_TRANSITION,
+            "Cannot transition an order from \"" + lockedOrder.status + "\" to \"" + status + "\".",
+          );
+        }
+        for (const line of lockedOrder.lineItems) {
           await this.products.adjustStock(line.variantId, line.quantity, manager);
         }
-        await manager.update(OrderEntity, order.id, { status });
-        await manager.save(manager.create(OrderStatusHistoryEntity, { order, status }));
+        await manager.update(OrderEntity, lockedOrder.id, { status });
+        await manager.save(manager.create(OrderStatusHistoryEntity, { order: lockedOrder, status }));
         const updated = await manager.findOne(OrderEntity, {
-          where: { id: order.id },
+          where: { id: lockedOrder.id },
           relations: ["lineItems", "statusHistory"],
         });
         if (!updated) throw new NotFoundException("Order not found.");
