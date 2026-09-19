@@ -48,20 +48,19 @@ export function ProductCard({ product }: { product: Product }) {
           <p className="text-[13px] leading-[18px] text-stone">{product.shadeCount} shades</p>
         ) : null}
         <div className="flex items-baseline gap-2">
+          <span className={product.salePrice ? "text-[20px] leading-6 font-semibold text-primary-rose" : "text-[20px] leading-6 font-semibold text-ink"}>
+            {formatCurrency(product.salePrice ?? product.price, product.currency)}
+          </span>
           {product.salePrice ? (
-            <>
-              <span className="text-[20px] leading-6 font-semibold text-primary-rose">
-                {formatCurrency(product.salePrice, product.currency)}
-              </span>
-              <span className="text-[13px] leading-[18px] text-stone line-through">
-                {formatCurrency(product.price, product.currency)}
-              </span>
-            </>
-          ) : (
-            <span className="text-[20px] leading-6 font-semibold text-ink">
+            <span className="text-[13px] leading-[18px] text-stone line-through">
               {formatCurrency(product.price, product.currency)}
             </span>
-          )}
+          ) : null}
+          {product.mrp && product.mrp > (product.salePrice ?? product.price) ? (
+            <span className="text-[13px] leading-[18px] text-stone line-through">
+              MRP {formatCurrency(product.mrp, product.currency)}
+            </span>
+          ) : null}
         </div>
         <AvailabilityLabel status={product.availability} />
       </div>
