@@ -252,7 +252,8 @@ export class ProductsService {
       variant.stockState = this.computeStockState(quantity);
       const saved = await manager.save(variant);
       if (quantity !== previousQuantity) {
-        await manager.save(manager.create(InventoryMovementEntity, {
+        const movementRepo = manager.getRepository(InventoryMovementEntity);
+        const movement = movementRepo.create({
           variantId: variant.id,
           delta: quantity - previousQuantity,
           quantityBefore: previousQuantity,
@@ -260,7 +261,8 @@ export class ProductsService {
           reason: "manual_adjustment",
           referenceType: "admin_stock",
           referenceId: variant.id,
-        }));
+        });
+        await movementRepo.save(movement);
       }
       return saved;
     });
