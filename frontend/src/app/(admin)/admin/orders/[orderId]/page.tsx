@@ -12,7 +12,16 @@ import { Badge } from "@/components/basic/Badge";
 import { Button } from "@/components/basic/Button";
 import { Toast } from "@/components/composite/Toast";
 
-const STATUS_OPTIONS = ["pending_payment", "confirmed", "processing", "shipped", "delivered", "cancelled", "returned"];
+const VALID_TRANSITIONS: Record<string, string[]> = {
+  pending_payment: ["confirmed", "payment_failed", "cancelled"],
+  confirmed: ["processing", "cancelled"],
+  processing: ["shipped", "cancelled"],
+  shipped: ["delivered", "returned"],
+  delivered: ["returned"],
+  payment_failed: ["pending_payment", "cancelled"],
+  cancelled: [],
+  returned: [],
+};
 
 function OrderDetailContent({ orderId }: { orderId: string }) {
   const [toast, setToast] = useState<string | null>(null);
@@ -37,17 +46,24 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
         <div className="rounded-md bg-white p-6 shadow-rest">
           <h2 className="mb-3 font-semibold text-ink">Update Status</h2>
           <div className="flex flex-wrap gap-2">
-            {STATUS_OPTIONS.map((s) => (
+            {(VALID_TRANSITIONS[order.status] ?? []).map((s) => (
               <Button
                 key={s}
-                variant={s === order.status ? "primary" : "outline"}
+                variant="outline"
                 onClick={async () => {
-                  await adminApi.updateOrderStatus(order.id, s);
-                  setToast(`Status updated to "${s}".`);
-                  refetch();
+                  try {
+                    await adminApi.updateOrderStatus(order.id, s);
+                    setToast(`Status updated to "${s}".`);
+                    refetch();
+                  } catch (error) {
+                    setToast(error instanceof Error ? error.message : "Unable to update order status.");
+                  }
                 }}
               >{s}</Button>
             ))}
+            {(VALID_TRANSITIONS[order.status] ?? []).length === 0 && (
+              <p className="text-sm text-muted">No valid status transitions from this state.</p>
+            )}
           </div>
         </div>
       </RoleGate>
