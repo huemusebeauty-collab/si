@@ -4,6 +4,7 @@ import { Repository } from "typeorm";
 import { ProductEntity } from "./entities/product.entity";
 import { ProductVariantEntity } from "./entities/product-variant.entity";
 import { TransactionService } from "@/database/transaction.service";
+import { DomainErrorCode, DomainException } from "@/common/exceptions/domain.exception";
 
 @Injectable()
 export class ProductTaxService {
@@ -36,7 +37,7 @@ export class ProductTaxService {
     if (!product) throw new NotFoundException("Product not found.");
 
     if (input.gstRate != null && (!Number.isFinite(input.gstRate) || input.gstRate < 0 || input.gstRate > 100)) {
-      throw new Error("GST rate must be between 0 and 100 percent.");
+      throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "GST rate must be between 0 and 100 percent.");
     }
 
     await this.transactions.runInTransaction(async (queryRunner) => {
@@ -54,7 +55,7 @@ export class ProductTaxService {
       if (input.variants) {
         const variantMap = new Map(transactionalProduct.variants.map((variant) => [variant.id, variant]));
         for (const update of input.variants) {
-          if (!Number.isFinite(update.mrp) || update.mrp < 0) throw new Error("MRP must be a non-negative number.");
+          if (!Number.isFinite(update.mrp) || update.mrp < 0) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "MRP must be a non-negative number.");
           const variant = variantMap.get(update.variantId);
           if (!variant) throw new NotFoundException(`Variant ${update.variantId} not found for product.`);
           variant.mrp = update.mrp.toFixed(2);
