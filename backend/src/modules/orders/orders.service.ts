@@ -368,7 +368,8 @@ export class OrdersService {
       );
       const issuedNumber = Number(seqRows[0]?.issuedNumber);
       if (!Number.isInteger(issuedNumber) || issuedNumber < 1) throw new Error("Unable to allocate invoice number.");
-      const invoiceNumber = `SLK/${financialYear}/${String(issuedNumber).padStart(6, "0")}`;
+      const shortFinancialYear = `${String(startYear).slice(-2)}-${String(startYear + 1).slice(-2)}`;
+      const invoiceNumber = `SLK/${shortFinancialYear}/${String(issuedNumber).padStart(6, "0")}`;
       const issuedAt = now;
       const snapshot = {
         orderId: order.id,
