@@ -3,12 +3,14 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { ProductEntity } from "./entities/product.entity";
 import { ProductVariantEntity } from "./entities/product-variant.entity";
+import { TransactionService } from "@/database/transaction.service";
 
 @Injectable()
 export class ProductTaxService {
   constructor(
     @InjectRepository(ProductEntity) private readonly products: Repository<ProductEntity>,
     @InjectRepository(ProductVariantEntity) private readonly variants: Repository<ProductVariantEntity>,
+    private readonly transactions: TransactionService,
   ) {}
 
   async getTaxConfig(productId: string) {
@@ -41,18 +43,31 @@ export class ProductTaxService {
     if (input.gstRate !== undefined) product.gstRate = input.gstRate == null ? undefined : input.gstRate.toFixed(2);
     if (input.taxInclusiveMrp !== undefined) product.taxInclusiveMrp = input.taxInclusiveMrp;
 
-    if (input.variants) {
-      const variantMap = new Map(product.variants.map((variant) => [variant.id, variant]));
-      for (const update of input.variants) {
-        if (!Number.isFinite(update.mrp) || update.mrp < 0) throw new Error("MRP must be a non-negative number.");
-        const variant = variantMap.get(update.variantId);
-        if (!variant) throw new NotFoundException(`Variant ${update.variantId} not found for product.`);
-        variant.mrp = update.mrp.toFixed(2);
-      }
-      await this.variants.save([...variantMap.values()]);
-    }
+    await this.transactions.runInTransaction(async (queryRunner) => {
+      const manager = queryRunner.manager;
+      const transactionalProduct = await manager.findOne(ProductEntity, {
+        where: { id: productId },
+        relations: ["variants"],
+      });
+      if (!transactionalProduct) throw new NotFoundException("Product not found.");
 
-    await this.products.save(product);
+      if (input.hsnCode !== undefined) transactionalProduct.hsnCode = input.hsnCode?.trim() || undefined;
+      if (input.gstRate !== undefined) transactionalProduct.gstRate = input.gstRate == null ? undefined : input.gstRate.toFixed(2);
+      if (input.taxInclusiveMrp !== undefined) transactionalProduct.taxInclusiveMrp = input.taxInclusiveMrp;
+
+      if (input.variants) {
+        const variantMap = new Map(transactionalProduct.variants.map((variant) => [variant.id, variant]));
+        for (const update of input.variants) {
+          if (!Number.isFinite(update.mrp) || update.mrp < 0) throw new Error("MRP must be a non-negative number.");
+          const variant = variantMap.get(update.variantId);
+          if (!variant) throw new NotFoundException(`Variant ${update.variantId} not found for product.`);
+          variant.mrp = update.mrp.toFixed(2);
+        }
+        await manager.save([...variantMap.values()]);
+      }
+
+      await manager.save(transactionalProduct);
+    });
     return {
       productId: product.id,
       hsnCode: product.hsnCode,
