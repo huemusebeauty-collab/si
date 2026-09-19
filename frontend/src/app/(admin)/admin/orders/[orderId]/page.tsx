@@ -30,7 +30,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
       </div>
       <div className="rounded-md bg-white p-6 shadow-rest">
         <p><strong>Customer:</strong> {order.customerId}</p>
-        <p><strong>Total:</strong> ${order.total} {order.currency}</p>
+        <p><strong>Total:</strong> ₹{order.total} {order.currency}</p>
         <p><strong>Placed:</strong> {new Date(order.createdAt).toLocaleString()}</p>
       </div>
       <RoleGate module="orders" level="edit">
