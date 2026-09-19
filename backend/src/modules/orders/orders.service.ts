@@ -156,7 +156,7 @@ export class OrdersService {
       let subtotal = 0;
 
       for (const line of activeLines) {
-        const variant = await this.products.findVariantById(line.variantId);
+        const variant = await this.products.findVariantById(line.variantId, manager);
         const unitPrice = Number(variant.product.salePrice ?? variant.product.price);
         const mrp = variant.mrp == null ? null : Number(variant.mrp);
         if (mrp != null && unitPrice > mrp + 0.005) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, `Selling price for ${variant.sku} cannot exceed MRP.`);
