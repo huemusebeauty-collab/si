@@ -44,7 +44,7 @@ export function ProductDetailSummary({ product }: { product: Product }) {
   return (
     <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
       <div className="relative aspect-square overflow-hidden rounded-md bg-paper">
-        <ProductSwatchImage product={product} className="absolute inset-0" />
+        <ProductSwatchImage product={product} imageUrl={selectedShade?.imageUrl} className="absolute inset-0" />
       </div>
       <div className="flex flex-col gap-4">
         <div className="flex gap-2">
