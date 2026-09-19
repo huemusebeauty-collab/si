@@ -4,6 +4,7 @@ import { Repository } from "typeorm";
 import { OrderEntity } from "@/modules/orders/entities/order.entity";
 import { ShipmentEntity, type ShipmentStatus } from "./entities/shipment.entity";
 import { ShipmentEventEntity } from "./entities/shipment-event.entity";
+import { TransactionService } from "@/database/transaction.service";
 
 const TERMINAL: ShipmentStatus[] = ["delivered", "rto", "returned", "cancelled"];
 
@@ -29,6 +30,7 @@ export class LogisticsService {
     @InjectRepository(ShipmentEntity) private readonly shipments: Repository<ShipmentEntity>,
     @InjectRepository(ShipmentEventEntity) private readonly events: Repository<ShipmentEventEntity>,
     @InjectRepository(OrderEntity) private readonly orders: Repository<OrderEntity>,
+    private readonly transactions: TransactionService,
   ) {}
 
   async getShipment(shipmentId: string) {
@@ -58,34 +60,41 @@ export class LogisticsService {
     heightCm?: number;
     estimatedDeliveryAt?: string;
   }) {
-    const order = await this.orders.findOne({ where: { id: input.orderId } });
-    if (!order) throw new NotFoundException("Order not found.");
-    if (!["confirmed", "processing"].includes(order.status)) {
-      throw new Error(`Shipment can only be created for a confirmed or processing order (current: "${order.status}").`);
-    }
-    const existing = await this.getByOrder(input.orderId);
-    if (existing) return existing;
+    return this.transactions.runInTransaction(async (queryRunner) => {
+      const manager = queryRunner.manager;
+      const order = await manager.findOne(OrderEntity, {
+        where: { id: input.orderId },
+        lock: { mode: "pessimistic_write" },
+      });
+      if (!order) throw new NotFoundException("Order not found.");
+      if (!["confirmed", "processing"].includes(order.status)) {
+        throw new Error(`Shipment can only be created for a confirmed or processing order (current: "${order.status}").`);
+      }
 
-    const shipment = this.shipments.create({
-      orderId: order.id,
-      status: "ready_to_ship",
-      carrier: input.carrier,
-      serviceLevel: input.serviceLevel,
-      weightGrams: input.weightGrams,
-      lengthCm: input.lengthCm == null ? undefined : input.lengthCm.toFixed(2),
-      widthCm: input.widthCm == null ? undefined : input.widthCm.toFixed(2),
-      heightCm: input.heightCm == null ? undefined : input.heightCm.toFixed(2),
-      shippingAddress: order.shippingAddress,
-      estimatedDeliveryAt: input.estimatedDeliveryAt ? new Date(input.estimatedDeliveryAt) : undefined,
+      const existing = await manager.findOne(ShipmentEntity, { where: { orderId: input.orderId } });
+      if (existing) return existing;
+
+      const shipment = manager.create(ShipmentEntity, {
+        orderId: order.id,
+        status: "ready_to_ship",
+        carrier: input.carrier,
+        serviceLevel: input.serviceLevel,
+        weightGrams: input.weightGrams,
+        lengthCm: input.lengthCm == null ? undefined : input.lengthCm.toFixed(2),
+        widthCm: input.widthCm == null ? undefined : input.widthCm.toFixed(2),
+        heightCm: input.heightCm == null ? undefined : input.heightCm.toFixed(2),
+        shippingAddress: order.shippingAddress,
+        estimatedDeliveryAt: input.estimatedDeliveryAt ? new Date(input.estimatedDeliveryAt) : undefined,
+      });
+      const saved = await manager.save(shipment);
+      await manager.save(manager.create(ShipmentEventEntity, {
+        shipmentId: saved.id,
+        status: saved.status,
+        description: "Shipment created and ready to ship.",
+        eventAt: new Date(),
+      }));
+      return saved;
     });
-    const saved = await this.shipments.save(shipment);
-    await this.events.save(this.events.create({
-      shipmentId: saved.id,
-      status: saved.status,
-      description: "Shipment created and ready to ship.",
-      eventAt: new Date(),
-    }));
-    return saved;
   }
 
   async updateStatus(shipmentId: string, status: ShipmentStatus, details?: {
@@ -94,28 +103,45 @@ export class LogisticsService {
     awbNumber?: string;
     trackingUrl?: string;
     failureReason?: string;
+    externalEventId?: string;
   }) {
-    const shipment = await this.getShipment(shipmentId);
-    if (shipment.status !== status && !VALID_TRANSITIONS[shipment.status].includes(status)) {
-      throw new Error(`Cannot transition shipment from "${shipment.status}" to "${status}".`);
-    }
+    return this.transactions.runInTransaction(async (queryRunner) => {
+      const manager = queryRunner.manager;
+      const shipment = await manager.findOne(ShipmentEntity, {
+        where: { id: shipmentId },
+        lock: { mode: "pessimistic_write" },
+      });
+      if (!shipment) throw new NotFoundException("Shipment not found.");
 
-    shipment.status = status;
-    if (details?.awbNumber !== undefined) shipment.awbNumber = details.awbNumber;
-    if (details?.trackingUrl !== undefined) shipment.trackingUrl = details.trackingUrl;
-    if (details?.failureReason !== undefined) shipment.failureReason = details.failureReason;
-    if (status === "picked_up" && !shipment.shippedAt) shipment.shippedAt = new Date();
-    if (status === "delivered") shipment.deliveredAt = new Date();
+      if (details?.externalEventId) {
+        const existingEvent = await manager.findOne(ShipmentEventEntity, {
+          where: { externalEventId: details.externalEventId },
+        });
+        if (existingEvent) return shipment;
+      }
 
-    const saved = await this.shipments.save(shipment);
-    await this.events.save(this.events.create({
-      shipmentId: saved.id,
-      status,
-      description: details?.description,
-      location: details?.location,
-      eventAt: new Date(),
-    }));
-    return saved;
+      if (shipment.status !== status && !VALID_TRANSITIONS[shipment.status].includes(status)) {
+        throw new Error(`Cannot transition shipment from "${shipment.status}" to "${status}".`);
+      }
+
+      shipment.status = status;
+      if (details?.awbNumber !== undefined) shipment.awbNumber = details.awbNumber;
+      if (details?.trackingUrl !== undefined) shipment.trackingUrl = details.trackingUrl;
+      if (details?.failureReason !== undefined) shipment.failureReason = details.failureReason;
+      if (status === "picked_up" && !shipment.shippedAt) shipment.shippedAt = new Date();
+      if (status === "delivered" && !shipment.deliveredAt) shipment.deliveredAt = new Date();
+
+      const saved = await manager.save(shipment);
+      await manager.save(manager.create(ShipmentEventEntity, {
+        shipmentId: saved.id,
+        status,
+        description: details?.description,
+        location: details?.location,
+        eventAt: new Date(),
+        externalEventId: details?.externalEventId,
+      }));
+      return saved;
+    });
   }
 
   async getTracking(shipmentId: string) {
