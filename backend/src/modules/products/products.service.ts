@@ -613,3 +613,4 @@ export class ProductsService {
     if (quantity <= LOW_STOCK_THRESHOLD) return "low-stock";
     return "in-stock";
   }
+}
