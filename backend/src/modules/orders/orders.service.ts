@@ -352,7 +352,7 @@ export class OrdersService {
       const order = await orderRepo.findOne({ where: { id: orderId }, relations: ["lineItems"], lock: { mode: "pessimistic_write" } });
       if (!order) throw new NotFoundException("Order not found.");
       if (!REVENUE_STATUSES.includes(order.status)) {
-        throw new DomainException(DomainErrorCode.INVALID_ORDER_STATUS, "An invoice can only be issued for a confirmed or fulfilled order.");
+        throw new DomainException(DomainErrorCode.INVALID_STATUS_TRANSITION, "An invoice can only be issued for a confirmed or fulfilled order.");
       }
       const existing = await invoiceRepo.findOne({ where: { orderId } });
       if (existing) return { ...existing.snapshot, invoiceId: existing.id, invoiceNumber: existing.invoiceNumber, issuedAt: existing.issuedAt.toISOString() };
