@@ -108,7 +108,7 @@ export interface CreateProductInput {
   slug: string; name: string; categorySlug: string; price: number; salePrice?: number; hsnCode?: string; gstRate?: number; taxInclusiveMrp?: boolean; description: string;
   content: { shortDescription: string; keyBenefits: string[]; features: string[]; ingredients: string; usageInstructions: string[]; warnings: string; storageInstructions: string; specifications: Record<string, string>; faqs: { question: string; answer: string }[] };
   metaTitle: string; metaDescription: string; mediaUrls: string[];
-  variants: { sku: string; name: string; hexColor?: string; stockQuantity: number; mrp?: number }[];
+  variants: { id?: string; sku: string; name: string; hexColor?: string; stockQuantity: number; mrp?: number }[];
 }
 export interface UpdateProductTaxInput { hsnCode?: string; gstRate?: number; taxInclusiveMrp?: boolean; variants?: { variantId: string; mrp: number }[] }
 export interface ProductTaxConfig { productId: string; productName: string; hsnCode?: string; gstRate?: string; taxInclusiveMrp: boolean; variants: { variantId: string; sku: string; name: string; mrp?: string }[] }
