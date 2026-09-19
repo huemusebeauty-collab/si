@@ -119,7 +119,6 @@ describe("ProductsService — product upsert variant persistence", () => {
     const productRepo = createMockRepo();
     const variantRepo = createMockRepo();
     const cache = { invalidatePrefix: jest.fn() };
-    const savedProduct = { id: "p2", slug: "atomic-tax-product", variants: [] };
     productRepo.findOne.mockResolvedValue(null);
     productRepo.create.mockImplementation((value: unknown) => ({ ...(value as object), id: "p2" }));
     productRepo.save.mockImplementation((value: unknown) => Promise.resolve(value));
