@@ -23,6 +23,7 @@ export class ShipmentEventEntity {
   @Column({ type: "timestamptz" })
   eventAt!: Date;
 
+  @Index({ unique: true })
   @Column({ type: "varchar", length: 160, nullable: true })
   externalEventId?: string;
 
