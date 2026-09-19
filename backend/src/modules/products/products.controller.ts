@@ -7,7 +7,7 @@ import { Public } from "@/common/decorators/public.decorator";
 import { Roles } from "@/common/decorators/roles.decorator";
 import { Cacheable } from "@/cache/cacheable.decorator";
 import { CreateVariantDto } from "./dto/create-variant.dto";
-import { CreateProductDto, UpdateProductTaxDto } from "./dto/create-product.dto";
+import { CreateProductDto, SetInventoryStockDto, UpdateProductTaxDto } from "./dto/create-product.dto";
 import { RequirePermission } from "@/admin/common/require-permission.decorator";
 import { CategoriesService } from "@/modules/categories/categories.service";
 
@@ -46,7 +46,7 @@ export class ProductsController {
 
   @RequirePermission("products", "edit")
   @Patch("admin/inventory/:variantId")
-  setStock(@Param("variantId") variantId: string, @Body() body: { quantity: number; expectedVersion?: number }) {
+  setStock(@Param("variantId") variantId: string, @Body() body: SetInventoryStockDto) {
     return this.products.setStock(variantId, body.quantity, body.expectedVersion);
   }
 
