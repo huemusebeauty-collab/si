@@ -48,21 +48,40 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
         <div className="flex items-center justify-between gap-4">
           <div>
             <h2 className="font-semibold text-ink">Invoice Preview</h2>
-            <p className="mt-1 text-sm text-muted">Preview uses the persisted order totals. No invoice number is generated here.</p>
+            <p className="mt-1 text-sm text-muted">{invoice?.invoiceNumber ? `Issued invoice ${invoice.invoiceNumber}.` : "Preview only until an invoice is issued."}</p>
           </div>
-          <Button
-            variant="outline"
-            onClick={async () => {
-              try {
-                setInvoiceLoading(true);
-                setInvoice(await adminApi.getAdminInvoice(order.id));
-              } catch (error) {
-                setToast(error instanceof Error ? error.message : "Unable to load invoice preview.");
-              } finally {
-                setInvoiceLoading(false);
-              }
-            }}
-          >{invoiceLoading ? "Loading..." : "Load Invoice"}</Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={async () => {
+                try {
+                  setInvoiceLoading(true);
+                  setInvoice(await adminApi.getAdminInvoice(order.id));
+                } catch (error) {
+                  setToast(error instanceof Error ? error.message : "Unable to load invoice preview.");
+                } finally {
+                  setInvoiceLoading(false);
+                }
+              }}
+            >{invoiceLoading ? "Loading..." : "Load Invoice"}</Button>
+            <RoleGate module="orders" level="edit">
+              <Button
+                variant="primary"
+                disabled={invoiceLoading || Boolean(invoice?.invoiceNumber)}
+                onClick={async () => {
+                  try {
+                    setInvoiceLoading(true);
+                    setInvoice(await adminApi.issueAdminInvoice(order.id));
+                    setToast("Invoice issued successfully.");
+                  } catch (error) {
+                    setToast(error instanceof Error ? error.message : "Unable to issue invoice.");
+                  } finally {
+                    setInvoiceLoading(false);
+                  }
+                }}
+              >{invoice?.invoiceNumber ? "Invoice Issued" : "Issue Invoice"}</Button>
+            </RoleGate>
+          </div>
         </div>
         {invoice && (
           <div className="mt-4 grid gap-2 text-sm">
@@ -71,7 +90,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
             <div className="flex justify-between"><span>Taxable</span><strong>₹{invoice.taxableAmount}</strong></div>
             <div className="flex justify-between"><span>GST</span><strong>₹{invoice.taxAmount}</strong></div>
             <div className="flex justify-between border-t border-line pt-2"><span>Total</span><strong>₹{invoice.total} {invoice.currency}</strong></div>
-            <div className="text-xs text-muted">Layout: {invoice.layout.size} / {invoice.layout.format} · Generated {new Date(invoice.issuedAt).toLocaleString()}</div>
+            <div className="text-xs text-muted">Layout: {invoice.layout.size} / {invoice.layout.format} · Generated {invoice.issuedAt ? new Date(invoice.issuedAt).toLocaleString() : "Not issued"}</div>
           </div>
         )}
       </div>
