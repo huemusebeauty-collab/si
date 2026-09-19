@@ -442,7 +442,13 @@ export class OrdersService {
       const issuedAt = now;
       const snapshot = {
         orderId: order.id,
-        customerId: order.customerId,\n        recipient: {\n          legalName: order.customerLegalName ?? null,\n          gstin: order.customerGstin ?? null,\n          deliveryAddress: order.shippingAddress,\n        },\n        placeOfSupply: { state: order.placeOfSupplyState ?? null, stateCode: order.placeOfSupplyStateCode ?? null },
+        customerId: order.customerId,
+        recipient: {
+          legalName: order.customerLegalName ?? null,
+          gstin: order.customerGstin ?? null,
+          deliveryAddress: order.shippingAddress,
+        },
+        placeOfSupply: { state: order.placeOfSupplyState ?? null, stateCode: order.placeOfSupplyStateCode ?? null },
         shippingAddress: order.shippingAddress,
         lineItems: order.lineItems,
         subtotal: order.subtotal,
