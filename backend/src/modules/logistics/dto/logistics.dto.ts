@@ -46,6 +46,7 @@ export class UpdateShipmentStatusDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(1000)
   description?: string;
 
   @IsOptional()
@@ -60,9 +61,16 @@ export class UpdateShipmentStatusDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(2048)
   trackingUrl?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(500)
   failureReason?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  externalEventId?: string;
 }
