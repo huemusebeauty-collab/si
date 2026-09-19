@@ -17,7 +17,8 @@ function EditProductContent() {
   const id = params.productId;
   const [product, setProduct] = useState<AdminProductDetail | null>(null);
   const [categories, setCategories] = useState<Array<{ id: string; slug: string; name: string }>>([]);
-  const [form, setForm] = useState({ name: "", slug: "", categorySlug: "", price: "", salePrice: "", mrp: "", gstRate: "", hsnCode: "", taxInclusiveMrp: true, description: "", shortDescription: "", ingredients: "", mediaText: "", sku: "", variantName: "", stock: "0" });
+  const [form, setForm] = useState({ name: "", slug: "", categorySlug: "", price: "", salePrice: "", gstRate: "", hsnCode: "", taxInclusiveMrp: true, description: "", shortDescription: "", ingredients: "", mediaText: "" });
+  const [variants, setVariants] = useState<Array<{ id?: string; sku: string; name: string; hexColor: string; stock: string; mrp: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -29,23 +30,34 @@ function EditProductContent() {
       const v = p.variants[0];
       setForm({
         name: p.name, slug: p.slug, categorySlug: p.category?.slug ?? "", price: p.price, salePrice: p.salePrice ?? "",
-        mrp: v?.mrp ?? "", gstRate: p.gstRate ?? "", hsnCode: p.hsnCode ?? "", taxInclusiveMrp: p.taxInclusiveMrp,
+        gstRate: p.gstRate ?? "", hsnCode: p.hsnCode ?? "", taxInclusiveMrp: p.taxInclusiveMrp,
         description: p.description ?? "", shortDescription: p.content?.shortDescription ?? "", ingredients: p.content?.ingredients ?? "",
-        mediaText: p.mediaUrls.join("\n"), sku: v?.sku ?? "", variantName: v?.name ?? "Default", stock: String(v?.stockQuantity ?? 0),
+        mediaText: p.mediaUrls.join("\n"),
+      });
+      setVariants(p.variants.map(item => ({
+        id: item.id, sku: item.sku, name: item.name, hexColor: item.hexColor ?? "", stock: String(item.stockQuantity), mrp: item.mrp ?? "",
+      })));
       });
     }).catch((e) => setError(e instanceof Error ? e.message : "Unable to load product.")).finally(() => setLoading(false));
   }, [id]);
 
   async function save() {
     setError(null); setMessage(null);
-    const price = Number(form.price), mrp = Number(form.mrp);
+    const price = Number(form.price);
     const salePrice = form.salePrice ? Number(form.salePrice) : undefined;
     const gstRate = form.gstRate ? Number(form.gstRate) : undefined;
-    const stock = Number(form.stock);
-    if (!form.name || !form.slug || !form.categorySlug || !form.sku || !Number.isFinite(price) || price <= 0 || !Number.isFinite(mrp) || mrp < price) { setError("Check name, slug, category, SKU, price and MRP. MRP cannot be below price."); return; }
+    if (!form.name || !form.slug || !form.categorySlug || !Number.isFinite(price) || price <= 0 || variants.length === 0) { setError("Check name, slug, category, price and add at least one variant."); return; }
     if (salePrice !== undefined && (!Number.isFinite(salePrice) || salePrice < 0 || salePrice > price)) { setError("Sale price must be between ₹0 and the regular price."); return; }
     if (gstRate !== undefined && (!Number.isFinite(gstRate) || gstRate < 0 || gstRate > 100)) { setError("GST rate must be between 0% and 100%."); return; }
-    if (!Number.isInteger(stock) || stock < 0) { setError("Stock must be a non-negative integer."); return; }
+    const payloadVariants = variants.map((variant) => ({ ...variant, stockQuantity: Number(variant.stock), mrp: Number(variant.mrp) }));
+    const duplicateSkus = new Set<string>();
+    for (const variant of payloadVariants) {
+      if (!variant.sku.trim() || !variant.name.trim() || !Number.isInteger(variant.stockQuantity) || variant.stockQuantity < 0 || !Number.isFinite(variant.mrp) || variant.mrp < price) {
+        setError("Every variant needs a SKU, name, non-negative integer stock, and MRP not below product price."); return;
+      }
+      if (duplicateSkus.has(variant.sku.trim())) { setError(`Duplicate SKU ${variant.sku.trim()}.`); return; }
+      duplicateSkus.add(variant.sku.trim());
+    }
     setSaving(true);
     try {
       await adminApi.updateProduct(id, {
@@ -54,7 +66,10 @@ function EditProductContent() {
         mediaUrls: form.mediaText.split("\n").map(v => v.trim()).filter(Boolean),
         content: { shortDescription: form.shortDescription || form.description, keyBenefits: [], features: [], ingredients: form.ingredients, usageInstructions: [], warnings: "", storageInstructions: "", specifications: {}, faqs: [] },
         hsnCode: form.hsnCode.trim() || undefined, gstRate, taxInclusiveMrp: form.taxInclusiveMrp,
-        variants: [{ sku: form.sku, name: form.variantName || "Default", stockQuantity: stock, mrp }],
+        variants: payloadVariants.map(variant => ({
+          sku: variant.sku.trim(), name: variant.name.trim(), hexColor: variant.hexColor.trim() || undefined,
+          stockQuantity: variant.stockQuantity, mrp: variant.mrp,
+        })),
       });
       setMessage("Product updated successfully.");
     } catch (e) { setError(e instanceof Error ? e.message : "Unable to update product."); }
@@ -78,9 +93,23 @@ function EditProductContent() {
         <label className="text-sm font-semibold">HSN code<input className={inputClass} value={form.hsnCode} onChange={e=>setForm({...form,hsnCode:e.target.value})}/></label>
         <label className="flex items-center gap-3 rounded-lg border border-line p-3 text-sm font-semibold sm:col-span-2"><input type="checkbox" checked={form.taxInclusiveMrp} onChange={e=>setForm({...form,taxInclusiveMrp:e.target.checked})}/> MRP is tax-inclusive</label>
         <label className="text-sm font-semibold">Sale price<input className={inputClass} type="number" min="0" step="0.01" value={form.salePrice} onChange={e=>setForm({...form,salePrice:e.target.value})}/></label>
-        <label className="text-sm font-semibold">SKU<input className={inputClass} value={form.sku} onChange={e=>setForm({...form,sku:e.target.value})}/></label>
-        <label className="text-sm font-semibold">Variant / shade<input className={inputClass} value={form.variantName} onChange={e=>setForm({...form,variantName:e.target.value})}/></label>
-        <label className="text-sm font-semibold">Stock<input className={inputClass} type="number" min="0" value={form.stock} onChange={e=>setForm({...form,stock:e.target.value})}/></label>
+        <div className="sm:col-span-2 rounded-lg border border-line p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <div><p className="text-sm font-semibold">Variants / Shades</p><p className="text-xs text-muted">All existing variants are preserved and editable. Deletion is not exposed because the backend does not delete omitted SKUs.</p></div>
+            <Button variant="secondary" onClick={() => setVariants([...variants, { sku: "", name: "New Variant", hexColor: "", stock: "0", mrp: form.price || "0" }])}>Add Variant</Button>
+          </div>
+          <div className="flex flex-col gap-3">
+            {variants.map((variant, index) => (
+              <div key={variant.id ?? `new-${index}`} className="grid gap-3 rounded-lg bg-surface p-3 sm:grid-cols-5">
+                <input className={inputClass} placeholder="SKU" value={variant.sku} onChange={e=>setVariants(variants.map((v,i)=>i===index?{...v,sku:e.target.value}:v))}/>
+                <input className={inputClass} placeholder="Variant / shade" value={variant.name} onChange={e=>setVariants(variants.map((v,i)=>i===index?{...v,name:e.target.value}:v))}/>
+                <input className={inputClass} placeholder="Hex color" value={variant.hexColor} onChange={e=>setVariants(variants.map((v,i)=>i===index?{...v,hexColor:e.target.value}:v))}/>
+                <input className={inputClass} type="number" min="0" step="0.01" placeholder="MRP" value={variant.mrp} onChange={e=>setVariants(variants.map((v,i)=>i===index?{...v,mrp:e.target.value}:v))}/>
+                <input className={inputClass} type="number" min="0" step="1" placeholder="Stock" value={variant.stock} onChange={e=>setVariants(variants.map((v,i)=>i===index?{...v,stock:e.target.value}:v))}/>
+              </div>
+            ))}
+          </div>
+        </div>
         <label className="text-sm font-semibold sm:col-span-2">Short description<input className={inputClass} value={form.shortDescription} onChange={e=>setForm({...form,shortDescription:e.target.value})}/></label>
         <label className="text-sm font-semibold sm:col-span-2">Description<textarea className={inputClass+" min-h-28"} value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/></label>
         <label className="text-sm font-semibold sm:col-span-2">Ingredients<textarea className={inputClass+" min-h-24"} value={form.ingredients} onChange={e=>setForm({...form,ingredients:e.target.value})}/></label>
