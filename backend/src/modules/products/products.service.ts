@@ -265,9 +265,9 @@ export class ProductsService {
       entity.metaTitle = data.metaTitle;
       entity.metaDescription = data.metaDescription;
       entity.mediaUrls = data.mediaUrls;
-      entity.hsnCode = data.hsnCode?.trim() || undefined;
-      entity.gstRate = data.gstRate === undefined ? undefined : data.gstRate.toFixed(2);
-      entity.taxInclusiveMrp = data.taxInclusiveMrp ?? true;
+      if (data.hsnCode !== undefined) entity.hsnCode = data.hsnCode.trim() || undefined;
+      if (data.gstRate !== undefined) entity.gstRate = data.gstRate.toFixed(2);
+      if (data.taxInclusiveMrp !== undefined) entity.taxInclusiveMrp = data.taxInclusiveMrp;
       const saved = await productRepo.save(entity);
 
       const existingBySku = new Map((existing?.variants ?? []).map((variant) => [variant.sku, variant]));
@@ -336,13 +336,14 @@ export class ProductsService {
 
   private validateProductInput(data: {
     slug: string; name: string; price: number; salePrice?: number;
-    mediaUrls: string[]; variants: { sku: string; name: string; stockQuantity: number; mrp?: number }[];
+    mediaUrls: string[]; hsnCode?: string; gstRate?: number; taxInclusiveMrp?: boolean;
+    variants: { sku: string; name: string; stockQuantity: number; mrp?: number }[];
   }): void {
     if (!data.slug?.trim() || !data.name?.trim()) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Product name and slug are required.");
     if (!Number.isFinite(data.price) || data.price <= 0) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Product price must be greater than zero.");
     if (data.salePrice !== undefined && (!Number.isFinite(data.salePrice) || data.salePrice < 0 || data.salePrice > data.price)) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Sale price must be between zero and the regular price.");
     if (!Array.isArray(data.mediaUrls) || data.mediaUrls.some((url) => typeof url !== "string" || !url.trim())) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Product media URLs must be non-empty strings.");
-    if (!Number.isFinite((data as { gstRate?: number }).gstRate ?? 0) || ((data as { gstRate?: number }).gstRate ?? 0) < 0 || ((data as { gstRate?: number }).gstRate ?? 0) > 100) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "GST rate must be between 0 and 100 percent.");
+    if (data.gstRate !== undefined && (!Number.isFinite(data.gstRate) || data.gstRate < 0 || data.gstRate > 100)) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "GST rate must be between 0 and 100 percent.");
     if (!Array.isArray(data.variants) || data.variants.length === 0) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "At least one product variant is required.");
     const seenSkus = new Set<string>();
     for (const variant of data.variants) {
