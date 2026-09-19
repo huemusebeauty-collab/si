@@ -57,6 +57,8 @@ export const adminApi = {
   setCollectionFeatured: (id: string, featured: boolean) => request<AdminCollection>(`/collections/${id}/featured`, { method: "PATCH", body: JSON.stringify({ featured }) }),
   listOrders: (params: URLSearchParams) => request<SimpleList<AdminOrder>>(`/orders/admin/search?${params}`),
   getOrder: (id: string) => request<AdminOrder>(`/orders/admin/${id}`),
+  getAdminInvoice: (id: string, size = "A4", format = "STANDARD") =>
+    request<AdminInvoice>(`/orders/admin/${id}/invoice?size=${encodeURIComponent(size)}&format=${encodeURIComponent(format)}`),
   updateOrderStatus: (id: string, status: string) => request<AdminOrder>(`/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
   searchCustomers: (params: URLSearchParams) => request<SimpleList<AdminCustomer>>(`/admin/customers?${params}`),
   getCustomer: (id: string) => request<AdminCustomer>(`/admin/customers/${id}`),
@@ -110,6 +112,18 @@ export interface UpdateCategoryInput { name?: string; slug?: string; parentId?: 
 export interface AdminCategory { id: string; slug: string; name: string; visible: boolean; displayOrder: number; parentId?: string | null; children?: AdminCategory[] }
 export interface AdminCollection { id: string; slug: string; name: string; active: boolean; featured: boolean; displayOrder: number }
 export interface AdminOrder { id: string; customerId: string; status: string; total: string; currency: string; createdAt: string; lineItems?: unknown[] }
+export interface AdminInvoice {
+  orderId: string;
+  lineItems: unknown[];
+  subtotal: string;
+  discountAmount: string;
+  taxableAmount: string;
+  taxAmount: string;
+  total: string;
+  currency: string;
+  issuedAt: string;
+  layout: { size: string; format: string; width: string };
+}
 export interface AdminCustomer { id: string; email: string; firstName: string; lastName: string; createdAt: string }
 export interface AdminReview { id: string; customerId: string; variantId: string; rating: number; text: string; status: string; createdAt: string }
 export interface AdminPage { slug: string; title: string; content: string }
