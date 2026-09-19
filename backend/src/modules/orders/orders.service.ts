@@ -280,8 +280,6 @@ export class OrdersService {
     return this.updateStatus(orderId, "confirmed");
   }
 
-  async failOrder(orderId: string, _reason: string): Promise<OrderEntity> { return this.updateStatus(orderId, "payment_failed"); }
-
   async updateStatus(orderId: string, status: OrderStatus): Promise<OrderEntity> {
     const order = await this.getOrder(orderId);
     if (!VALID_TRANSITIONS[order.status].includes(status)) {
