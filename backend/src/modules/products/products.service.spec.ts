@@ -115,6 +115,43 @@ describe("ProductsService — product upsert variant persistence", () => {
     expect(variantRepo.save).toHaveBeenCalledWith(existingVariant);
   });
 
+  it("updates an existing variant by id when its SKU is renamed", async () => {
+    const productRepo = createMockRepo();
+    const variantRepo = createMockRepo();
+    const cache = { invalidatePrefix: jest.fn() };
+    const existingVariant = { id: "v1", sku: "OLD-SKU", name: "Old", stockQuantity: 4, stockState: "low-stock" };
+    const lockedProduct = { id: "p1", slug: "product", variants: [existingVariant] };
+
+    productRepo.findOne.mockResolvedValue(lockedProduct);
+    productRepo.save.mockImplementation((value: unknown) => Promise.resolve(value));
+    variantRepo.findOne.mockResolvedValue(existingVariant);
+    variantRepo.save.mockImplementation((value: unknown) => Promise.resolve(value));
+
+    const manager = {
+      getRepository: jest.fn((entity: unknown) => entity === ProductEntity ? productRepo : variantRepo),
+    };
+    const service = new ProductsService(productRepo as never, variantRepo as never, cache as never, {} as CategoriesService, {
+      runInTransaction: jest.fn(async (work: (qr: unknown) => Promise<unknown>) => work({ manager })),
+    } as never);
+
+    await service.updateProductById("p1", {
+      slug: "product",
+      name: "Product",
+      category: { id: "c1" } as never,
+      price: 250,
+      description: "Test",
+      content: {} as never,
+      metaTitle: "Product",
+      metaDescription: "Product",
+      mediaUrls: [],
+      variants: [{ id: "v1", sku: "NEW-SKU", name: "New", stockQuantity: 4, mrp: 499 }],
+    });
+
+    expect(existingVariant.id).toBe("v1");
+    expect(existingVariant.sku).toBe("NEW-SKU");
+    expect(variantRepo.save).toHaveBeenCalledWith(existingVariant);
+  });
+
   it("persists GST/HSN/tax-inclusive MRP in the same product transaction", async () => {
     const productRepo = createMockRepo();
     const variantRepo = createMockRepo();
