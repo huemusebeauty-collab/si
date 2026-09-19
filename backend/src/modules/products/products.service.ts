@@ -60,8 +60,13 @@ export class ProductsService {
         const identifiedVariant = seed.id ? existingById.get(seed.id) : undefined;
         if (seed.id && !identifiedVariant) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, `Variant ${seed.id} does not belong to this product.`);
         const owner = await variantRepo.findOne({ where: { sku: seed.sku }, relations: ["product"] });
-        if (owner && owner.product?.id !== productId) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, `SKU ${seed.sku} is already assigned to another product.`);
-        if (owner && identifiedVariant && owner.id !== identifiedVariant.id) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, `SKU ${seed.sku} is already assigned to another variant of this product.`);
+        if (owner && identifiedVariant && owner.id === identifiedVariant.id) {
+          // The SKU belongs to the same identified variant; a rename is valid.
+        } else if (owner && owner.product?.id !== productId) {
+          throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, `SKU ${seed.sku} is already assigned to another product.`);
+        } else if (owner && identifiedVariant && owner.id !== identifiedVariant.id) {
+          throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, `SKU ${seed.sku} is already assigned to another variant of this product.`);
+        }
       }
       locked.slug = data.slug;
       locked.name = data.name;
