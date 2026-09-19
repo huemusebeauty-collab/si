@@ -10,7 +10,7 @@ export enum AdminRole {
 export type PermissionLevel = "full" | "edit" | "view" | "none";
 export type AdminModule =
   | "dashboard" | "products" | "categories" | "orders" | "customers"
-  | "reviews" | "coupons" | "content" | "settings" | "reports" | "userRoles" | "billing";
+  | "reviews" | "coupons" | "content" | "settings" | "reports" | "userRoles" | "billing" | "logistics";
 
 export const PERMISSION_MATRIX: Record<AdminModule, Record<AdminRole, PermissionLevel>> = {
   dashboard: { [AdminRole.SUPER_ADMIN]: "full", [AdminRole.STORE_MANAGER]: "full", [AdminRole.PRODUCT_MANAGER]: "view", [AdminRole.CONTENT_MANAGER]: "view", [AdminRole.CUSTOMER_SUPPORT]: "view" },
@@ -25,6 +25,7 @@ export const PERMISSION_MATRIX: Record<AdminModule, Record<AdminRole, Permission
   reports: { [AdminRole.SUPER_ADMIN]: "full", [AdminRole.STORE_MANAGER]: "full", [AdminRole.PRODUCT_MANAGER]: "view", [AdminRole.CONTENT_MANAGER]: "none", [AdminRole.CUSTOMER_SUPPORT]: "none" },
   userRoles: { [AdminRole.SUPER_ADMIN]: "full", [AdminRole.STORE_MANAGER]: "none", [AdminRole.PRODUCT_MANAGER]: "none", [AdminRole.CONTENT_MANAGER]: "none", [AdminRole.CUSTOMER_SUPPORT]: "none" },
   billing: { [AdminRole.SUPER_ADMIN]: "full", [AdminRole.STORE_MANAGER]: "full", [AdminRole.PRODUCT_MANAGER]: "none", [AdminRole.CONTENT_MANAGER]: "none", [AdminRole.CUSTOMER_SUPPORT]: "view" },
+  logistics: { [AdminRole.SUPER_ADMIN]: "full", [AdminRole.STORE_MANAGER]: "full", [AdminRole.PRODUCT_MANAGER]: "view", [AdminRole.CONTENT_MANAGER]: "none", [AdminRole.CUSTOMER_SUPPORT]: "edit" },
 };
 
 const LEVEL_RANK: Record<PermissionLevel, number> = { none: 0, view: 1, edit: 2, full: 3 };
