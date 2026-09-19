@@ -410,6 +410,9 @@ export class OrdersService {
 
   async generateInvoice(orderId: string, size?: string, format?: string) {
     const order = await this.getOrder(orderId);
+    if (!REVENUE_STATUSES.includes(order.status)) {
+      throw new DomainException(DomainErrorCode.INVALID_STATUS_TRANSITION, "An invoice is only available after payment is confirmed.");
+    }
     const invoice = await this.invoices.findOne({ where: { orderId } });
     const layout = resolveInvoiceLayout(size, format);
     if (invoice) {
