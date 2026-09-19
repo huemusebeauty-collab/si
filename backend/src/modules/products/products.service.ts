@@ -298,7 +298,7 @@ export class ProductsService {
     return product;
   }
 
-  async addVariant(productId: string, data: { sku: string; name: string; hexColor?: string; stockQuantity: number }): Promise<ProductVariantEntity> {
+  async addVariant(productId: string, data: { sku: string; name: string; hexColor?: string; stockQuantity: number; mrp?: number }): Promise<ProductVariantEntity> {
     this.validateVariantInput(data);
     const product = await this.findProductOrThrow(productId);
     if (await this.skuExists(data.sku)) {
@@ -342,6 +342,9 @@ export class ProductsService {
     }
     if (!Number.isInteger(data.stockQuantity) || data.stockQuantity < 0) {
       throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Stock quantity must be a non-negative integer.");
+    }
+    if (data.mrp !== undefined && (!Number.isFinite(data.mrp) || data.mrp < 0)) {
+      throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "MRP must be a non-negative number.");
     }
   }
 
