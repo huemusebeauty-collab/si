@@ -7,6 +7,7 @@ import { ProductVariantEntity } from "./entities/product-variant.entity";
 import { CacheInvalidationService } from "@/cache/cache-invalidation.service";
 import { DomainException } from "@/common/exceptions/domain.exception";
 import { CategoriesService } from "@/modules/categories/categories.service";
+import { TransactionService } from "@/database/transaction.service";
 
 function createMockRepo() {
   return {
@@ -33,6 +34,7 @@ describe("ProductsService — stock adjustment", () => {
         { provide: getRepositoryToken(ProductVariantEntity), useValue: variantRepo },
         { provide: CacheInvalidationService, useValue: { invalidatePrefix: jest.fn() } },
         { provide: CategoriesService, useValue: {} },
+        { provide: TransactionService, useValue: { runInTransaction: jest.fn(async (work: (qr: unknown) => Promise<unknown>) => work({ manager: variantRepo })) } },
       ],
     }).compile();
     service = module.get(ProductsService);
@@ -101,6 +103,7 @@ describe("ProductsService — product upsert variant persistence", () => {
       variantRepo as never,
       cache as never,
       categoryService,
+      { runInTransaction: jest.fn(async (work: (qr: unknown) => Promise<unknown>) => work({ manager: { findOne: productRepo.findOne, save: productRepo.save, create: productRepo.create, getRepository: () => variantRepo } })) } as never,
     );
 
     await service.upsertFullProduct({
