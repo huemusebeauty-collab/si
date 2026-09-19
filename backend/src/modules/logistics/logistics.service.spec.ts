@@ -1,3 +1,6 @@
+import { OrderEntity } from "@/modules/orders/entities/order.entity";
+import { ShipmentEntity } from "./entities/shipment.entity";
+import { ShipmentEventEntity } from "./entities/shipment-event.entity";
 import { LogisticsService } from "./logistics.service";
 
 describe("LogisticsService", () => {
@@ -8,20 +11,36 @@ describe("LogisticsService", () => {
     save: jest.fn(async (value) => ({ id: value.id ?? "shipment-1", ...value })),
   };
   const events = {
+    findOne: jest.fn(),
     create: jest.fn((input) => input),
     save: jest.fn(async (value) => value),
     find: jest.fn(),
   };
   const orders = { findOne: jest.fn() };
+  const transactions = {
+    runInTransaction: jest.fn(async (work: (queryRunner: unknown) => Promise<unknown>) => {
+      const manager = {
+        findOne: jest.fn(async (entity: unknown, options: unknown) => {
+          if (entity === OrderEntity) return orders.findOne(options);
+          if (entity === ShipmentEntity) return shipments.findOne(options);
+          if (entity === ShipmentEventEntity) return events.findOne(options);
+          return null;
+        }),
+        create: jest.fn((_entity: unknown, input: unknown) => input),
+        save: jest.fn(async (value: unknown) => value),
+      };
+      return work({ manager });
+    }),
+  };
 
   let service: LogisticsService;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new LogisticsService(shipments as never, events as never, orders as never);
+    service = new LogisticsService(shipments as never, events as never, orders as never, transactions as never);
   });
 
-  it("creates a shipment from a confirmed order and snapshots its address", async () => {
+  it("creates a shipment from a confirmed order and snapshots its address atomically", async () => {
     orders.findOne.mockResolvedValue({
       id: "order-1",
       status: "confirmed",
@@ -38,7 +57,7 @@ describe("LogisticsService", () => {
     expect(result.orderId).toBe("order-1");
     expect(result.status).toBe("ready_to_ship");
     expect(result.shippingAddress).toEqual({ city: "Jaipur" });
-    expect(events.save).toHaveBeenCalledTimes(1);
+    expect(transactions.runInTransaction).toHaveBeenCalledTimes(1);
   });
 
   it("rejects shipment creation for an order that is not ready for fulfillment", async () => {
@@ -59,16 +78,30 @@ describe("LogisticsService", () => {
 
   it("records tracking events and timestamps when a shipment is delivered", async () => {
     shipments.findOne.mockResolvedValue({ id: "shipment-1", status: "out_for_delivery" });
-    shipments.save.mockImplementation(async (value) => value);
+    events.findOne.mockResolvedValue(null);
 
     const result = await service.updateStatus("shipment-1", "delivered", {
       description: "Delivered to customer",
       location: "Jaipur",
       awbNumber: "AWB-123",
+      externalEventId: "provider-event-1",
     });
 
     expect(result.deliveredAt).toBeInstanceOf(Date);
     expect(result.awbNumber).toBe("AWB-123");
-    expect(events.save).toHaveBeenCalledTimes(1);
+    expect(events.findOne).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores a duplicate external tracking event id", async () => {
+    const shipment = { id: "shipment-1", status: "in_transit" };
+    shipments.findOne.mockResolvedValue(shipment);
+    events.findOne.mockResolvedValue({ id: "event-1", externalEventId: "provider-event-1" });
+
+    const result = await service.updateStatus("shipment-1", "out_for_delivery", {
+      externalEventId: "provider-event-1",
+    });
+
+    expect(result).toBe(shipment);
+    expect(transactions.runInTransaction).toHaveBeenCalledTimes(1);
   });
 });
