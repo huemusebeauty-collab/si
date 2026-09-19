@@ -130,7 +130,23 @@ export async function createOrder(shippingAddress: Record<string, string>): Prom
   if (!cartId || !sessionId) throw new Error("Your cart session could not be found. Please return to cart and try again.");
   return request<ApiOrder>("/orders", {
     method: "POST",
-    body: JSON.stringify({ customerId: sessionId, cartId, shippingAddress }),
+    body: JSON.stringify({
+      customerId: sessionId,
+      cartId,
+      shippingAddress: {
+        line1: shippingAddress.addressLine1,
+        line2: shippingAddress.addressLine2,
+        city: shippingAddress.city,
+        region: shippingAddress.state,
+        stateCode: shippingAddress.stateCode,
+        postalCode: shippingAddress.postalCode,
+        country: shippingAddress.country,
+        fullName: shippingAddress.fullName,
+        phone: shippingAddress.phone,
+      },
+      customerGstin: shippingAddress.customerGstin || undefined,
+      customerLegalName: shippingAddress.customerLegalName || undefined,
+    }),
   });
 }
 

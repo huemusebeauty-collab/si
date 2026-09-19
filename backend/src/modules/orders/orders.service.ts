@@ -152,7 +152,7 @@ export class OrdersService {
   async createOrder(customerId: string, cartId: string, shippingAddress: Record<string, unknown>, idempotencyKey?: string, customerGstin?: string, customerLegalName?: string): Promise<OrderEntity> {
     const normalizedIdempotencyKey = idempotencyKey?.trim();
     const normalizedGstin = customerGstin?.trim().toUpperCase() || undefined;
-    if (normalizedGstin && !/^\\d{2}[A-Z0-9]{10}[A-Z]\\d[A-Z]Z[A-Z0-9]$/.test(normalizedGstin)) {
+    if (normalizedGstin && !/^\d{2}[A-Z0-9]{10}[A-Z]\d[A-Z]Z[A-Z0-9]$/.test(normalizedGstin)) {
       throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Customer GSTIN format is invalid.");
     }
     const normalizedLegalName = customerLegalName?.trim() || undefined;
@@ -177,6 +177,7 @@ export class OrdersService {
 
     return this.transactions.runInTransaction(async (queryRunner) => {
       const manager = queryRunner.manager;
+      const businessSettings = await this.settings.getBusinessSettings();
       const pricedLines: Array<{
         line: typeof activeLines[number];
         variant: Awaited<ReturnType<ProductsService["findVariantById"]>>;
@@ -201,6 +202,9 @@ export class OrdersService {
       let taxableAmount = 0;
       let taxAmount = 0;
       let total = 0;
+      let cgstAmount = 0;
+      let sgstAmount = 0;
+      let igstAmount = 0;
       const snapshotLines: Partial<OrderLineItemEntity>[] = [];
 
       for (let index = 0; index < pricedLines.length; index += 1) {
@@ -212,9 +216,15 @@ export class OrdersService {
           mrp: variant.mrp == null ? null : Number(variant.mrp) * line.quantity,
           gstRate: variant.product.gstRate == null ? null : Number(variant.product.gstRate),
           taxInclusiveMrp: variant.product.taxInclusiveMrp,
+          gstRegistered: businessSettings.gstRegistered,
+          supplierStateCode: businessSettings.registeredStateCode,
+          placeOfSupplyStateCode,
         });
         taxableAmount = roundMoney(taxableAmount + tax.taxableAmount);
         taxAmount = roundMoney(taxAmount + tax.taxAmount);
+        cgstAmount = roundMoney(cgstAmount + tax.cgstAmount);
+        sgstAmount = roundMoney(sgstAmount + tax.sgstAmount);
+        igstAmount = roundMoney(igstAmount + tax.igstAmount);
         total = roundMoney(total + tax.grossAmount);
         snapshotLines.push({
           variantId: line.variantId,
@@ -227,6 +237,13 @@ export class OrdersService {
           discountAmount: lineDiscount.toFixed(2),
           taxableAmount: tax.taxableAmount.toFixed(2),
           taxAmount: tax.taxAmount.toFixed(2),
+          taxType: tax.taxType,
+          cgstRate: tax.cgstRate.toFixed(2),
+          cgstAmount: tax.cgstAmount.toFixed(2),
+          sgstRate: tax.sgstRate.toFixed(2),
+          sgstAmount: tax.sgstAmount.toFixed(2),
+          igstRate: tax.igstRate.toFixed(2),
+          igstAmount: tax.igstAmount.toFixed(2),
           quantity: line.quantity,
         });
         await this.products.adjustStock(line.variantId, -line.quantity, manager, { reason: "order_reservation", referenceType: "cart_checkout", referenceId: cartId });
