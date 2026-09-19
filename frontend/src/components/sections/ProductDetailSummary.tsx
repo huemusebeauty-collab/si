@@ -60,8 +60,17 @@ export function ProductDetailSummary({ product }: { product: Product }) {
           <StarRating rating={product.rating} />
           <span className="text-[13px] leading-[18px] text-stone">{product.rating.toFixed(1)} ({product.reviewCount} reviews)</span>
         </div>
-        <div className="flex items-baseline gap-2">
-          {product.salePrice ? <><span className="text-[20px] leading-6 font-semibold text-primary-rose">{formatCurrency(product.salePrice, product.currency)}</span><span className="text-[13px] leading-[18px] text-stone line-through">{formatCurrency(product.price, product.currency)}</span></> : <span className="text-[20px] leading-6 font-semibold text-ink">{formatCurrency(product.price, product.currency)}</span>}
+        <div className="flex items-baseline gap-2 flex-wrap">
+          <span className={product.salePrice ? "text-[20px] leading-6 font-semibold text-primary-rose" : "text-[20px] leading-6 font-semibold text-ink"}>
+            {formatCurrency(product.salePrice ?? product.price, product.currency)}
+          </span>
+          {product.salePrice ? <span className="text-[13px] leading-[18px] text-stone line-through">{formatCurrency(product.price, product.currency)}</span> : null}
+          {(() => {
+            const selectedMrp = selectedShade?.mrp ?? product.mrp;
+            return selectedMrp && selectedMrp > (product.salePrice ?? product.price) ? (
+              <span className="text-[13px] leading-[18px] text-stone line-through">MRP {formatCurrency(selectedMrp, product.currency)}</span>
+            ) : null;
+          })()}
         </div>
         {product.description && <p className="prose-copy text-base text-charcoal">{product.description}</p>}
         {product.shades && product.shades.length > 0 && <ShadeSelector shades={product.shades} selectedId={selectedShadeId} onChange={setSelectedShadeId} />}
