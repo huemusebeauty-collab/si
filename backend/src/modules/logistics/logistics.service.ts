@@ -166,7 +166,7 @@ export class LogisticsService {
           }
           if (mappedOrderStatus === "returned") {
             for (const line of lockedOrder.lineItems ?? []) {
-              await this.products.adjustStock(line.variantId, line.quantity, manager);
+              await this.products.adjustStock(line.variantId, line.quantity, manager, { reason: "order_return", referenceType: "order", referenceId: lockedOrder.id });
             }
           }
           lockedOrder.status = mappedOrderStatus;
