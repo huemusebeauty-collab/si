@@ -138,13 +138,6 @@ export class OrdersController {
     return this.orders.createOrder(body.customerId, body.cartId, body.shippingAddress, idempotencyKey, body.customerGstin, body.customerLegalName);
   }
 
-
-  @Public()
-  @Post(":orderId/fail")
-  fail(@Param("orderId") orderId: string, @Body("reason") reason: string) {
-    return this.orders.failOrder(orderId, reason);
-  }
-
   @Get(":orderId/refund-eligibility")
   async refundEligibility(@Param("orderId") orderId: string, @CurrentUser() user: AuthenticatedUser) {
     await this.requireOwner(orderId, user);
