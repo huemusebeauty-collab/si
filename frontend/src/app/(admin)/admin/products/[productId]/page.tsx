@@ -65,6 +65,7 @@ function EditProductContent() {
         content: { shortDescription: form.shortDescription || form.description, keyBenefits: [], features: [], ingredients: form.ingredients, usageInstructions: [], warnings: "", storageInstructions: "", specifications: {}, faqs: [] },
         hsnCode: form.hsnCode.trim() || undefined, gstRate, taxInclusiveMrp: form.taxInclusiveMrp,
         variants: payloadVariants.map(variant => ({
+          id: variant.id,
           sku: variant.sku.trim(), name: variant.name.trim(), hexColor: variant.hexColor.trim() || undefined,
           stockQuantity: variant.stockQuantity, mrp: variant.mrp,
         })),
