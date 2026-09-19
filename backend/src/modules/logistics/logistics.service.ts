@@ -9,6 +9,17 @@ import { DomainErrorCode, DomainException } from "@/common/exceptions/domain.exc
 
 const TERMINAL: ShipmentStatus[] = ["delivered", "rto", "returned", "cancelled"];
 
+const VALID_ORDER_TRANSITIONS: Record<OrderEntity["status"], OrderEntity["status"][]> = {
+  pending_payment: ["confirmed", "payment_failed", "cancelled"],
+  confirmed: ["processing", "cancelled"],
+  payment_failed: ["pending_payment", "cancelled"],
+  processing: ["shipped", "cancelled"],
+  shipped: ["delivered", "returned"],
+  delivered: ["returned"],
+  cancelled: [],
+  returned: [],
+};
+
 const VALID_TRANSITIONS: Record<ShipmentStatus, ShipmentStatus[]> = {
   draft: ["ready_to_ship", "cancelled"],
   ready_to_ship: ["pickup_scheduled", "picked_up", "cancelled"],
@@ -126,6 +137,33 @@ export class LogisticsService {
       }
 
       shipment.status = status;
+
+      // Keep the commercial order lifecycle aligned with fulfillment milestones.
+      // Only advance the order when the mapped transition is valid; logistics
+      // must never force an invalid order transition.
+      const orderStatusByShipmentStatus: Partial<Record<ShipmentStatus, OrderEntity["status"]>> = {
+        picked_up: "shipped",
+        delivered: "delivered",
+        returned: "returned",
+      };
+      const mappedOrderStatus = orderStatusByShipmentStatus[status];
+      if (mappedOrderStatus && shipment.orderId) {
+        const lockedOrder = await manager.findOne(OrderEntity, {
+          where: { id: shipment.orderId },
+          lock: { mode: "pessimistic_write" },
+        });
+        if (!lockedOrder) throw new NotFoundException("Order not found.");
+        if (lockedOrder.status !== mappedOrderStatus) {
+          if (!VALID_ORDER_TRANSITIONS[lockedOrder.status]?.includes(mappedOrderStatus)) {
+            throw new DomainException(
+              DomainErrorCode.INVALID_STATUS_TRANSITION,
+              `Cannot synchronize order "${lockedOrder.status}" with shipment "${status}".`,
+            );
+          }
+          lockedOrder.status = mappedOrderStatus;
+          await manager.save(lockedOrder);
+        }
+      }
       if (details?.awbNumber !== undefined) shipment.awbNumber = details.awbNumber;
       if (details?.trackingUrl !== undefined) shipment.trackingUrl = details.trackingUrl;
       if (details?.failureReason !== undefined) shipment.failureReason = details.failureReason;
