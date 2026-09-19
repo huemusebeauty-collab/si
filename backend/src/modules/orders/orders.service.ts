@@ -426,6 +426,10 @@ export class OrdersService {
       const existing = await invoiceRepo.findOne({ where: { orderId } });
       if (existing) return { ...existing.snapshot, invoiceId: existing.id, invoiceNumber: existing.invoiceNumber, issuedAt: existing.issuedAt.toISOString() };
 
+      const businessSettings = await this.settings.getBusinessSettings();
+      if (businessSettings.gstRegistered && (!businessSettings.gstin || !businessSettings.registeredState || !businessSettings.registeredStateCode)) {
+        throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "GST-registered supplier settings are incomplete.");
+      }
       const now = new Date();
       const startYear = now.getUTCMonth() >= 3 ? now.getUTCFullYear() : now.getUTCFullYear() - 1;
       const financialYear = `${startYear}/${String(startYear + 1).slice(-2)}`;
@@ -443,6 +447,15 @@ export class OrdersService {
       const snapshot = {
         orderId: order.id,
         customerId: order.customerId,
+        supplier: {
+          legalEntityName: businessSettings.legalEntityName ?? businessSettings.storeName,
+          gstRegistered: businessSettings.gstRegistered,
+          gstin: businessSettings.gstin ?? null,
+          address: businessSettings.registeredAddress ?? businessSettings.businessAddress ?? null,
+          state: businessSettings.registeredState ?? null,
+          stateCode: businessSettings.registeredStateCode ?? null,
+          reverseCharge: businessSettings.reverseChargeDefault,
+        },
         recipient: {
           legalName: order.customerLegalName ?? null,
           gstin: order.customerGstin ?? null,

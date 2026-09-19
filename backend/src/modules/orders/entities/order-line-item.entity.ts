@@ -39,6 +39,27 @@ export class OrderLineItemEntity {
   @Column({ type: "decimal", precision: 10, scale: 2, default: 0 })
   taxAmount!: string;
 
+  @Column({ type: "varchar", length: 16, default: "none" })
+  taxType!: "none" | "cgst_sgst" | "igst";
+
+  @Column({ type: "decimal", precision: 5, scale: 2, default: 0 })
+  cgstRate!: string;
+
+  @Column({ type: "decimal", precision: 10, scale: 2, default: 0 })
+  cgstAmount!: string;
+
+  @Column({ type: "decimal", precision: 5, scale: 2, default: 0 })
+  sgstRate!: string;
+
+  @Column({ type: "decimal", precision: 10, scale: 2, default: 0 })
+  sgstAmount!: string;
+
+  @Column({ type: "decimal", precision: 5, scale: 2, default: 0 })
+  igstRate!: string;
+
+  @Column({ type: "decimal", precision: 10, scale: 2, default: 0 })
+  igstAmount!: string;
+
   @Column()
   quantity!: number;
 }
