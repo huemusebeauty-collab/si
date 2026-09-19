@@ -25,7 +25,9 @@ export class ProductsService {
   ) {}
 
   async getAdminProduct(productId: string): Promise<ProductEntity> {
-    return this.findProductOrThrow(productId);
+    const product = await this.products.findOne({ where: { id: productId }, relations: ["category", "variants"] });
+    if (!product) throw new NotFoundException("Product not found.");
+    return product;
   }
 
   async updateProductById(productId: string, data: {
