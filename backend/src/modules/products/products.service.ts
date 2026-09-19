@@ -215,7 +215,7 @@ export class ProductsService {
   async upsertFullProduct(data: {
     slug: string; name: string; category: CategoryEntity; price: number; salePrice?: number;
     description: string; content: ProductContent; metaTitle: string; metaDescription: string;
-    mediaUrls: string[]; variants: { sku: string; name: string; hexColor?: string; stockQuantity: number }[];
+    mediaUrls: string[]; variants: { sku: string; name: string; hexColor?: string; stockQuantity: number; mrp?: number }[];
   }): Promise<{ entity: ProductEntity; wasCreated: boolean }> {
     this.validateProductInput(data);
     const existing = await this.products.findOne({ where: { slug: data.slug }, relations: ["variants"] });
@@ -252,6 +252,7 @@ export class ProductsService {
         current.name = variantSeed.name;
         current.hexColor = variantSeed.hexColor;
         current.stockQuantity = variantSeed.stockQuantity;
+        if (variantSeed.mrp !== undefined) current.mrp = String(variantSeed.mrp);
         current.stockState = this.computeStockState(variantSeed.stockQuantity);
         await this.variants.save(current);
       } else {
@@ -303,7 +304,7 @@ export class ProductsService {
     if (await this.skuExists(data.sku)) {
       throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, `SKU ${data.sku} is already assigned to another product.`);
     }
-    const variant = this.variants.create({ product, sku: data.sku, name: data.name, hexColor: data.hexColor, stockQuantity: data.stockQuantity, stockState: this.computeStockState(data.stockQuantity) });
+    const variant = this.variants.create({ product, sku: data.sku, name: data.name, hexColor: data.hexColor, mrp: data.mrp !== undefined ? String(data.mrp) : undefined, stockQuantity: data.stockQuantity, stockState: this.computeStockState(data.stockQuantity) });
     const saved = await this.variants.save(variant);
     await this.cacheInvalidation.invalidatePrefix("products");
     return saved;
