@@ -41,6 +41,16 @@ export class ProductsController {
   }
 
   @RequirePermission("products", "view")
+  @Get("admin/inventory")
+  listInventory() { return this.products.listInventory(); }
+
+  @RequirePermission("products", "edit")
+  @Patch("admin/inventory/:variantId")
+  setStock(@Param("variantId") variantId: string, @Body() body: { quantity: number; expectedVersion?: number }) {
+    return this.products.setStock(variantId, body.quantity, body.expectedVersion);
+  }
+
+  @RequirePermission("products", "view")
   @Get("admin/:productId")
   getAdminProduct(@Param("productId") productId: string) {
     return this.products.getAdminProduct(productId);
@@ -63,16 +73,6 @@ export class ProductsController {
   @Patch("admin/:productId/tax")
   updateTaxConfig(@Param("productId") productId: string, @Body() body: UpdateProductTaxDto) {
     return this.productTax.updateTaxConfig(productId, body);
-  }
-
-  @RequirePermission("products", "view")
-  @Get("admin/inventory")
-  listInventory() { return this.products.listInventory(); }
-
-  @RequirePermission("products", "edit")
-  @Patch("admin/inventory/:variantId")
-  setStock(@Param("variantId") variantId: string, @Body() body: { quantity: number; expectedVersion?: number }) {
-    return this.products.setStock(variantId, body.quantity, body.expectedVersion);
   }
 
   @RequirePermission("products", "full")
