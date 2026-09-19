@@ -7,6 +7,8 @@ import { OrderLineItemEntity } from "./entities/order-line-item.entity";
 import { OrderStatusHistoryEntity } from "./entities/order-status-history.entity";
 import { InvoiceEntity } from "./entities/invoice.entity";
 import { InvoiceSequenceEntity } from "./entities/invoice-sequence.entity";
+import { ShipmentEntity } from "@/modules/logistics/entities/shipment.entity";
+import { ShipmentEventEntity } from "@/modules/logistics/entities/shipment-event.entity";
 import { CartService } from "@/modules/cart/cart.service";
 import { ProductsService } from "@/modules/products/products.service";
 import { TransactionService } from "@/database/transaction.service";
@@ -21,6 +23,8 @@ describe("OrdersService", () => {
   let orderRepo: ReturnType<typeof createMockRepo<OrderEntity>>;
   let historyRepo: ReturnType<typeof createMockRepo<OrderStatusHistoryEntity>>;
   let invoiceRepo: ReturnType<typeof createMockRepo<InvoiceEntity>>;
+  let shipmentRepo: ReturnType<typeof createMockRepo<ShipmentEntity>>;
+  let shipmentEventRepo: ReturnType<typeof createMockRepo<ShipmentEventEntity>>;
   let productService: { adjustStock: jest.Mock; findVariantById: jest.Mock; listInventory: jest.Mock };
   let transactionService: { runInTransaction: jest.Mock };
 
@@ -28,6 +32,8 @@ describe("OrdersService", () => {
     orderRepo = createMockRepo<OrderEntity>();
     historyRepo = createMockRepo<OrderStatusHistoryEntity>();
     invoiceRepo = createMockRepo<InvoiceEntity>();
+    shipmentRepo = createMockRepo<ShipmentEntity>();
+    shipmentEventRepo = createMockRepo<ShipmentEventEntity>();
     productService = { adjustStock: jest.fn(), findVariantById: jest.fn(), listInventory: jest.fn() };
     const manager = {
       update: jest.fn().mockResolvedValue(undefined),
@@ -45,6 +51,8 @@ describe("OrdersService", () => {
         { provide: getRepositoryToken(OrderStatusHistoryEntity), useValue: historyRepo },
         { provide: getRepositoryToken(InvoiceEntity), useValue: invoiceRepo },
         { provide: getRepositoryToken(InvoiceSequenceEntity), useValue: createMockRepo<InvoiceSequenceEntity>() },
+        { provide: getRepositoryToken(ShipmentEntity), useValue: shipmentRepo },
+        { provide: getRepositoryToken(ShipmentEventEntity), useValue: shipmentEventRepo },
         { provide: CartService, useValue: {} },
         { provide: ProductsService, useValue: productService },
         { provide: TransactionService, useValue: transactionService },
@@ -167,10 +175,53 @@ describe("OrdersService", () => {
     await expect(service.requestReturn("o1", ["li1"], "wrong shade")).rejects.toThrow(DomainException);
   });
 
-  it("allows a return request after delivery", async () => {
+  it("persists a return request on the delivered shipment", async () => {
     orderRepo.findOne.mockResolvedValue({ id: "o1", status: "delivered", lineItems: [{ id: "li1", variantId: "v1", quantity: 1 }], statusHistory: [{ status: "delivered", changedAt: new Date() }], updatedAt: new Date() } as unknown as OrderEntity);
+    transactionService.runInTransaction.mockImplementationOnce(async (work: (qr: unknown) => Promise<unknown>) => work({
+      manager: {
+        findOne: jest.fn()
+          .mockResolvedValueOnce({ id: "o1", status: "delivered", lineItems: [{ id: "li1" }], statusHistory: [] })
+          .mockResolvedValueOnce({ id: "s1", orderId: "o1", status: "delivered" }),
+        create: jest.fn((_: unknown, entity: unknown) => entity),
+        save: jest.fn(async (entity: unknown) => entity),
+      },
+    }));
     const result = await service.requestReturn("o1", ["li1"], "wrong shade");
     expect(result.accepted).toBe(true);
+    expect(transactionService.runInTransaction).toHaveBeenCalledTimes(1);
+    expect((transactionService.runInTransaction.mock.calls[0][0])).toBeDefined();
+  });
+
+  it("rejects a duplicate return request once shipment return processing has started", async () => {
+    orderRepo.findOne.mockResolvedValue({ id: "o1", status: "delivered", lineItems: [{ id: "li1", variantId: "v1", quantity: 1 }], statusHistory: [{ status: "delivered", changedAt: new Date() }], updatedAt: new Date() } as unknown as OrderEntity);
+    transactionService.runInTransaction.mockImplementationOnce(async (work: (qr: unknown) => Promise<unknown>) => work({
+      manager: {
+        findOne: jest.fn()
+          .mockResolvedValueOnce({ id: "o1", status: "delivered", lineItems: [{ id: "li1" }], statusHistory: [] })
+          .mockResolvedValueOnce({ id: "s1", orderId: "o1", status: "return_requested" }),
+        create: jest.fn((_: unknown, entity: unknown) => entity),
+        save: jest.fn(async (entity: unknown) => entity),
+      },
+    }));
+    await expect(service.requestReturn("o1", ["li1"], "duplicate")).rejects.toThrow(
+      "A return has already been requested for this order.",
+    );
+  });
+
+  it("rejects a return request when no delivered shipment exists", async () => {
+    orderRepo.findOne.mockResolvedValue({ id: "o1", status: "delivered", lineItems: [{ id: "li1", variantId: "v1", quantity: 1 }], statusHistory: [{ status: "delivered", changedAt: new Date() }], updatedAt: new Date() } as unknown as OrderEntity);
+    transactionService.runInTransaction.mockImplementationOnce(async (work: (qr: unknown) => Promise<unknown>) => work({
+      manager: {
+        findOne: jest.fn()
+          .mockResolvedValueOnce({ id: "o1", status: "delivered", lineItems: [{ id: "li1" }], statusHistory: [] })
+          .mockResolvedValueOnce(null),
+        create: jest.fn((_: unknown, entity: unknown) => entity),
+        save: jest.fn(async (entity: unknown) => entity),
+      },
+    }));
+    await expect(service.requestReturn("o1", ["li1"], "missing shipment")).rejects.toThrow(
+      "A delivered shipment is required before a return can be requested.",
+    );
   });
 
   it("restores stock when admin changes an order to cancelled", async () => {
