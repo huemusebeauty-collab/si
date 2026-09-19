@@ -2,9 +2,7 @@ import type { AvailabilityStatus, Category, Collection, Product, Review } from "
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/v1";
 
-interface ApiEnvelope<T> {
-  data: T;
-}
+interface ApiEnvelope<T> { data: T; }
 
 interface ApiProductVariant {
   id: string;
@@ -72,27 +70,20 @@ function overallAvailability(variants: ApiProductVariant[]): AvailabilityStatus 
   return "out-of-stock";
 }
 
-function resolveProductImage(mediaUrls: string[] | undefined, categorySlug: string, productSlug?: string): string {
-  const mediaUrl = mediaUrls?.find((url) => /^https?:\/\//.test(url));
-  if (mediaUrl) return mediaUrl;
-  if (productSlug === "muse-rose-nail-lacquer" || productSlug === "silku-nail-lacquer") {
-    return "/products/silku-black-signature.jpg.jpeg";
-  }
-  return productImageForCategory(categorySlug);
+function normalizeImageKey(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
-function productImageForCategory(categorySlug: string): string {
-  if (categorySlug === "nail-polish") return "/products/silku-black-signature.jpg.jpeg";
-  if (["color-cosmetics", "lipstick", "lip-gloss", "kajal", "eyeliner", "mascara", "blush", "highlighter", "foundation", "concealer", "compact-powder", "primer"].includes(categorySlug)) {
-    return "/products/silku-brown-glam.jpg.jpeg";
-  }
-  if (["skincare", "face-wash", "cleansing-balm", "toner", "serum", "moisturizer", "sunscreen", "face-scrub", "face-mask", "eye-care", "lip-care", "body-lotion", "body-wash", "body-scrub", "skin-treatments"].includes(categorySlug)) {
-    return "/products/silku-ocean-vibe.jpg.jpeg";
-  }
-  return "/products/silku-black-signature.jpg.jpeg";
+function resolveVariantImage(mediaUrls: string[], variantName: string): string | undefined {
+  const key = normalizeImageKey(variantName);
+  if (!key) return undefined;
+  return mediaUrls.find((url) => normalizeImageKey(url).includes(key));
 }
 
 function mapProduct(p: ApiProduct): Product {
+  const imageUrls = p.mediaUrls.filter((url) => /^https?:\\/\\//.test(url));
+  const imageUrl = imageUrls[0] ?? "";
+
   return {
     id: p.id,
     slug: p.slug,
@@ -101,7 +92,8 @@ function mapProduct(p: ApiProduct): Product {
     price: Number.parseFloat(p.price),
     salePrice: p.salePrice ? Number.parseFloat(p.salePrice) : undefined,
     currency: p.currency,
-    imageUrl: resolveProductImage(p.mediaUrls, p.category.slug, p.slug),
+    imageUrl,
+    imageUrls,
     imageAlt: p.name,
     badges: [],
     availability: overallAvailability(p.variants),
@@ -111,6 +103,7 @@ function mapProduct(p: ApiProduct): Product {
       name: v.name,
       hex: v.hexColor ?? "#CCCCCC",
       inStock: v.stockState === "in-stock",
+      imageUrl: resolveVariantImage(imageUrls, v.name),
     })),
     rating: 0,
     reviewCount: 0,
@@ -119,15 +112,10 @@ function mapProduct(p: ApiProduct): Product {
   };
 }
 
-function categoryImageForSlug(slug: string): string {
-  if (slug === "nail-polish") return "/products/silku-black-signature.jpg.jpeg";
-  if (["color-cosmetics", "lipstick", "lip-gloss", "kajal", "eyeliner", "mascara", "blush", "highlighter", "foundation", "concealer", "compact-powder", "primer"].includes(slug)) {
-    return "/products/silku-brown-glam.jpg.jpeg";
-  }
-  if (["skincare", "face-wash", "cleansing-balm", "toner", "serum", "moisturizer", "sunscreen", "face-scrub", "face-mask", "eye-care", "lip-care", "body-lotion", "body-wash", "body-scrub", "skin-treatments"].includes(slug)) {
-    return "/products/silku-ocean-vibe.jpg.jpeg";
-  }
-  return "/products/silku-black-signature.jpg.jpeg";
+function categoryImageForSlug(_slug: string): string {
+  // Category cards must not borrow a product image. A category image is only
+  // shown when a real category asset is added to the API in a future contract.
+  return "";
 }
 
 function mapCategory(c: ApiCategory, itemCount = 0): Category {
@@ -142,11 +130,9 @@ function mapCategory(c: ApiCategory, itemCount = 0): Category {
   };
 }
 
-function collectionImageForSlug(slug: string): string {
-  if (["new-arrivals", "trending", "seasonal-holiday-shine"].includes(slug)) {
-    return "/products/silku-ocean-vibe.jpg.jpeg";
-  }
-  return "/products/silku-brown-glam.jpg.jpeg";
+function collectionImageForSlug(_slug: string): string {
+  // Collections must not borrow an unrelated product image.
+  return "";
 }
 
 function mapCollection(c: ApiCollection): Collection {
