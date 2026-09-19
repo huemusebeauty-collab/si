@@ -4,6 +4,7 @@ export class InventoryMovementFoundation20260919020000 implements MigrationInter
   name = "InventoryMovementFoundation20260919020000";
 
   async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`);
     await queryRunner.query(`CREATE TABLE "inventory_movements" (
       "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
       "variantId" uuid NOT NULL,
