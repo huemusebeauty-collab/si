@@ -169,3 +169,157 @@ export class ProductsService {
     return saved;
   }
 
+
+
+  async bulkActivate(productIds: string[]): Promise<{ succeeded: string[]; failed: { id: string; reason: string }[] }> {
+    const succeeded: string[] = [];
+    const failed: { id: string; reason: string }[] = [];
+    for (const id of productIds) {
+      try { await this.activate(id); succeeded.push(id); }
+      catch (error) { failed.push({ id, reason: error instanceof Error ? error.message : String(error) }); }
+    }
+    return { succeeded, failed };
+  }
+
+  async bulkDeactivate(productIds: string[]): Promise<{ succeeded: string[]; failed: { id: string; reason: string }[] }> {
+    const succeeded: string[] = [];
+    const failed: { id: string; reason: string }[] = [];
+    for (const id of productIds) {
+      try { await this.deactivate(id); succeeded.push(id); }
+      catch (error) { failed.push({ id, reason: error instanceof Error ? error.message : String(error) }); }
+    }
+    return { succeeded, failed };
+  }
+
+  async getProductsReport(): Promise<{ lowestStock: ProductVariantEntity[] }> {
+    return { lowestStock: await this.variants.find({ order: { stockQuantity: "ASC" }, take: 10 }) };
+  }
+
+  async findVariantById(variantId: string, manager?: EntityManager): Promise<ProductVariantEntity> {
+    const repo = manager ? manager.getRepository(ProductVariantEntity) : this.variants;
+    const variant = await repo.findOne({
+      where: { id: variantId },
+      relations: ["product"],
+      ...(manager ? { lock: { mode: "pessimistic_write" as const } } : {}),
+    });
+    if (!variant) throw new NotFoundException("Variant not found.");
+    return variant;
+  }
+
+  async findById(productId: string): Promise<ProductEntity> { return this.findProductOrThrow(productId); }
+
+  async listAllForExport(): Promise<ProductEntity[]> { return this.products.find({ relations: ["category"] }); }
+
+  async upsertFromImportRow(row: { slug: string; name: string; categorySlug: string; price: string }, category: CategoryEntity): Promise<ProductEntity> {
+    const existing = row.slug ? await this.products.findOne({ where: { slug: row.slug } }) : null;
+    const entity = existing ?? this.products.create({ slug: row.slug, status: "draft", visibility: "hidden" });
+    entity.name = row.name;
+    entity.category = category;
+    entity.price = row.price;
+    return this.products.save(entity);
+  }
+
+  async slugExists(slug: string, excludeId?: string): Promise<boolean> {
+    const existing = await this.products.findOne({ where: { slug } });
+    return Boolean(existing && existing.id !== excludeId);
+  }
+
+  async skuExists(sku: string, excludeVariantId?: string): Promise<boolean> {
+    const existing = await this.variants.findOne({ where: { sku } });
+    return Boolean(existing && existing.id !== excludeVariantId);
+  }
+
+  async deleteById(productId: string): Promise<void> {
+    await this.variants.delete({ product: { id: productId } });
+    await this.products.delete({ id: productId });
+    await this.cacheInvalidation.invalidatePrefix("products");
+  }
+
+  private async findProductOrThrow(productId: string): Promise<ProductEntity> {
+    const product = await this.products.findOne({ where: { id: productId }, relations: ["variants"] });
+    if (!product) throw new NotFoundException("Product not found.");
+    return product;
+  }
+
+  async activate(productId: string): Promise<ProductEntity> {
+    const product = await this.findProductOrThrow(productId);
+    if (product.variants.length === 0) throw new DomainException(DomainErrorCode.CANNOT_ACTIVATE_WITHOUT_VARIANT, "A product must have at least one variant before it can be activated.");
+    product.status = "active";
+    product.visibility = "visible";
+    await this.products.save(product);
+    await this.cacheInvalidation.invalidatePrefix("products");
+    return product;
+  }
+
+  async deactivate(productId: string): Promise<ProductEntity> {
+    const product = await this.findProductOrThrow(productId);
+    product.status = "archived";
+    product.visibility = "hidden";
+    product.archivedAt = new Date();
+    await this.products.save(product);
+    await this.cacheInvalidation.invalidatePrefix("products");
+    return product;
+  }
+
+  async addVariant(productId: string, data: { sku: string; name: string; hexColor?: string; stockQuantity: number; mrp?: number }): Promise<ProductVariantEntity> {
+    this.validateVariantInput(data);
+    if (data.mrp !== undefined && (!Number.isFinite(data.mrp) || data.mrp < 0)) {
+      throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Variant MRP must be a non-negative number.");
+    }
+    const product = await this.findProductOrThrow(productId);
+    if (await this.skuExists(data.sku)) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, `SKU ${data.sku} is already assigned to another product.`);
+    const variant = this.variants.create({ product, sku: data.sku, name: data.name, hexColor: data.hexColor, stockQuantity: data.stockQuantity, stockState: this.computeStockState(data.stockQuantity), mrp: data.mrp == null ? undefined : String(data.mrp) });
+    const saved = await this.variants.save(variant);
+    await this.cacheInvalidation.invalidatePrefix("products");
+    return saved;
+  }
+
+  private validateProductInput(data: {
+    slug: string; name: string; price: number; salePrice?: number;
+    mediaUrls: string[]; variants: { sku: string; name: string; stockQuantity: number; mrp?: number }[];
+  }): void {
+    if (!data.slug?.trim() || !data.name?.trim()) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Product name and slug are required.");
+    if (!Number.isFinite(data.price) || data.price <= 0) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Product price must be greater than zero.");
+    if (data.salePrice !== undefined && (!Number.isFinite(data.salePrice) || data.salePrice < 0 || data.salePrice > data.price)) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Sale price must be between zero and the regular price.");
+    if (!Array.isArray(data.mediaUrls) || data.mediaUrls.some((url) => typeof url !== "string" || !url.trim())) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Product media URLs must be non-empty strings.");
+    const seenSkus = new Set<string>();
+    for (const variant of data.variants) {
+      this.validateVariantInput(variant);
+      if (variant.mrp !== undefined && (!Number.isFinite(variant.mrp) || variant.mrp < 0)) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Variant MRP must be a non-negative number.");
+      if (seenSkus.has(variant.sku)) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, `Duplicate SKU ${variant.sku} in product variants.`);
+      seenSkus.add(variant.sku);
+    }
+  }
+
+  private validateVariantInput(data: { sku: string; name: string; stockQuantity: number }): void {
+    if (!data.sku?.trim() || !data.name?.trim()) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Variant SKU and name are required.");
+    if (!Number.isInteger(data.stockQuantity) || data.stockQuantity < 0) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Stock quantity must be a non-negative integer.");
+  }
+
+  private flattenCategoryIds(children: CategoryEntity[] = []): string[] {
+    return children.flatMap((child) => [child.id, ...this.flattenCategoryIds(child.children)]);
+  }
+
+  private computeStockState(quantity: number): StockState {
+    if (quantity <= 0) return "out-of-stock";
+    if (quantity <= LOW_STOCK_THRESHOLD) return "low-stock";
+    return "in-stock";
+  }
+
+  async adjustStock(variantId: string, delta: number, manager?: EntityManager): Promise<ProductVariantEntity> {
+    const repo = manager ? manager.getRepository(ProductVariantEntity) : this.variants;
+    const variant = await repo.findOneOrFail({ where: { id: variantId }, ...(manager ? { lock: { mode: "pessimistic_write" as const } } : {}) });
+    const nextQuantity = variant.stockQuantity + delta;
+    if (nextQuantity < 0) throw new DomainException(DomainErrorCode.INSUFFICIENT_STOCK, `Only ${variant.stockQuantity} unit(s) of ${variant.sku} remain in stock.`);
+    variant.stockQuantity = nextQuantity;
+    variant.stockState = this.computeStockState(nextQuantity);
+    try {
+      const saved = await repo.save(variant);
+      if (!manager) await this.cacheInvalidation.invalidatePrefix("products");
+      return saved;
+    } catch (error) {
+      if (error instanceof OptimisticLockVersionMismatchError) throw new DomainException(DomainErrorCode.STALE_WRITE_CONFLICT, "Stock for this shade changed while processing your request — please try again.", HttpStatus.CONFLICT);
+      throw error;
+    }
+  }
+}
