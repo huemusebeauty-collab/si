@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from "@nestjs/common";
+import { Body, Controller, Get, Headers, Param, Patch, Post, Query } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { OrdersService } from "./orders.service";
 import type { OrderStatus } from "./entities/order.entity";
@@ -126,6 +126,7 @@ export class OrdersController {
   @Post()
   create(
     @CurrentUser() user: AuthenticatedUser | undefined,
+    @Headers("idempotency-key") idempotencyKey: string | undefined,
     @Body() body: { customerId: string; cartId: string; shippingAddress: Record<string, unknown> },
   ) {
     if (user && user.id !== body.customerId) {
@@ -134,7 +135,7 @@ export class OrdersController {
         "The order's customerId must match the authenticated customer.",
       );
     }
-    return this.orders.createOrder(body.customerId, body.cartId, body.shippingAddress);
+    return this.orders.createOrder(body.customerId, body.cartId, body.shippingAddress, idempotencyKey);
   }
 
   @Public()
