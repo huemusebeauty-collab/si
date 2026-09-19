@@ -12,11 +12,11 @@ jobs:
       fail-fast: false
       matrix:
         bullmq:
-          - "5.12.0"
+          - "5.13.0"
+          - "5.20.0"
+          - "5.25.0"
+          - "5.29.0"
           - "5.30.0"
-          - "5.50.0"
-          - "5.70.0"
-          - "5.81.5"
     defaults:
       run:
         working-directory: backend
@@ -45,7 +45,7 @@ jobs:
       - name: Vulnerability snapshot
         shell: bash
         run: |
-          npm audit --json > audit.json || true
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund && npm audit --json > audit.json || true
           node - <<'NODE'
           const fs = require("fs");
           const a = JSON.parse(fs.readFileSync("audit.json", "utf8"));
