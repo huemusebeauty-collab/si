@@ -57,4 +57,16 @@ describe("OrdersService.checkRefundEligibility", () => {
     const result = await service.checkRefundEligibility("o1");
     expect(result.eligible).toBe(false);
   });
+  it("rejects a partial return because cancellation/return stock restoration is order-wide", async () => {
+    const deliveredAt = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    orderRepo.findOne.mockResolvedValue({
+      id: "o1",
+      status: "delivered",
+      total: "30.00",
+      lineItems: [{ id: "l1" }, { id: "l2" }],
+      statusHistory: [{ status: "delivered", changedAt: deliveredAt }],
+    });
+    await expect(service.requestReturn("o1", ["l1"], "damaged")).rejects.toMatchObject({ message: expect.stringContaining("Partial returns are not supported") });
+  });
+
 });
