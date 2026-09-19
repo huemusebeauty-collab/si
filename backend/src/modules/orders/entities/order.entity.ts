@@ -16,6 +16,10 @@ export class OrderEntity {
   @Column({ type: "varchar", default: "pending_payment" })
   status!: OrderStatus;
 
+  @Index({ unique: true })
+  @Column({ type: "varchar", length: 128, nullable: true })
+  idempotencyKey?: string;
+
   @Column({ type: "decimal", precision: 10, scale: 2, default: 0 })
   subtotal!: string;
 
