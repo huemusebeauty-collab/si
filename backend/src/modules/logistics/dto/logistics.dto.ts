@@ -1,4 +1,4 @@
-import { IsISO8601, IsInt, IsNumber, IsOptional, IsString, IsUUID, Max, Min } from "class-validator";
+import { IsISO8601, IsIn, IsInt, IsISO8601, IsNumber, IsOptional, IsString, IsUUID, Max, Min } from "class-validator";
 import type { ShipmentStatus } from "../entities/shipment.entity";
 
 export class CreateShipmentDto {
@@ -41,6 +41,7 @@ export class CreateShipmentDto {
 }
 
 export class UpdateShipmentStatusDto {
+  @IsIn(["draft","ready_to_ship","pickup_scheduled","picked_up","in_transit","out_for_delivery","delivered","delivery_failed","rto","return_requested","return_in_transit","returned","cancelled"])
   status!: ShipmentStatus;
 
   @IsOptional()
