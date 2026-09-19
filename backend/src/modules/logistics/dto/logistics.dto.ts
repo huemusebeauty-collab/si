@@ -1,4 +1,4 @@
-import { IsISO8601, IsIn, IsInt, IsISO8601, IsNumber, IsOptional, IsString, IsUUID, Max, Min } from "class-validator";
+import { IsISO8601, IsIn, IsInt, IsNumber, IsOptional, IsString, IsUUID, MaxLength, Min } from "class-validator";
 import type { ShipmentStatus } from "../entities/shipment.entity";
 
 export class CreateShipmentDto {
@@ -7,7 +7,7 @@ export class CreateShipmentDto {
 
   @IsOptional()
   @IsString()
-  @Max(80)
+  @MaxLength(80)
   carrier?: string;
 
   @IsOptional()
@@ -50,12 +50,12 @@ export class UpdateShipmentStatusDto {
 
   @IsOptional()
   @IsString()
-  @Max(160)
+  @MaxLength(160)
   location?: string;
 
   @IsOptional()
   @IsString()
-  @Max(120)
+  @MaxLength(120)
   awbNumber?: string;
 
   @IsOptional()
