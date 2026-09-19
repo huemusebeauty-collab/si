@@ -38,7 +38,7 @@ export const adminApi = {
   confirmPasswordReset: (resetToken: string, code: string, newPassword: string) => request<{ reset: true }>("/admin/auth/password/reset/confirm", { method: "POST", body: JSON.stringify({ resetToken, code, newPassword }) }),
   getDashboardOverview: () => request<DashboardOverview>("/admin/dashboard/overview"),
   listProducts: (params: URLSearchParams) => request<Paginated<AdminProduct>>(`/products/admin?${params}`),
-  createProduct: (body: CreateProductInput) => request<AdminProduct>("/products/admin", { method: "POST", body: JSON.stringify(body) }),
+  createProduct: (body: CreateProductInput) => request<{ entity: AdminProduct; wasCreated: boolean }>("/products/admin", { method: "POST", body: JSON.stringify(body) }),
   getProductTax: (productId: string) => request<ProductTaxConfig>(`/products/admin/${productId}/tax`),
   updateProductTax: (productId: string, body: UpdateProductTaxInput) => request<ProductTaxConfig>(`/products/admin/${productId}/tax`, { method: "PATCH", body: JSON.stringify(body) }),
   activateProduct: (id: string) => request<AdminProduct>(`/products/${id}/activate`, { method: "POST" }),
@@ -102,7 +102,7 @@ export const adminApi = {
 };
 
 export interface CreateProductInput {
-  slug: string; name: string; categorySlug: string; price: number; salePrice?: number; description: string;
+  slug: string; name: string; categorySlug: string; price: number; salePrice?: number; hsnCode?: string; gstRate?: number; taxInclusiveMrp?: boolean; description: string;
   content: { shortDescription: string; keyBenefits: string[]; features: string[]; ingredients: string; usageInstructions: string[]; warnings: string; storageInstructions: string; specifications: Record<string, string>; faqs: { question: string; answer: string }[] };
   metaTitle: string; metaDescription: string; mediaUrls: string[];
   variants: { sku: string; name: string; hexColor?: string; stockQuantity: number; mrp?: number }[];
