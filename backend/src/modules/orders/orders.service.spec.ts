@@ -5,6 +5,8 @@ import { OrdersService } from "./orders.service";
 import { OrderEntity } from "./entities/order.entity";
 import { OrderLineItemEntity } from "./entities/order-line-item.entity";
 import { OrderStatusHistoryEntity } from "./entities/order-status-history.entity";
+import { InvoiceEntity } from "./entities/invoice.entity";
+import { InvoiceSequenceEntity } from "./entities/invoice-sequence.entity";
 import { CartService } from "@/modules/cart/cart.service";
 import { ProductsService } from "@/modules/products/products.service";
 import { TransactionService } from "@/database/transaction.service";
@@ -18,12 +20,14 @@ describe("OrdersService", () => {
   let service: OrdersService;
   let orderRepo: ReturnType<typeof createMockRepo<OrderEntity>>;
   let historyRepo: ReturnType<typeof createMockRepo<OrderStatusHistoryEntity>>;
+  let invoiceRepo: ReturnType<typeof createMockRepo<InvoiceEntity>>;
   let productService: { adjustStock: jest.Mock; findVariantById: jest.Mock; listInventory: jest.Mock };
   let transactionService: { runInTransaction: jest.Mock };
 
   beforeEach(async () => {
     orderRepo = createMockRepo<OrderEntity>();
     historyRepo = createMockRepo<OrderStatusHistoryEntity>();
+    invoiceRepo = createMockRepo<InvoiceEntity>();
     productService = { adjustStock: jest.fn(), findVariantById: jest.fn(), listInventory: jest.fn() };
     const manager = {
       update: jest.fn().mockResolvedValue(undefined),
@@ -39,12 +43,91 @@ describe("OrdersService", () => {
         { provide: getRepositoryToken(OrderEntity), useValue: orderRepo },
         { provide: getRepositoryToken(OrderLineItemEntity), useValue: createMockRepo<OrderLineItemEntity>() },
         { provide: getRepositoryToken(OrderStatusHistoryEntity), useValue: historyRepo },
+        { provide: getRepositoryToken(InvoiceEntity), useValue: invoiceRepo },
+        { provide: getRepositoryToken(InvoiceSequenceEntity), useValue: createMockRepo<InvoiceSequenceEntity>() },
         { provide: CartService, useValue: {} },
         { provide: ProductsService, useValue: productService },
         { provide: TransactionService, useValue: transactionService },
       ],
     }).compile();
     service = module.get(OrdersService);
+  });
+
+  it("returns an unissued invoice preview without inventing an invoice number", async () => {
+    orderRepo.findOne.mockResolvedValue({
+      id: "o1",
+      lineItems: [],
+      subtotal: "100.00",
+      discountAmount: "0.00",
+      taxableAmount: "100.00",
+      taxAmount: "18.00",
+      total: "118.00",
+      currency: "INR",
+    } as unknown as OrderEntity);
+    invoiceRepo.findOne.mockResolvedValue(null);
+
+    const result = await service.generateInvoice("o1");
+    expect(result.invoiceNumber).toBeNull();
+    expect(result.issuedAt).toBeNull();
+    expect(result.total).toBe("118.00");
+  });
+
+  it("issues one persistent invoice per order and reuses it idempotently", async () => {
+    const order = {
+      id: "o1",
+      customerId: "c1",
+      status: "confirmed",
+      shippingAddress: { city: "Jaipur" },
+      lineItems: [],
+      subtotal: "100.00",
+      discountAmount: "0.00",
+      taxableAmount: "100.00",
+      taxAmount: "18.00",
+      total: "118.00",
+      currency: "INR",
+      createdAt: new Date("2026-09-19T10:00:00Z"),
+    } as unknown as OrderEntity;
+    const transactionInvoiceRepo = {
+      findOne: jest.fn().mockResolvedValue(null),
+      create: jest.fn((entity: Partial<InvoiceEntity>) => entity),
+      save: jest.fn(async (entity: Partial<InvoiceEntity>) => ({ id: "inv1", ...entity })),
+    };
+    const transactionSequenceRepo = {
+      query: jest.fn().mockResolvedValue([{ issuedNumber: "1" }]),
+    };
+    transactionService.runInTransaction.mockImplementationOnce(async (work: (qr: unknown) => Promise<unknown>) =>
+      work({
+        manager: {
+          getRepository: jest.fn((entity: unknown) =>
+            entity === OrderEntity
+              ? { findOne: jest.fn().mockResolvedValue(order) }
+              : entity === InvoiceEntity
+                ? transactionInvoiceRepo
+                : transactionSequenceRepo,
+          ),
+        },
+      }),
+    );
+
+    const first = await service.issueInvoice("o1");
+    expect(first.invoiceNumber).toBe("SLK/26-27/000001");
+    expect(transactionInvoiceRepo.save).toHaveBeenCalledTimes(1);
+
+    transactionService.runInTransaction.mockImplementationOnce(async (work: (qr: unknown) => Promise<unknown>) =>
+      work({
+        manager: {
+          getRepository: jest.fn((entity: unknown) =>
+            entity === OrderEntity
+              ? { findOne: jest.fn().mockResolvedValue(order) }
+              : entity === InvoiceEntity
+                ? { findOne: jest.fn().mockResolvedValue({ id: "inv1", invoiceNumber: "SLK/26-27/000001", issuedAt: new Date("2026-09-19T10:00:00Z"), snapshot: first }) }
+                : transactionSequenceRepo,
+          ),
+        },
+      }),
+    );
+    const second = await service.issueInvoice("o1");
+    expect(second.invoiceNumber).toBe("SLK/26-27/000001");
   });
 
   it("throws NotFoundException for a missing order", async () => {
