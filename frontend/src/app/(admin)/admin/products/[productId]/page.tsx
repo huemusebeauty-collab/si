@@ -27,7 +27,6 @@ function EditProductContent() {
   useEffect(() => {
     void Promise.all([adminApi.getAdminProduct(id), adminApi.listCategories()]).then(([p, cats]) => {
       setProduct(p); setCategories(cats);
-      const v = p.variants[0];
       setForm({
         name: p.name, slug: p.slug, categorySlug: p.category?.slug ?? "", price: p.price, salePrice: p.salePrice ?? "",
         gstRate: p.gstRate ?? "", hsnCode: p.hsnCode ?? "", taxInclusiveMrp: p.taxInclusiveMrp,
@@ -37,7 +36,6 @@ function EditProductContent() {
       setVariants(p.variants.map(item => ({
         id: item.id, sku: item.sku, name: item.name, hexColor: item.hexColor ?? "", stock: String(item.stockQuantity), mrp: item.mrp ?? "",
       })));
-      });
     }).catch((e) => setError(e instanceof Error ? e.message : "Unable to load product.")).finally(() => setLoading(false));
   }, [id]);
 
@@ -88,7 +86,6 @@ function EditProductContent() {
         <label className="text-sm font-semibold">Slug<input className={inputClass} value={form.slug} onChange={e=>setForm({...form,slug:e.target.value})}/></label>
         <label className="text-sm font-semibold">Category<select className={inputClass} value={form.categorySlug} onChange={e=>setForm({...form,categorySlug:e.target.value})}><option value="">Select category</option>{categories.map(c=><option key={c.id} value={c.slug}>{c.name}</option>)}</select></label>
         <label className="text-sm font-semibold">Price<input className={inputClass} type="number" min="0.01" step="0.01" value={form.price} onChange={e=>setForm({...form,price:e.target.value})}/></label>
-        <label className="text-sm font-semibold">MRP<input className={inputClass} type="number" min="0" step="0.01" value={form.mrp} onChange={e=>setForm({...form,mrp:e.target.value})}/></label>
         <label className="text-sm font-semibold">GST %<input className={inputClass} type="number" min="0" max="100" step="0.01" value={form.gstRate} onChange={e=>setForm({...form,gstRate:e.target.value})}/></label>
         <label className="text-sm font-semibold">HSN code<input className={inputClass} value={form.hsnCode} onChange={e=>setForm({...form,hsnCode:e.target.value})}/></label>
         <label className="flex items-center gap-3 rounded-lg border border-line p-3 text-sm font-semibold sm:col-span-2"><input type="checkbox" checked={form.taxInclusiveMrp} onChange={e=>setForm({...form,taxInclusiveMrp:e.target.checked})}/> MRP is tax-inclusive</label>
