@@ -20,7 +20,6 @@ export class ProductsService {
   constructor(
     @InjectRepository(ProductEntity) private readonly products: Repository<ProductEntity>,
     @InjectRepository(ProductVariantEntity) private readonly variants: Repository<ProductVariantEntity>,
-    @InjectRepository(InventoryMovementEntity) private readonly inventoryMovements: Repository<InventoryMovementEntity>,
     private readonly cacheInvalidation: CacheInvalidationService,
     private readonly categoriesService: CategoriesService,
     private readonly transactions: TransactionService,
