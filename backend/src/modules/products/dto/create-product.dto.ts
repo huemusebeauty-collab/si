@@ -1,6 +1,6 @@
 import { Type } from "class-transformer";
 import {
-  IsArray, IsNumber, IsOptional, IsString, IsUrl, Max, Min, ValidateNested,
+  IsArray, IsBoolean, IsNumber, IsOptional, IsString, IsUrl, Max, Min, ValidateNested,
 } from "class-validator";
 
 export class ProductFaqDto {
@@ -106,4 +106,36 @@ export class CreateProductDto {
   @ValidateNested({ each: true })
   @Type(() => CreateProductVariantDto)
   variants!: CreateProductVariantDto[];
+}
+
+
+export class ProductTaxVariantDto {
+  @IsString()
+  variantId!: string;
+
+  @IsNumber()
+  @Min(0)
+  mrp!: number;
+}
+
+export class UpdateProductTaxDto {
+  @IsOptional()
+  @IsString()
+  hsnCode?: string | null;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  gstRate?: number | null;
+
+  @IsOptional()
+  @IsBoolean()
+  taxInclusiveMrp?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProductTaxVariantDto)
+  variants?: ProductTaxVariantDto[];
 }
