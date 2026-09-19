@@ -18,6 +18,7 @@ describe("LogisticsService", () => {
     find: jest.fn(),
   };
   const orders = { findOne: jest.fn() };
+  const products = { adjustStock: jest.fn() };
   const transactions = {
     runInTransaction: jest.fn(async (work: (queryRunner: unknown) => Promise<unknown>) => {
       const manager = {
@@ -39,7 +40,7 @@ describe("LogisticsService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new LogisticsService(shipments as never, events as never, orders as never, transactions as never);
+    service = new LogisticsService(shipments as never, events as never, orders as never, products as never, transactions as never);
   });
 
   it("creates a shipment from a confirmed order and snapshots its address atomically", async () => {
@@ -120,11 +121,12 @@ describe("LogisticsService", () => {
   it("synchronizes returned shipment to returned order", async () => {
     const shipment = { id: "shipment-1", status: "return_in_transit", orderId: "order-1" };
     shipments.findOne.mockResolvedValue(shipment);
-    orders.findOne.mockResolvedValue({ id: "order-1", status: "delivered" });
+    orders.findOne.mockResolvedValue({ id: "order-1", status: "delivered", lineItems: [{ variantId: "v1", quantity: 2 }] });
 
     const result = await service.updateStatus("shipment-1", "returned");
 
     expect(result.status).toBe("returned");
+    expect(products.adjustStock).toHaveBeenCalledWith("v1", 2, expect.any(Object));
   });
 
   it("rejects shipment completion when the linked order cannot make the required transition", async () => {
