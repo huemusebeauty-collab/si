@@ -297,7 +297,8 @@ export class ProductsService {
   async upsertFullProduct(data: {
     slug: string; name: string; category: CategoryEntity; price: number; salePrice?: number;
     description: string; content: ProductContent; metaTitle: string; metaDescription: string;
-    mediaUrls: string[]; variants: { sku: string; name: string; hexColor?: string; stockQuantity: number; mrp?: number }[];
+    mediaUrls: string[]; hsnCode?: string; gstRate?: number; taxInclusiveMrp?: boolean;
+    variants: { sku: string; name: string; hexColor?: string; stockQuantity: number; mrp?: number }[];
   }): Promise<{ entity: ProductEntity; wasCreated: boolean }> {
     this.validateProductInput(data);
 
