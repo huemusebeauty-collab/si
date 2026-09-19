@@ -286,7 +286,7 @@ export class OrdersService {
       if (!CANCELLABLE_BEFORE.includes(lockedOrder.status)) {
         throw new DomainException(
           DomainErrorCode.ORDER_NOT_CANCELLABLE,
-          \`Order cannot be cancelled once it has reached "\${lockedOrder.status}" status.\`,
+          `Order cannot be cancelled once it has reached "${lockedOrder.status}" status.`,
         );
       }
       for (const line of lockedOrder.lineItems) await this.products.adjustStock(line.variantId, line.quantity, manager);
