@@ -1,6 +1,6 @@
 import { Type } from "class-transformer";
 import {
-  ArrayMinSize, IsArray, IsBoolean, IsNumber, IsOptional, IsString, IsUrl, Max, Min, ValidateNested,
+  ArrayMinSize, IsArray, IsBoolean, IsInt, IsNumber, IsOptional, IsString, IsUrl, Max, Min, ValidateNested,
 } from "class-validator";
 
 export class ProductFaqDto {
@@ -61,7 +61,7 @@ export class CreateProductVariantDto {
   @IsString()
   hexColor?: string;
 
-  @IsNumber()
+  @IsInt()
   @Min(0)
   stockQuantity!: number;
 }
@@ -123,6 +123,17 @@ export class CreateProductDto {
   variants!: CreateProductVariantDto[];
 }
 
+
+export class SetInventoryStockDto {
+  @IsInt()
+  @Min(0)
+  quantity!: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  expectedVersion?: number;
+}
 
 export class ProductTaxVariantDto {
   @IsString()
