@@ -487,22 +487,6 @@ export class ProductsService {
     return "in-stock";
   }
 
-ort { Injectable, NotFoundException } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { EntityManager, OptimisticLockVersionMismatchError, Repository } from "typeorm";
-import { ProductEntity, type ProductContent } from "./entities/product.entity";
-import { ProductVariantEntity, type StockState } from "./entities/product-variant.entity";
-import { InventoryMovementEntity } from "./entities/inventory-movement.entity";
-import type { ListProductsQueryDto } from "./dto/list-products-query.dto";
-import { PaginatedResponse } from "@/common/dto/pagination-query.dto";
-import { CacheInvalidationService } from "@/cache/cache-invalidation.service";
-import { DomainErrorCode, DomainException } from "@/common/exceptions/domain.exception";
-import { HttpStatus } from "@nestjs/common";
-import type { CategoryEntity } from "@/modules/categories/entities/category.entity";
-import { CategoriesService } from "@/modules/categories/categories.service";
-import { TransactionService } from "@/database/transaction.service";
-
-const LOW_STOCK_THRESHOLD = 10;
 
 @Injectable()
 export class ProductsService {
