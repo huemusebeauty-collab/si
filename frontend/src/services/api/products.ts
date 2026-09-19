@@ -81,7 +81,7 @@ function resolveVariantImage(mediaUrls: string[], variantName: string): string |
 }
 
 function mapProduct(p: ApiProduct): Product {
-  const imageUrls = p.mediaUrls.filter((url) => /^https?:\\/\\//.test(url));
+  const imageUrls = p.mediaUrls.filter((url) => /^https?:\/\//.test(url));
   const imageUrl = imageUrls[0] ?? "";
 
   return {
