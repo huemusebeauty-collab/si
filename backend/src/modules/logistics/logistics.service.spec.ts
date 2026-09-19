@@ -126,7 +126,7 @@ describe("LogisticsService", () => {
     const result = await service.updateStatus("shipment-1", "returned");
 
     expect(result.status).toBe("returned");
-    expect(products.adjustStock).toHaveBeenCalledWith("v1", 2, expect.any(Object));
+    expect(products.adjustStock).toHaveBeenCalledWith("v1", 2, expect.any(Object), { reason: "order_return", referenceType: "order", referenceId: "order-1" });
   });
 
   it("rejects shipment completion when the linked order cannot make the required transition", async () => {
