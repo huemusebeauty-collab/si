@@ -241,9 +241,24 @@ export class ProductsService {
     entity.metaDescription = data.metaDescription;
     entity.mediaUrls = data.mediaUrls;
     const saved = await this.products.save(entity);
+
+    // Existing variants are updated by SKU; new SKUs are created. This keeps
+    // product edit operations idempotent instead of silently ignoring changes
+    // to an existing shade's name, colour, or stock quantity.
+    const currentVariants = new Map((existing?.variants ?? []).map((variant) => [variant.sku, variant]));
     for (const variantSeed of data.variants) {
-      if (!existingSkus.has(variantSeed.sku)) await this.addVariant(saved.id, variantSeed);
+      const current = currentVariants.get(variantSeed.sku);
+      if (current) {
+        current.name = variantSeed.name;
+        current.hexColor = variantSeed.hexColor;
+        current.stockQuantity = variantSeed.stockQuantity;
+        current.stockState = this.computeStockState(variantSeed.stockQuantity);
+        await this.variants.save(current);
+      } else {
+        await this.addVariant(saved.id, variantSeed);
+      }
     }
+
     await this.cacheInvalidation.invalidatePrefix("products");
     return { entity: saved, wasCreated: !existing };
   }
