@@ -103,7 +103,15 @@ describe("ProductsService — product upsert variant persistence", () => {
       variantRepo as never,
       cache as never,
       categoryService,
-      { runInTransaction: jest.fn(async (work: (qr: unknown) => Promise<unknown>) => work({ manager: { findOne: productRepo.findOne, save: productRepo.save, create: productRepo.create, getRepository: () => variantRepo } })) } as never,
+      {
+        runInTransaction: jest.fn(async (work: (qr: unknown) => Promise<unknown>) => work({
+          manager: {
+            findOne: jest.fn((entity: unknown) => entity === ProductEntity ? productRepo.findOne() : Promise.resolve(null)),
+            save: jest.fn((entity: unknown) => Promise.resolve(entity)),
+            create: jest.fn((_entity: unknown, value: unknown) => value),
+          },
+        })),
+      } as never,
     );
 
     await service.upsertFullProduct({
