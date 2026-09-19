@@ -39,7 +39,12 @@ describe("OrdersService", () => {
       update: jest.fn().mockResolvedValue(undefined),
       create: jest.fn((_: unknown, entity: unknown) => entity),
       save: jest.fn((entity: unknown) => Promise.resolve(entity)),
-      findOne: jest.fn(),
+      findOne: jest.fn().mockResolvedValue({
+        id: "o1",
+        status: "processing",
+        lineItems: [{ variantId: "v1", quantity: 2 }],
+        statusHistory: [],
+      }),
     };
     transactionService = {
       runInTransaction: jest.fn(async (work: (qr: unknown) => Promise<unknown>) => work({ manager })),
