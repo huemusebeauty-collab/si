@@ -1,4 +1,5 @@
 import { OrderEntity } from "@/modules/orders/entities/order.entity";
+import { OrderStatusHistoryEntity } from "@/modules/orders/entities/order-status-history.entity";
 import { ShipmentEntity } from "./entities/shipment.entity";
 import { ShipmentEventEntity } from "./entities/shipment-event.entity";
 import { LogisticsService } from "./logistics.service";
@@ -24,6 +25,7 @@ describe("LogisticsService", () => {
           if (entity === OrderEntity) return orders.findOne(options);
           if (entity === ShipmentEntity) return shipments.findOne(options);
           if (entity === ShipmentEventEntity) return events.findOne(options);
+          if (entity === OrderStatusHistoryEntity) return null;
           return null;
         }),
         create: jest.fn((_entity: unknown, input: unknown) => input),
@@ -90,6 +92,49 @@ describe("LogisticsService", () => {
     expect(result.deliveredAt).toBeInstanceOf(Date);
     expect(result.awbNumber).toBe("AWB-123");
     expect(events.findOne).toHaveBeenCalledTimes(1);
+  });
+
+  it("synchronizes picked-up shipment to shipped order and records history", async () => {
+    const shipment = { id: "shipment-1", status: "ready_to_ship", orderId: "order-1" };
+    shipments.findOne.mockResolvedValue(shipment);
+    orders.findOne.mockResolvedValue({ id: "order-1", status: "processing" });
+
+    const result = await service.updateStatus("shipment-1", "picked_up");
+
+    expect(result.status).toBe("picked_up");
+    expect(result.shippedAt).toBeInstanceOf(Date);
+    expect(orders.findOne).toHaveBeenCalledTimes(1);
+  });
+
+  it("synchronizes delivered shipment to delivered order and records history", async () => {
+    const shipment = { id: "shipment-1", status: "out_for_delivery", orderId: "order-1" };
+    shipments.findOne.mockResolvedValue(shipment);
+    orders.findOne.mockResolvedValue({ id: "order-1", status: "shipped" });
+
+    const result = await service.updateStatus("shipment-1", "delivered");
+
+    expect(result.status).toBe("delivered");
+    expect(result.deliveredAt).toBeInstanceOf(Date);
+  });
+
+  it("synchronizes returned shipment to returned order", async () => {
+    const shipment = { id: "shipment-1", status: "return_in_transit", orderId: "order-1" };
+    shipments.findOne.mockResolvedValue(shipment);
+    orders.findOne.mockResolvedValue({ id: "order-1", status: "delivered" });
+
+    const result = await service.updateStatus("shipment-1", "returned");
+
+    expect(result.status).toBe("returned");
+  });
+
+  it("rejects shipment completion when the linked order cannot make the required transition", async () => {
+    const shipment = { id: "shipment-1", status: "out_for_delivery", orderId: "order-1" };
+    shipments.findOne.mockResolvedValue(shipment);
+    orders.findOne.mockResolvedValue({ id: "order-1", status: "cancelled" });
+
+    await expect(service.updateStatus("shipment-1", "delivered")).rejects.toThrow(
+      'Cannot synchronize order "cancelled" with shipment "delivered".',
+    );
   });
 
   it("ignores a duplicate external tracking event id", async () => {
