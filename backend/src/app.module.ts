@@ -34,6 +34,7 @@ import { AdminModule } from "./admin/admin.module";
 import { WebsiteEventsModule } from "./modules/website-events/website-events.module";
 import { SocialModule } from "./modules/social/social.module";
 import { ContactLeadsModule } from "./modules/contact-leads/contact-leads.module";
+import { LogisticsModule } from "./modules/logistics/logistics.module";
 
 @Module({
   imports: [
@@ -71,6 +72,7 @@ import { ContactLeadsModule } from "./modules/contact-leads/contact-leads.module
     WebsiteEventsModule,
     SocialModule,
     ContactLeadsModule,
+    LogisticsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
