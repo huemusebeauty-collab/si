@@ -1,36 +1,29 @@
 # Hair Care Media Intake QA — Batch 01
 
-## Intake result
+## Audit result
 
-One user-provided image was available for this batch:
+The available conversation upload was inspected and rejected because its visible package size was 300 mL while the production catalog specification is 250 mL.
 
-- File: `silku-scalp-balance-shampoo.jpg`
-- Intended product: Silku Scalp Balance Shampoo
-- Source file reference: `file_00000000c4408211bfb4ab9df7a268a2`
+A Library image audit was also performed. Recent Library image assets inspected were storefront screenshots/UI captures, not verified Hair Care product source media. They therefore cannot be mapped to Hair Care products.
 
-## QA result: REJECTED FOR PRODUCTION
+## Production action
 
-The supplied image clearly depicts a Silku Scalp Balance Shampoo concept/packshot, but the packaging shown states **300 mL**.
+- New Hair Care media mappings: NONE.
+- Production DB mutation: NONE.
+- Existing verified Hair Care SVG packshots: PRESERVED.
+- Generic/storefront screenshots: REJECTED for product media.
+- Unverified/reused media added: 0.
 
-The current production catalog specification for this product is **250 mL / 8.45 fl oz**.
+## QA rule
 
-Because the visible package size conflicts with the production catalog, this asset is not safe to map to the live product.
+Only a source asset whose exact product identity and package/specification can be verified may be promoted to production. Screenshots, generic category imagery, unrelated product imagery, and assets with conflicting package specifications remain rejected/pending.
 
-Additional quality concerns:
-- The image is a rendered/packshot-style visual rather than verified documentary product photography.
-- It must not be represented as real photographed inventory without source confirmation.
+## Current batch
 
-## Action
+15/15 existing Hair Care SVG packshots: VERIFIED.
 
-- Production DB mapping: NONE.
-- GitHub product media mapping: NONE.
-- Existing verified SVG: PRESERVED.
-- Asset status: REJECTED / SOURCE CONFIRMATION REQUIRED.
+Additional secondary images: 0 QA-passed.
 
-## Required replacement
+Product videos: 0 QA-passed.
 
-Provide a source asset showing the exact production package/specification, or explicitly approve a rendered visual workflow after confirming the final package design and size.
-
-## Batch status
-
-No Hair Care product has been promoted to media-complete from this intake. This preserves the zero-error media rule.
+Media-complete products under the 2-image + 1-video standard: 0.
