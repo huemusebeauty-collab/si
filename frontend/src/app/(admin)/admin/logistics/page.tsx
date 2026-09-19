@@ -18,6 +18,11 @@ function LogisticsContent() {
   const [status, setStatus] = useState("");
   const [toast, setToast] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [orderId, setOrderId] = useState("");
+  const [carrier, setCarrier] = useState("");
+  const [serviceLevel, setServiceLevel] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -54,6 +59,23 @@ function LogisticsContent() {
         </div>
       )}
 
+      <RoleGate module="logistics" level="edit">
+        <div className="grid gap-3 rounded-md bg-white p-4 shadow-rest md:grid-cols-[1.5fr_1fr_1fr_auto]">
+          <input value={orderId} onChange={(e) => setOrderId(e.target.value)} placeholder="Confirmed/processing Order ID" className="rounded-md border border-line px-3 py-2 text-sm" />
+          <input value={carrier} onChange={(e) => setCarrier(e.target.value)} placeholder="Courier / carrier" className="rounded-md border border-line px-3 py-2 text-sm" />
+          <input value={serviceLevel} onChange={(e) => setServiceLevel(e.target.value)} placeholder="Service level" className="rounded-md border border-line px-3 py-2 text-sm" />
+          <Button variant="primary" disabled={creating || !orderId.trim()} onClick={async () => {
+            setCreating(true);
+            try {
+              await adminApi.createShipment({ orderId: orderId.trim(), carrier: carrier.trim() || undefined, serviceLevel: serviceLevel.trim() || undefined });
+              setOrderId(""); setCarrier(""); setServiceLevel(""); setToast("Shipment created."); await load();
+            } catch (error) {
+              setToast(error instanceof Error ? error.message : "Unable to create shipment.");
+            } finally { setCreating(false); }
+          }}>{creating ? "Creating..." : "Create Shipment"}</Button>
+        </div>
+      </RoleGate>
+
       <div className="flex flex-wrap gap-2">
         <Button variant={status === "" ? "primary" : "outline"} onClick={() => setStatus("")}>All</Button>
         {STATUSES.map((item) => <Button key={item} variant={status === item ? "primary" : "outline"} onClick={() => setStatus(item)}>{item}</Button>)}
@@ -68,7 +90,25 @@ function LogisticsContent() {
                 <td className="p-4 font-medium">{shipment.orderId.slice(0, 8)}</td>
                 <td className="p-4">{shipment.carrier ?? "—"}</td>
                 <td className="p-4">{shipment.awbNumber ?? "—"}</td>
-                <td className="p-4"><Badge tone={shipment.status === "delivered" ? "success" : shipment.status === "delivery_failed" || shipment.status === "rto" ? "warning" : "information"}>{shipment.status}</Badge></td>
+                <td className="p-4">
+                  <Badge tone={shipment.status === "delivered" ? "success" : shipment.status === "delivery_failed" || shipment.status === "rto" ? "warning" : "information"}>{shipment.status}</Badge>
+                  <RoleGate module="logistics" level="edit">
+                    <div className="mt-2 flex items-center gap-2">
+                      <select defaultValue={shipment.status} id={`shipment-status-${shipment.id}`} className="rounded-md border border-line px-2 py-1 text-xs">
+                        <option value={shipment.status}>{shipment.status}</option>
+                        {STATUSES.filter((next) => next !== shipment.status).map((next) => <option key={next} value={next}>{next}</option>)}
+                      </select>
+                      <Button variant="text" disabled={updatingId === shipment.id} onClick={async () => {
+                        const select = document.getElementById(`shipment-status-${shipment.id}`) as HTMLSelectElement | null;
+                        const nextStatus = select?.value ?? shipment.status;
+                        setUpdatingId(shipment.id);
+                        try { await adminApi.updateShipmentStatus(shipment.id, { status: nextStatus }); setToast("Shipment status updated."); await load(); }
+                        catch (error) { setToast(error instanceof Error ? error.message : "Unable to update shipment."); }
+                        finally { setUpdatingId(null); }
+                      }}>{updatingId === shipment.id ? "Saving..." : "Update"}</Button>
+                    </div>
+                  </RoleGate>
+                </td>
                 <td className="p-4">{new Date(shipment.updatedAt).toLocaleString()}</td>
               </tr>
             ))}
