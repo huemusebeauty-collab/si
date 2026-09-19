@@ -1,0 +1,23 @@
+name: Order Inventory Regression CI
+
+on:
+  push:
+    branches:
+      - "fix/product-inventory-billing-hardening"
+  workflow_dispatch:
+
+jobs:
+  orders:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm install --include=dev --legacy-peer-deps --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npx jest src/modules/orders/orders.service.spec.ts --runInBand --coverage=false
