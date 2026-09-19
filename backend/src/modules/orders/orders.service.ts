@@ -6,6 +6,8 @@ import { OrderLineItemEntity } from "./entities/order-line-item.entity";
 import { OrderStatusHistoryEntity } from "./entities/order-status-history.entity";
 import { InvoiceEntity } from "./entities/invoice.entity";
 import { InvoiceSequenceEntity } from "./entities/invoice-sequence.entity";
+import { ShipmentEntity } from "@/modules/logistics/entities/shipment.entity";
+import { ShipmentEventEntity } from "@/modules/logistics/entities/shipment-event.entity";
 import { CartService } from "@/modules/cart/cart.service";
 import { ProductsService } from "@/modules/products/products.service";
 import { TransactionService } from "@/database/transaction.service";
@@ -37,6 +39,8 @@ export class OrdersService {
     @InjectRepository(OrderStatusHistoryEntity) private readonly history: Repository<OrderStatusHistoryEntity>,
     @InjectRepository(InvoiceEntity) private readonly invoices: Repository<InvoiceEntity>,
     @InjectRepository(InvoiceSequenceEntity) private readonly invoiceSequences: Repository<InvoiceSequenceEntity>,
+    @InjectRepository(ShipmentEntity) private readonly shipments: Repository<ShipmentEntity>,
+    @InjectRepository(ShipmentEventEntity) private readonly shipmentEvents: Repository<ShipmentEventEntity>,
     private readonly cart: CartService,
     private readonly products: ProductsService,
     private readonly transactions: TransactionService,
@@ -335,7 +339,40 @@ export class OrdersService {
     const deliveredAt = deliveredEntry?.changedAt ?? order.updatedAt;
     const daysSinceDelivery = (Date.now() - deliveredAt.getTime()) / (1000 * 60 * 60 * 24);
     if (daysSinceDelivery > RETURN_WINDOW_DAYS) throw new DomainException(DomainErrorCode.RETURN_WINDOW_EXPIRED, `The ${RETURN_WINDOW_DAYS}-day return window for this order has passed.`);
-    return { orderId, lineItemIds, reason, accepted: true };
+
+    return this.transactions.runInTransaction(async (queryRunner) => {
+      const manager = queryRunner.manager;
+      const lockedOrder = await manager.findOne(OrderEntity, {
+        where: { id: orderId },
+        relations: ["lineItems", "statusHistory"],
+        lock: { mode: "pessimistic_write" },
+      });
+      if (!lockedOrder || lockedOrder.status !== "delivered") {
+        throw new DomainException(DomainErrorCode.ORDER_NOT_RETURNABLE, "Return request is no longer available for this order.");
+      }
+
+      const shipment = await manager.findOne(ShipmentEntity, {
+        where: { orderId },
+        lock: { mode: "pessimistic_write" },
+      });
+      if (!shipment) throw new DomainException(DomainErrorCode.ORDER_NOT_RETURNABLE, "A delivered shipment is required before a return can be requested.");
+      if (shipment.status === "return_requested" || shipment.status === "return_in_transit") {
+        throw new DomainException(DomainErrorCode.ORDER_NOT_RETURNABLE, "A return has already been requested for this order.");
+      }
+      if (shipment.status !== "delivered") {
+        throw new DomainException(DomainErrorCode.ORDER_NOT_RETURNABLE, `Return can only be requested from a delivered shipment (current: "${shipment.status}").`);
+      }
+
+      shipment.status = "return_requested";
+      await manager.save(shipment);
+      await manager.save(manager.create(ShipmentEventEntity, {
+        shipmentId: shipment.id,
+        status: "return_requested",
+        description: reason.trim() || "Customer return requested.",
+        eventAt: new Date(),
+      }));
+      return { orderId, lineItemIds, reason, accepted: true };
+    });
   }
 
   async checkRefundEligibility(orderId: string): Promise<{ eligible: boolean; reason?: string }> {
