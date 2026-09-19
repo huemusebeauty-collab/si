@@ -472,16 +472,26 @@ export class ProductsService {
   }
 
   async adjustStock(variantId: string, delta: number, manager?: EntityManager): Promise<ProductVariantEntity> {
-    const repo = manager ? manager.getRepository(ProductVariantEntity) : this.variants;
-    const variant = await repo.findOneOrFail({ where: { id: variantId }, ...(manager ? { lock: { mode: "pessimistic_write" as const } } : {}) });
+    if (!manager) {
+      return this.transactions.runInTransaction(async (queryRunner) => {
+        return this.adjustStock(variantId, delta, queryRunner.manager);
+      }).then(async (saved) => {
+        await this.cacheInvalidation.invalidatePrefix("products");
+        return saved;
+      });
+    }
+
+    const repo = manager.getRepository(ProductVariantEntity);
+    const variant = await repo.findOneOrFail({
+      where: { id: variantId },
+      lock: { mode: "pessimistic_write" },
+    });
     const nextQuantity = variant.stockQuantity + delta;
     if (nextQuantity < 0) throw new DomainException(DomainErrorCode.INSUFFICIENT_STOCK, `Only ${variant.stockQuantity} unit(s) of ${variant.sku} remain in stock.`);
     variant.stockQuantity = nextQuantity;
     variant.stockState = this.computeStockState(nextQuantity);
     try {
-      const saved = await repo.save(variant);
-      if (!manager) await this.cacheInvalidation.invalidatePrefix("products");
-      return saved;
+      return await repo.save(variant);
     } catch (error) {
       if (error instanceof OptimisticLockVersionMismatchError) throw new DomainException(DomainErrorCode.STALE_WRITE_CONFLICT, "Stock for this shade changed while processing your request — please try again.", HttpStatus.CONFLICT);
       throw error;
