@@ -41,6 +41,19 @@ export class ProductsController {
   }
 
   @RequirePermission("products", "view")
+  @Get("admin/:productId")
+  getAdminProduct(@Param("productId") productId: string) {
+    return this.products.getAdminProduct(productId);
+  }
+
+  @RequirePermission("products", "edit")
+  @Patch("admin/:productId")
+  async updateProduct(@Param("productId") productId: string, @Body() body: CreateProductDto) {
+    const category = await this.categories.getCategory(body.categorySlug);
+    return this.products.updateProductById(productId, { ...body, category, content: { ...body.content, specifications: body.content.specifications ?? {} } });
+  }
+
+  @RequirePermission("products", "view")
   @Get("admin/:productId/tax")
   getTaxConfig(@Param("productId") productId: string) {
     return this.productTax.getTaxConfig(productId);
