@@ -1,4 +1,4 @@
-# Hair Care Generated Media Route — Phase 4L.20.14
+# Hair Care Generated Media Route — Phase 4L.20.14–4L.20.15
 
 ## Purpose
 
@@ -23,9 +23,24 @@ Define the safe route for generated/rendered Hair Care visuals when verified rea
 7. Each asset must pass identity, size, variant, quality, accessibility, and mapping QA before any production DB mutation.
 8. If video cannot be verified or safely produced as an approved rendered asset, the video requirement remains pending.
 
-## Current Phase Result
+## Phase 4L.20.15 Result
 
-Generated workflow/concept boards were created for planning and visual direction only. They are NOT mapped to production because they are composite boards rather than individual product media assets.
+A new generated 250 mL concept board was produced for the pilot, containing front packshot, secondary water-use view, and a video concept.
+
+QA result: **NOT APPROVED FOR PRODUCTION MAPPING**.
+
+Reasons:
+- The generated output is a composite presentation board, not three individual production assets.
+- The individual visual panels are below the required source resolution for the production image gate when separated from the board.
+- Some generated panels contain synthetic back-label claims/barcode/details that are not independently verified against the production catalog and therefore cannot be promoted.
+- The video area is a still/video-preview concept, not a verified MP4 product video.
+- No production DB mapping was made.
+
+Draft crops were created locally only for QA inspection:
+- silku-scalp-balance-shampoo_img1_standard.jpg
+- silku-scalp-balance-shampoo_img2_standard.jpg
+
+They remain **draft/rejected** and are not in GitHub production media.
 
 Production DB changes: 0.
 
@@ -33,12 +48,11 @@ Existing verified Hair Care SVGs: preserved.
 
 Admin engineer work: untouched.
 
-## Next gate
+## Acceptance Gate Still Open
 
-Produce/export individual approved assets for the pilot product:
-
+The pilot still requires individually verified:
 - silku-scalp-balance-shampoo_img1_standard.jpg
 - silku-scalp-balance-shampoo_img2_standard.jpg
 - silku-scalp-balance-shampoo_video_standard.mp4
 
-Then perform QA before mapping to production.
+Only assets that pass identity, exact 250 mL specification, technical quality, and authenticity/label QA should be mapped to production.
