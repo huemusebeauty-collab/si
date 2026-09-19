@@ -22,6 +22,9 @@ export function ProductDetailSummary({ product }: { product: Product }) {
   const selectedShade = product.shades?.find((shade) => shade.id === selectedShadeId);
   const selectedShadeOutOfStock = Boolean(selectedShade && !selectedShade.inStock);
   const cannotAdd = isOutOfStock || selectedShadeOutOfStock || !selectedShadeId || adding;
+  const displayPrice = product.salePrice ?? product.price;
+  const selectedMrp = selectedShade?.mrp ?? product.mrp;
+  const discountPercent = selectedMrp && selectedMrp > displayPrice ? Math.round(((selectedMrp - displayPrice) / selectedMrp) * 100) : 0;
 
   async function handleAddToCart() {
     if (cannotAdd || !selectedShadeId) return;
@@ -62,15 +65,18 @@ export function ProductDetailSummary({ product }: { product: Product }) {
         </div>
         <div className="flex items-baseline gap-2 flex-wrap">
           <span className={product.salePrice ? "text-[20px] leading-6 font-semibold text-primary-rose" : "text-[20px] leading-6 font-semibold text-ink"}>
-            {formatCurrency(product.salePrice ?? product.price, product.currency)}
+            {formatCurrency(displayPrice, product.currency)}
           </span>
-          {product.salePrice ? <span className="text-[13px] leading-[18px] text-stone line-through">{formatCurrency(product.price, product.currency)}</span> : null}
-          {(() => {
-            const selectedMrp = selectedShade?.mrp ?? product.mrp;
-            return selectedMrp && selectedMrp > (product.salePrice ?? product.price) ? (
-              <span className="text-[13px] leading-[18px] text-stone line-through">MRP {formatCurrency(selectedMrp, product.currency)}</span>
-            ) : null;
-          })()}
+          {selectedMrp && selectedMrp > displayPrice ? (
+            <>
+              <span className="text-[13px] leading-[18px] text-stone line-through">
+                MRP {formatCurrency(selectedMrp, product.currency)}
+              </span>
+              <span className="text-[12px] leading-[16px] font-semibold text-success">
+                {discountPercent}% OFF
+              </span>
+            </>
+          ) : null}
         </div>
         {product.description && <p className="prose-copy text-base text-charcoal">{product.description}</p>}
         {product.shades && product.shades.length > 0 && <ShadeSelector shades={product.shades} selectedId={selectedShadeId} onChange={setSelectedShadeId} />}
