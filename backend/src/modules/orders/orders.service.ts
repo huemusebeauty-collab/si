@@ -216,7 +216,7 @@ export class OrdersService {
           taxAmount: tax.taxAmount.toFixed(2),
           quantity: line.quantity,
         });
-        await this.products.adjustStock(line.variantId, -line.quantity, manager);
+        await this.products.adjustStock(line.variantId, -line.quantity, manager, { reason: "order_reservation", referenceType: "cart_checkout", referenceId: cartId });
       }
 
       if (total < 0 || (subtotal > 0 && total > subtotal + 0.005 && discountAmount === 0)) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Invalid tax calculation.");
@@ -280,7 +280,7 @@ export class OrdersService {
           );
         }
         for (const line of lockedOrder.lineItems) {
-          await this.products.adjustStock(line.variantId, line.quantity, manager);
+          await this.products.adjustStock(line.variantId, line.quantity, manager, { reason: status === "returned" ? "order_return" : "order_cancellation", referenceType: "order", referenceId: lockedOrder.id });
         }
         await manager.update(OrderEntity, lockedOrder.id, { status });
         await manager.save(manager.create(OrderStatusHistoryEntity, { order: lockedOrder, status }));
@@ -316,7 +316,7 @@ export class OrdersService {
           `Order cannot be cancelled once it has reached "${lockedOrder.status}" status.`,
         );
       }
-      for (const line of lockedOrder.lineItems) await this.products.adjustStock(line.variantId, line.quantity, manager);
+      for (const line of lockedOrder.lineItems) await this.products.adjustStock(line.variantId, line.quantity, manager, { reason: "order_cancellation", referenceType: "order", referenceId: lockedOrder.id });
       await manager.update(OrderEntity, lockedOrder.id, { status: "cancelled" });
       await manager.save(manager.create(OrderStatusHistoryEntity, { order: lockedOrder, status: "cancelled" }));
     });
