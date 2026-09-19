@@ -1,6 +1,6 @@
 import { Type } from "class-transformer";
 import {
-  IsArray, IsBoolean, IsNumber, IsOptional, IsString, IsUrl, Max, Min, ValidateNested,
+  ArrayMinSize, IsArray, IsBoolean, IsNumber, IsOptional, IsString, IsUrl, Max, Min, ValidateNested,
 } from "class-validator";
 
 export class ProductFaqDto {
@@ -102,7 +102,22 @@ export class CreateProductDto {
   @IsUrl({}, { each: true })
   mediaUrls!: string[];
 
+  @IsOptional()
+  @IsString()
+  hsnCode?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  gstRate?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  taxInclusiveMrp?: boolean;
+
   @IsArray()
+  @ArrayMinSize(1)
   @ValidateNested({ each: true })
   @Type(() => CreateProductVariantDto)
   variants!: CreateProductVariantDto[];
