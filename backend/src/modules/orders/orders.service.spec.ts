@@ -140,7 +140,14 @@ describe("OrdersService", () => {
           update: jest.fn().mockResolvedValue(undefined),
           create: jest.fn((_: unknown, entity: unknown) => entity),
           save: jest.fn((entity: unknown) => Promise.resolve(entity)),
-          findOne: jest.fn().mockResolvedValue(updatedOrder),
+          findOne: jest.fn()
+            .mockResolvedValueOnce({
+              id: "o1",
+              status: "confirmed",
+              lineItems: [{ variantId: "v1", quantity: 3 }],
+              statusHistory: [],
+            })
+            .mockResolvedValueOnce(updatedOrder),
         },
       }),
     );
