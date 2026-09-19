@@ -39,6 +39,8 @@ export const adminApi = {
   getDashboardOverview: () => request<DashboardOverview>("/admin/dashboard/overview"),
   listProducts: (params: URLSearchParams) => request<Paginated<AdminProduct>>(`/products/admin?${params}`),
   createProduct: (body: CreateProductInput) => request<{ entity: AdminProduct; wasCreated: boolean }>("/products/admin", { method: "POST", body: JSON.stringify(body) }),
+  getAdminProduct: (id: string) => request<AdminProductDetail>(`/products/admin/${id}`),
+  updateProduct: (id: string, body: CreateProductInput) => request<AdminProduct>(`/products/admin/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   getProductTax: (productId: string) => request<ProductTaxConfig>(`/products/admin/${productId}/tax`),
   updateProductTax: (productId: string, body: UpdateProductTaxInput) => request<ProductTaxConfig>(`/products/admin/${productId}/tax`, { method: "PATCH", body: JSON.stringify(body) }),
   activateProduct: (id: string) => request<AdminProduct>(`/products/${id}/activate`, { method: "POST" }),
@@ -112,7 +114,7 @@ export interface ProductTaxConfig { productId: string; productName: string; hsnC
 export interface Paginated<T> { items: T[]; meta: { page: number; pageSize: number; totalItems: number; totalPages: number } }
 export interface SimpleList<T> { items: T[]; totalItems: number }
 export interface DashboardOverview { kpis: { todaysOrders: number; todaysRevenue: number; lowStockCount: number; pendingReviews: number }; pendingTasks: { type: string; count: number; label: string }[]; recentActivity: AuditLogEntry[] }
-export interface AdminProduct { id: string; slug: string; name: string; price: string; status: string; visibility: string; category?: { name: string } }
+export interface AdminProduct { id: string; slug: string; name: string; price: string; status: string; visibility: string; category?: { id?: string; slug?: string; name: string } }\nexport interface AdminProductDetail extends AdminProduct { salePrice?: string; description?: string; mediaUrls: string[]; content?: CreateProductInput["content"]; hsnCode?: string; gstRate?: string; taxInclusiveMrp: boolean; variants: { id: string; sku: string; name: string; hexColor?: string; stockQuantity: number; mrp?: string }[] }
 export interface AdminInventoryItem { id: string; sku: string; name: string; stockQuantity: number; stockState: "in-stock" | "low-stock" | "out-of-stock" | "coming-soon" | "pre-order"; version: number; product: { id: string; name: string; slug: string; category: string } }
 export interface CreateCategoryInput { name: string; slug: string; parentId?: string | null; displayOrder?: number; visible?: boolean; metaTitle?: string; metaDescription?: string }
 export interface UpdateCategoryInput { name?: string; slug?: string; parentId?: string | null; displayOrder?: number; visible?: boolean; metaTitle?: string; metaDescription?: string }
