@@ -130,6 +130,21 @@ describe("OrdersService", () => {
     expect(second.invoiceNumber).toBe("SLK/26-27/000001");
   });
 
+  it("reuses an existing order for the same customer and idempotency key", async () => {
+    const existingOrder = {
+      id: "o-existing",
+      customerId: "c1",
+      idempotencyKey: "checkout-123",
+      lineItems: [],
+      statusHistory: [],
+    } as unknown as OrderEntity;
+    orderRepo.findOne.mockResolvedValue(existingOrder);
+
+    const result = await service.createOrder("c1", "cart-1", { city: "Jaipur" }, " checkout-123 ");
+    expect(result).toBe(existingOrder);
+    expect(transactionService.runInTransaction).not.toHaveBeenCalled();
+  });
+
   it("throws NotFoundException for a missing order", async () => {
     orderRepo.findOne.mockResolvedValue(null);
     await expect(service.getOrder("missing-id")).rejects.toThrow(NotFoundException);
