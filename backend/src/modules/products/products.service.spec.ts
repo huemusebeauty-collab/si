@@ -4,6 +4,7 @@ import { OptimisticLockVersionMismatchError } from "typeorm";
 import { ProductsService } from "./products.service";
 import { ProductEntity } from "./entities/product.entity";
 import { ProductVariantEntity } from "./entities/product-variant.entity";
+import { InventoryMovementEntity } from "./entities/inventory-movement.entity";
 import { CacheInvalidationService } from "@/cache/cache-invalidation.service";
 import { DomainException } from "@/common/exceptions/domain.exception";
 import { CategoriesService } from "@/modules/categories/categories.service";
@@ -16,17 +17,22 @@ function createMockRepo() {
 describe("ProductsService — stock adjustment", () => {
   let service: ProductsService;
   let variantRepo: ReturnType<typeof createMockRepo>;
+  let movementRepo: ReturnType<typeof createMockRepo>;
 
   beforeEach(async () => {
     variantRepo = createMockRepo();
+    movementRepo = createMockRepo();
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ProductsService,
         { provide: getRepositoryToken(ProductEntity), useValue: createMockRepo() },
         { provide: getRepositoryToken(ProductVariantEntity), useValue: variantRepo },
+        { provide: getRepositoryToken(InventoryMovementEntity), useValue: movementRepo },
         { provide: CacheInvalidationService, useValue: { invalidatePrefix: jest.fn() } },
         { provide: CategoriesService, useValue: {} },
-        { provide: TransactionService, useValue: { runInTransaction: jest.fn(async (work: (qr: unknown) => Promise<unknown>) => work({ manager: { getRepository: () => variantRepo } })) } },
+        { provide: TransactionService, useValue: { runInTransaction: jest.fn(async (work: (qr: unknown) => Promise<unknown>) => work({
+          manager: { getRepository: (entity: unknown) => entity === InventoryMovementEntity ? movementRepo : variantRepo },
+        })) } },
       ],
     }).compile();
     service = module.get(ProductsService);
