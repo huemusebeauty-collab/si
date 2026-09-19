@@ -64,9 +64,15 @@ describe("OrdersService", () => {
     service = module.get(OrdersService);
   });
 
+  it("rejects invoice access before payment is confirmed", async () => {
+    orderRepo.findOne.mockResolvedValue({ id: "o1", status: "pending_payment", lineItems: [] } as unknown as OrderEntity);
+    await expect(service.generateInvoice("o1")).rejects.toThrow("An invoice is only available after payment is confirmed.");
+  });
+
   it("returns an unissued invoice preview without inventing an invoice number", async () => {
     orderRepo.findOne.mockResolvedValue({
       id: "o1",
+      status: "confirmed",
       lineItems: [],
       subtotal: "100.00",
       discountAmount: "0.00",
