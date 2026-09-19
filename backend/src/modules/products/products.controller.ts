@@ -7,6 +7,7 @@ import { Public } from "@/common/decorators/public.decorator";
 import { Roles } from "@/common/decorators/roles.decorator";
 import { Cacheable } from "@/cache/cacheable.decorator";
 import { CreateVariantDto } from "./dto/create-variant.dto";
+import { CreateProductDto } from "./dto/create-product.dto";
 import { RequirePermission } from "@/admin/common/require-permission.decorator";
 import { CategoriesService } from "@/modules/categories/categories.service";
 
@@ -34,12 +35,7 @@ export class ProductsController {
 
   @RequirePermission("products", "edit")
   @Post("admin")
-  async createProduct(@Body() body: {
-    slug: string; name: string; categorySlug: string; price: number; salePrice?: number; description: string;
-    content: { shortDescription: string; keyBenefits: string[]; features: string[]; ingredients: string; usageInstructions: string[]; warnings: string; storageInstructions: string; specifications: Record<string, string>; faqs: { question: string; answer: string }[] };
-    metaTitle: string; metaDescription: string; mediaUrls: string[];
-    variants: { sku: string; name: string; hexColor?: string; stockQuantity: number }[];
-  }) {
+  async createProduct(@Body() body: CreateProductDto) {
     const category = await this.categories.getCategory(body.categorySlug);
     return this.products.upsertFullProduct({ ...body, category });
   }
