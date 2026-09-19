@@ -6,7 +6,7 @@ import { ShadeSelector } from "@/components/composite/ShadeSelector";
 import { QuantitySelector } from "@/components/composite/QuantitySelector";
 import { StarRating } from "@/components/composite/ReviewCard";
 import { Badge } from "@/components/basic/Badge";
-import { ProductSwatchImage } from "@/components/composite/ProductSwatchImage";
+import { ProductMediaGallery } from "@/components/composite/ProductMediaGallery";
 import type { Product } from "@/types/product";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { addCartItem } from "@/services/api/cart";
@@ -46,9 +46,7 @@ export function ProductDetailSummary({ product }: { product: Product }) {
 
   return (
     <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
-      <div className="relative aspect-square overflow-hidden rounded-md bg-paper">
-        <ProductSwatchImage product={product} imageUrl={selectedShade?.imageUrl} className="absolute inset-0" />
-      </div>
+      <ProductMediaGallery product={product} selectedImageUrl={selectedShade?.imageUrl} />
       <div className="flex flex-col gap-4">
         <div className="flex gap-2">
           {product.badges.map((b) => <Badge key={b} tone={b.toLowerCase().replace(/\s+/g, "-") as never}>{b}</Badge>)}
