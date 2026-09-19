@@ -98,7 +98,11 @@ export class ProductsSeedProvider implements SeedProvider {
   }
 
   async rollback(outcomes: SeedEntityOutcome[]): Promise<void> {
-    for (const outcome of outcomes) {
+    // Roll back only entities created by this seed run. Updated entities
+    // are intentionally preserved because this provider does not snapshot
+    // their previous state; deleting an updated production record would be
+    // destructive and could remove data that existed before the seed run.
+    for (const outcome of outcomes.filter((o) => o.action === "created")) {
       if (outcome.entityId) await this.products.deleteById(outcome.entityId);
     }
   }
