@@ -10,7 +10,21 @@ import { Badge } from "@/components/basic/Badge";
 import { Button } from "@/components/basic/Button";
 import { Toast } from "@/components/composite/Toast";
 
-const STATUSES = ["ready_to_ship","pickup_scheduled","picked_up","in_transit","out_for_delivery","delivered","delivery_failed","rto","return_requested","return_in_transit","returned","cancelled"];
+const VALID_NEXT_STATUSES: Record<string, string[]> = {
+  draft: ["ready_to_ship", "cancelled"],
+  ready_to_ship: ["pickup_scheduled", "picked_up", "cancelled"],
+  pickup_scheduled: ["picked_up", "delivery_failed", "cancelled"],
+  picked_up: ["in_transit", "delivery_failed", "rto"],
+  in_transit: ["out_for_delivery", "delivery_failed", "rto"],
+  out_for_delivery: ["delivered", "delivery_failed", "rto"],
+  delivered: ["return_requested"],
+  delivery_failed: ["pickup_scheduled", "rto"],
+  rto: ["returned"],
+  return_requested: ["return_in_transit", "cancelled"],
+  return_in_transit: ["returned", "delivery_failed"],
+  returned: [],
+  cancelled: [],
+};
 
 function LogisticsContent() {
   const [dashboard, setDashboard] = useState<LogisticsDashboard | null>(null);
@@ -96,7 +110,7 @@ function LogisticsContent() {
                     <div className="mt-2 flex items-center gap-2">
                       <select defaultValue={shipment.status} id={`shipment-status-${shipment.id}`} className="rounded-md border border-line px-2 py-1 text-xs">
                         <option value={shipment.status}>{shipment.status}</option>
-                        {STATUSES.filter((next) => next !== shipment.status).map((next) => <option key={next} value={next}>{next}</option>)}
+                        {(VALID_NEXT_STATUSES[shipment.status] ?? []).map((next) => <option key={next} value={next}>{next}</option>)}
                       </select>
                       <Button variant="text" disabled={updatingId === shipment.id} onClick={async () => {
                         const select = document.getElementById(`shipment-status-${shipment.id}`) as HTMLSelectElement | null;
