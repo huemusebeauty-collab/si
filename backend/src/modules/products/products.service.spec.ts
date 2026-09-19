@@ -114,4 +114,67 @@ describe("ProductsService — product upsert variant persistence", () => {
     expect(existingVariant.stockState).toBe("in-stock");
     expect(variantRepo.save).toHaveBeenCalledWith(existingVariant);
   });
+
+  it("persists GST/HSN/tax-inclusive MRP in the same product transaction", async () => {
+    const productRepo = createMockRepo();
+    const variantRepo = createMockRepo();
+    const cache = { invalidatePrefix: jest.fn() };
+    const savedProduct = { id: "p2", slug: "atomic-tax-product", variants: [] };
+    productRepo.findOne.mockResolvedValue(null);
+    productRepo.create.mockImplementation((value: unknown) => ({ ...(value as object), id: "p2" }));
+    productRepo.save.mockImplementation((value: unknown) => Promise.resolve(value));
+    variantRepo.findOne.mockResolvedValue(null);
+    variantRepo.create.mockImplementation((value: unknown) => ({ ...(value as object), id: "v2" }));
+    variantRepo.save.mockImplementation((value: unknown) => Promise.resolve(value));
+
+    const manager = {
+      getRepository: jest.fn((entity: unknown) => entity === ProductEntity ? productRepo : variantRepo),
+    };
+    const service = new ProductsService(productRepo as never, variantRepo as never, cache as never, {} as CategoriesService, {
+      runInTransaction: jest.fn(async (work: (qr: unknown) => Promise<unknown>) => work({ manager })),
+    } as never);
+
+    const result = await service.upsertFullProduct({
+      slug: "atomic-tax-product",
+      name: "Atomic Tax Product",
+      category: { id: "c1" } as never,
+      price: 250,
+      description: "Test",
+      content: {
+        shortDescription: "Test",
+        keyBenefits: [],
+        features: [],
+        ingredients: "Test",
+        usageInstructions: [],
+        warnings: "",
+        storageInstructions: "",
+        specifications: {},
+        faqs: [],
+      },
+      metaTitle: "Atomic Tax Product",
+      metaDescription: "Test",
+      mediaUrls: [],
+      hsnCode: "3304",
+      gstRate: 18,
+      taxInclusiveMrp: true,
+      variants: [{ sku: "SKU-2", name: "Default", stockQuantity: 5, mrp: 499 }],
+    });
+
+    expect(result.wasCreated).toBe(true);
+    expect((result.entity as ProductEntity).hsnCode).toBe("3304");
+    expect((result.entity as ProductEntity).gstRate).toBe("18.00");
+    expect((result.entity as ProductEntity).taxInclusiveMrp).toBe(true);
+    expect(variantRepo.save).toHaveBeenCalledWith(expect.objectContaining({ mrp: "499" }));
+  });
+
+  it("rejects an MRP below the product price", async () => {
+    const service = new ProductsService({} as never, {} as never, {} as never, {} as CategoriesService, {} as never);
+    expect(() => (service as never as { validateProductInput: (value: unknown) => void }).validateProductInput({
+      slug: "invalid-mrp",
+      name: "Invalid MRP",
+      price: 500,
+      mediaUrls: [],
+      variants: [{ sku: "SKU-3", name: "Default", stockQuantity: 1, mrp: 499 }],
+    })).toThrow(DomainException);
+  });
 });
