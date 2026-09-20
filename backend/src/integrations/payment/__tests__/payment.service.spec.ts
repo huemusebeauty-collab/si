@@ -13,6 +13,7 @@ describe("PaymentService reliability", () => {
     create: jest.fn((value) => value),
     save: jest.fn(async (value) => value),
     findOne: jest.fn(),
+    update: jest.fn(async () => ({ affected: 1 })),
   };
   const idempotency = { runOnce: jest.fn(async (_key, _scope, fn) => fn()) };
   const resilientCall = { execute: jest.fn(async (_options, fn) => fn()) };
@@ -103,6 +104,17 @@ describe("PaymentService reliability", () => {
     transactionsRepo.findOne.mockResolvedValue({ orderId: "o5", providerReference: "pi_5", amount: "500.00", status: "refunded" });
 
     await expect(service.initiateRefund("o5", 500)).rejects.toBeInstanceOf(BadRequestException);
+    expect(provider.initiateRefund).not.toHaveBeenCalled();
+  });
+
+  it("rejects a concurrent refund when another request already claimed the transaction", async () => {
+    const transaction = { id: "tx-concurrent", orderId: "o-concurrent", providerReference: "pi-concurrent", amount: "500.00", status: "succeeded" };
+    transactionsRepo.findOne.mockResolvedValue(transaction);
+    transactionsRepo.update.mockResolvedValue({ affected: 0 });
+
+    await expect(service.initiateRefund("o-concurrent", 500)).rejects.toThrow(
+      "A refund is already being processed for this payment.",
+    );
     expect(provider.initiateRefund).not.toHaveBeenCalled();
   });
 
