@@ -85,6 +85,13 @@ export function validateEnv(config: Record<string, unknown>) {
   }
 
   const provider = config.PAYMENT_PROVIDER ?? "mock";
+
+  // Production must explicitly declare the payment provider. Never silently
+  // fall back to the mock provider because a deployment variable is missing.
+  if (config.NODE_ENV === Environment.Production && typeof config.PAYMENT_PROVIDER !== "string") {
+    throw new Error("Invalid environment configuration: PAYMENT_PROVIDER must be explicitly set in production.");
+  }
+
   if (provider === "stripe") {
     if (typeof config.STRIPE_SECRET_KEY !== "string" || !config.STRIPE_SECRET_KEY) {
       throw new Error("Invalid environment configuration: STRIPE_SECRET_KEY is required when PAYMENT_PROVIDER=stripe.");
