@@ -110,6 +110,7 @@ describe("PaymentService reliability", () => {
   it("rejects a concurrent refund when another request already claimed the transaction", async () => {
     const transaction = { id: "tx-concurrent", orderId: "o-concurrent", providerReference: "pi-concurrent", amount: "500.00", status: "succeeded" };
     transactionsRepo.findOne.mockResolvedValue(transaction);
+    orders.checkRefundEligibility.mockResolvedValue({ eligible: true });
     transactionsRepo.update.mockResolvedValue({ affected: 0 });
 
     await expect(service.initiateRefund("o-concurrent", 500)).rejects.toThrow(
@@ -125,6 +126,7 @@ describe("PaymentService reliability", () => {
       .mockResolvedValueOnce({ ...transaction });
     orders.checkRefundEligibility.mockResolvedValue({ eligible: true });
     provider.initiateRefund.mockResolvedValue({ refundReference: "re_1", status: "succeeded" });
+    transactionsRepo.update.mockResolvedValue({ affected: 1 });
 
     await service.initiateRefund("o6", 500, "requested_by_customer");
     await service.initiateRefund("o6", 500, "requested_by_customer");
