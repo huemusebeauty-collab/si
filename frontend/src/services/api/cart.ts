@@ -37,9 +37,14 @@ export interface PaymentIntentResponse {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const sessionId = typeof window !== "undefined" ? getStoredSessionId() : null;
   const response = await fetch(`${API_BASE}${path}`, {
     ...init,
-    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+    headers: {
+      "Content-Type": "application/json",
+      ...(sessionId ? { "x-cart-session-id": sessionId } : {}),
+      ...(init?.headers ?? {}),
+    },
     cache: "no-store",
   });
   const body = (await response.json().catch(() => null)) as ApiEnvelope<T> | { message?: string } | null;
