@@ -119,6 +119,37 @@ describe("PaymentService reliability", () => {
     expect(provider.initiateRefund).not.toHaveBeenCalled();
   });
 
+  it("keeps a pending provider refund in refund_processing", async () => {
+    const transaction = { id: "tx-pending", orderId: "o-pending", providerReference: "pi-pending", amount: "500.00", status: "succeeded" };
+    transactionsRepo.findOne.mockResolvedValue(transaction);
+    orders.checkRefundEligibility.mockResolvedValue({ eligible: true });
+    provider.initiateRefund.mockResolvedValue({ refundReference: "re_pending", status: "pending" });
+    transactionsRepo.update.mockResolvedValue({ affected: 1 });
+
+    await service.initiateRefund("o-pending", 500);
+
+    expect(transactionsRepo.update).toHaveBeenLastCalledWith(
+      { id: "tx-pending", status: "refund_processing" },
+      { status: "refund_processing" },
+    );
+  });
+
+  it("keeps an unknown refund outcome claimed after provider failure", async () => {
+    const transaction = { id: "tx-unknown", orderId: "o-unknown", providerReference: "pi-unknown", amount: "500.00", status: "succeeded" };
+    transactionsRepo.findOne.mockResolvedValue(transaction);
+    orders.checkRefundEligibility.mockResolvedValue({ eligible: true });
+    provider.initiateRefund.mockRejectedValue(new Error("provider timeout"));
+    transactionsRepo.update.mockResolvedValue({ affected: 1 });
+
+    await expect(service.initiateRefund("o-unknown", 500)).rejects.toThrow("provider timeout");
+
+    expect(transactionsRepo.update).toHaveBeenCalledWith(
+      { id: "tx-unknown", status: "succeeded" },
+      { status: "refund_processing" },
+    );
+    expect(transactionsRepo.update).toHaveBeenCalledTimes(1);
+  });
+
   it("allows recovery of a stale refund claim using the same provider idempotency key", async () => {
     const transaction = {
       id: "tx-stale",
