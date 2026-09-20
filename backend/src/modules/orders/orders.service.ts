@@ -170,7 +170,7 @@ export class OrdersService {
       if (existingOrder) return existingOrder;
     }
 
-    const cart = await this.cart.findById(cartId);
+    const cart = await this.cart.findById(cartId, { sessionId: customerId, userId: customerId });
     if (cart.customerId && cart.customerId !== customerId) throw new DomainException(DomainErrorCode.REAUTHENTICATION_REQUIRED, "The cart does not belong to the authenticated customer.");
     const activeLines = cart.lineItems.filter((li) => !li.savedForLater);
     if (activeLines.length === 0) throw new DomainException(DomainErrorCode.CART_EMPTY, "Cannot create an order from an empty cart.");
