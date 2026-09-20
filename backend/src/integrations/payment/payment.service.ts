@@ -26,9 +26,10 @@ export class PaymentService {
     private readonly transactionService: TransactionService,
   ) {}
 
-  async initiatePayment(orderId: string, _amount: number, _currency: string, idempotencyKey: string) {
+  async initiatePayment(orderId: string, _amount: number, _currency: string, idempotencyKey: string, guestCheckoutToken?: string, user?: AuthenticatedUser) {
     return this.idempotency.runOnce(idempotencyKey, "payment:initiate", async () => {
       const order = await this.orders.getOrder(orderId);
+      this.authorizeOrderAccess(order, user, guestCheckoutToken);
       if (order.status !== "pending_payment") {
         throw new Error(`Order ${orderId} is not awaiting payment.`);
       }
@@ -65,7 +66,12 @@ export class PaymentService {
     });
   }
 
-  async verifyPayment(providerReference: string) {
+  async verifyPayment(providerReference: string, _guestCheckoutToken?: string, user?: AuthenticatedUser, guestCheckoutToken?: string) {
+    const transaction = await this.transactionsRepo.findOne({ where: { providerReference } });
+    if (!transaction) throw new NotFoundException("Payment transaction not found.");
+    const order = await this.orders.getOrder(transaction.orderId);
+    this.authorizeOrderAccess(order, user, guestCheckoutToken ?? _guestCheckoutToken);
+
     return this.resilientCall.execute(
       { provider: this.provider.name, operation: "verifyPayment", timeoutMs: 8_000, retry: { maxAttempts: 2 } },
       () => this.provider.verifyPayment(providerReference),
@@ -152,11 +158,13 @@ export class PaymentService {
     }
   }
 
-  async syncStatus(providerReference: string): Promise<PaymentTransactionEntity> {
+  async syncStatus(providerReference: string, guestCheckoutToken?: string, user?: AuthenticatedUser): Promise<PaymentTransactionEntity> {
     const transaction = await this.transactionsRepo.findOne({ where: { providerReference } });
     if (!transaction) throw new NotFoundException("Payment transaction not found.");
+    const order = await this.orders.getOrder(transaction.orderId);
+    this.authorizeOrderAccess(order, user, guestCheckoutToken);
 
-    const verification = await this.verifyPayment(providerReference);
+    const verification = await this.verifyPayment(providerReference, guestCheckoutToken, user);
     if (verification.providerReference !== transaction.providerReference) {
       throw new Error("Payment provider reference mismatch.");
     }
@@ -170,13 +178,18 @@ export class PaymentService {
     }
 
     if (verification.status === "succeeded") {
-      const order = await this.orders.getOrder(transaction.orderId);
       if (order.status === "pending_payment") await this.orders.confirmOrder(transaction.orderId, providerReference);
     } else if (verification.status === "failed") {
       await this.failPaymentAndReleaseStock(transaction.orderId, "Payment failed at the provider.");
     }
 
     return transaction;
+  }
+
+  private authorizeOrderAccess(order: OrderEntity, user?: AuthenticatedUser, guestCheckoutToken?: string): void {
+    if (user?.id === order.customerId) return;
+    if (!user && guestCheckoutToken && verifyGuestCheckoutToken(order.id, guestCheckoutToken)) return;
+    throw new ForbiddenException("Payment access is not authorized for this order.");
   }
 
   private async failPaymentAndReleaseStock(orderId: string, reason: string): Promise<void> {
