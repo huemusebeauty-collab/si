@@ -1,6 +1,7 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/v1";
 const CART_STORAGE_KEY = "silku-cart-id";
 const SESSION_STORAGE_KEY = "silku-session-id";
+const AUTH_TOKEN_KEY = "silku_session_token";
 
 interface ApiEnvelope<T> { data: T; }
 
@@ -38,11 +39,13 @@ export interface PaymentIntentResponse {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const sessionId = typeof window !== "undefined" ? getStoredSessionId() : null;
+  const authToken = typeof window !== "undefined" ? getStoredAuthToken() : null;
   const response = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
       ...(sessionId ? { "x-cart-session-id": sessionId } : {}),
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
       ...(init?.headers ?? {}),
     },
     cache: "no-store",
@@ -57,6 +60,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export function getStoredCartId(): string | null {
   if (typeof window === "undefined") return null;
   return window.localStorage.getItem(CART_STORAGE_KEY);
+}
+
+export function getStoredAuthToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.sessionStorage.getItem(AUTH_TOKEN_KEY);
 }
 
 export function getStoredSessionId(): string | null {
@@ -130,7 +138,7 @@ export async function getCartTotals(): Promise<{ subtotal: number; discountAmoun
   return request(`/carts/${cartId}/totals`);
 }
 
-export async function createOrder(shippingAddress: Record<string, string>): Promise<ApiOrder> {
+export async function mergeGuestCart(customerId: string): Promise<ApiCart | null> {\n  const sessionId = getStoredSessionId();\n  if (!sessionId) return null;\n  const cart = await request<ApiCart>("/carts/merge", {\n    method: "POST",\n    body: JSON.stringify({ sessionId, customerId }),\n  });\n  storeCartId(cart.id);\n  notifyCartUpdated();\n  return cart;\n}\n\nexport async function createOrder(shippingAddress: Record<string, string>): Promise<ApiOrder> {
   const cartId = getStoredCartId();
   const sessionId = getStoredSessionId();
   if (!cartId || !sessionId) throw new Error("Your cart session could not be found. Please return to cart and try again.");
