@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { ROUTES } from "@/constants/routes";
+import { mergeGuestCart } from "@/services/api/cart";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/v1";
 
 type LoginResponse = {
-  data?: { sessionToken?: string; expiresAt?: string };
+  data?: { sessionToken?: string; expiresAt?: string; customerId?: string };
   sessionToken?: string;
   expiresAt?: string;
   message?: string;
@@ -37,7 +38,7 @@ export default function LoginPage() {
         throw new Error(body.message || "Invalid email or password.");
       }
 
-      sessionStorage.setItem("silku_session_token", result.sessionToken);
+      sessionStorage.setItem("silku_session_token", result.sessionToken);\n      if (result.customerId) await mergeGuestCart(result.customerId);
       if (result.expiresAt) sessionStorage.setItem("silku_session_expires_at", result.expiresAt);
       window.location.assign(ROUTES.account);
     } catch (err) {
