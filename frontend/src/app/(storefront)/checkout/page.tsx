@@ -58,6 +58,17 @@ const INDIA_STATES: Array<{ name: string; code: string }> = [
   { name: "West Bengal", code: "19" },
 ];
 
+function resolveIndiaState(value: string): { name: string; code: string } | null {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return null;
+  return INDIA_STATES.find((item) =>
+    item.name.toLowerCase() === normalized ||
+    item.code === normalized ||
+    item.name.toLowerCase().startsWith(normalized) ||
+    ({ rj: "rajasthan", mh: "maharashtra", dl: "delhi", hr: "haryana", pb: "punjab", gj: "gujarat", up: "uttar pradesh", mp: "madhya pradesh", ka: "karnataka", tn: "tamil nadu", kl: "kerala", wb: "west bengal", od: "odisha", ap: "andhra pradesh", ts: "telangana", br: "bihar", jh: "jharkhand", cg: "chhattisgarh", hp: "himachal pradesh", uk: "uttarakhand", jk: "jammu and kashmir", go: "goa", as: "assam", ar: "arunachal pradesh", mn: "manipur", ml: "meghalaya", mz: "mizoram", nl: "nagaland", sk: "sikkim", tr: "tripura", py: "puducherry", ch: "chandigarh", ld: "lakshadweep", an: "andaman and nicobar islands", la: "ladakh", dd: "dadra and nagar haveli and daman and diu" } as Record<string, string>)[normalized] === item.name.toLowerCase()
+  ) ?? null;
+}
+
 
 export default function CheckoutPage() {
   const [cart, setCart] = useState<ApiCart | null>(null);
@@ -304,24 +315,57 @@ export default function CheckoutPage() {
                     />
                   </div>
                 ) : field === "state" ? (
-                  <select
-                    required
-                    value={form.state}
-                    onChange={(event) => {
-                      const selected = INDIA_STATES.find((item) => item.name === event.target.value);
-                      setForm((current) => ({
-                        ...current,
-                        state: selected?.name ?? "",
-                        stateCode: selected?.code ?? "",
-                      }));
-                    }}
-                    className="mt-1 w-full rounded-md border border-fog bg-white px-3 py-3 text-sm text-ink outline-none focus:border-ink"
-                  >
-                    <option value="">Select state / UT</option>
-                    {INDIA_STATES.map((item) => (
-                      <option key={item.code} value={item.name}>{item.name}</option>
-                    ))}
-                  </select>
+                  <div className="mt-1 space-y-2">
+                    <select
+                      required={!form.state}
+                      value={form.state}
+                      onChange={(event) => {
+                        const selected = INDIA_STATES.find((item) => item.name === event.target.value);
+                        setForm((current) => ({
+                          ...current,
+                          state: selected?.name ?? "",
+                          stateCode: selected?.code ?? "",
+                        }));
+                      }}
+                      className="w-full rounded-md border border-fog bg-white px-3 py-3 text-sm text-ink outline-none focus:border-ink"
+                    >
+                      <option value="">Select state / UT</option>
+                      {INDIA_STATES.map((item) => (
+                        <option key={item.code} value={item.name}>{item.name}</option>
+                      ))}
+                    </select>
+                    <div className="flex items-center gap-2">
+                      <input
+                        aria-label="Enter state name or state code"
+                        value={form.state && form.stateCode ? "" : form.state}
+                        onChange={(event) => {
+                          const value = event.target.value;
+                          const selected = resolveIndiaState(value);
+                          setForm((current) => ({
+                            ...current,
+                            state: selected?.name ?? value,
+                            stateCode: selected?.code ?? "",
+                          }));
+                        }}
+                        onBlur={() => {
+                          const selected = resolveIndiaState(form.state);
+                          if (selected) {
+                            setForm((current) => ({ ...current, state: selected.name, stateCode: selected.code }));
+                          }
+                        }}
+                        list="india-state-options"
+                        className="min-w-0 flex-1 rounded-md border border-fog bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-ink"
+                        placeholder="Or type Rajasthan / RJ / 08"
+                        autoComplete="address-level1"
+                      />
+                      <span className="shrink-0 text-xs text-stone">or type name / code</span>
+                    </div>
+                    <datalist id="india-state-options">
+                      {INDIA_STATES.map((item) => (
+                        <option key={item.code} value={item.name}>{item.code}</option>
+                      ))}
+                    </datalist>
+                  </div>
                 ) : field === "stateCode" ? (
                   <input
                     required
@@ -329,7 +373,7 @@ export default function CheckoutPage() {
                     readOnly
                     aria-readonly="true"
                     className="mt-1 w-full rounded-md border border-fog bg-stone/5 px-3 py-3 text-sm text-ink outline-none"
-                    placeholder="Auto-filled"
+                    placeholder="Auto-filled from state"
                   />
                 ) : (
                   <input
