@@ -1,7 +1,7 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/v1";
 const CART_STORAGE_KEY = "silku-cart-id";
 const SESSION_STORAGE_KEY = "silku-session-id";
-const AUTH_TOKEN_KEY = "silku_session_token";
+import { authenticatedFetch, getAccessToken } from "./auth";
 
 interface ApiEnvelope<T> { data: T; }
 
@@ -39,8 +39,7 @@ export interface PaymentIntentResponse {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const sessionId = typeof window !== "undefined" ? getStoredSessionId() : null;
-  const authToken = typeof window !== "undefined" ? getStoredAuthToken() : null;
-  const response = await fetch(`${API_BASE}${path}`, {
+  const response = await authenticatedFetch(path, {
     ...init,
     headers: {
       "Content-Type": "application/json",
@@ -60,11 +59,6 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export function getStoredCartId(): string | null {
   if (typeof window === "undefined") return null;
   return window.localStorage.getItem(CART_STORAGE_KEY);
-}
-
-export function getStoredAuthToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return window.sessionStorage.getItem(AUTH_TOKEN_KEY);
 }
 
 export function getStoredSessionId(): string | null {
