@@ -43,14 +43,14 @@ export class AuthService {
   // login(email, password | otp) -> {sessionToken, expiresAt} (Phase 16 §16.2)
   // Sprint 3 scope: password login only. OTP branch is a documented
   // Sprint 4+ completion (requires an SMS/email provider — out of scope).
-  async login(email: string, password: string): Promise<{ sessionToken: string; expiresAt: Date }> {
+  async login(email: string, password: string): Promise<{ customerId: string; sessionToken: string; expiresAt: Date }> {
     const customer = await this.customers.findByEmail(email);
     if (!customer || !(await verifyPassword(password, customer.passwordHash))) {
       throw new UnauthorizedException("Invalid email or password.");
     }
     const sessionToken = await this.issueAccessToken(customer.id, customer.email, "customer");
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // matches jwt.accessTokenTtl (15m)
-    return { sessionToken, expiresAt };
+    return { customerId: customer.id, sessionToken, expiresAt };
   }
 
   // logout(sessionToken) -> {success} (Phase 16 §16.2)
