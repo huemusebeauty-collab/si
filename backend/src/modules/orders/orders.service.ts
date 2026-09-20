@@ -293,6 +293,18 @@ export class OrdersService {
         "Payment status transitions must be completed by the verified payment service.",
       );
     }
+
+    const logisticsControlledTransitions: Array<[OrderStatus, OrderStatus]> = [
+      ["processing", "shipped"],
+      ["shipped", "delivered"],
+      ["delivered", "returned"],
+    ];
+    if (logisticsControlledTransitions.some(([from, to]) => order.status === from && status === to)) {
+      throw new DomainException(
+        DomainErrorCode.INVALID_STATUS_TRANSITION,
+        "Fulfillment status transitions must be completed by the logistics workflow.",
+      );
+    }
     return this.updateStatus(orderId, status);
   }
 
