@@ -5,9 +5,6 @@ import { AddCartItemDto } from "./dto/add-cart-item.dto";
 import { Public } from "@/common/decorators/public.decorator";
 import { CurrentUser, type AuthenticatedUser } from "@/common/decorators/current-user.decorator";
 
-// Sprint 3.6 — @Public: cart supports guest sessions per Phase 8 §6;
-// customer-linking on login/registration (guest-cart merge) is a Sprint
-// 4+ completion once the full auth upgrade flow is built.
 @ApiTags("cart")
 @Controller({ path: "carts", version: "1" })
 export class CartController {
@@ -19,8 +16,14 @@ export class CartController {
 
   @Public()
   @Post()
-  create(@Body() body: { sessionId?: string; customerId?: string }) {
-    return this.cart.createCart(body);
+  create(
+    @Body() body: { sessionId?: string; customerId?: string },
+    @CurrentUser() user: AuthenticatedUser | undefined,
+  ) {
+    if (body.customerId && (!user || user.id !== body.customerId)) {
+      throw new ForbiddenException("The cart customerId must match the authenticated customer.");
+    }
+    return this.cart.createCart(user ? { sessionId: body.sessionId, customerId: user.id } : { sessionId: body.sessionId });
   }
 
   @Public()
@@ -89,26 +92,20 @@ export class CartController {
     return this.cart.getTotals(cartId, this.access(sessionId, user));
   }
 
-  // Sprint 4.4 — Cart merge after login. Called by the client
-  // immediately after a successful login/registration response (Phase
-  // 8 §6's guest-to-registered upgrade), passing the guest session's ID.
-  //
-  // Sprint 10 security correction: this endpoint trusted a
-  // client-supplied `customerId` with no verification — the same IDOR
-  // pattern Sprint 9 found and fixed in `WishlistController`
-  // (DEF-9-01), found here during Sprint 10's project-wide follow-up
-  // audit of every `@Public()` endpoint for that exact pattern.
-  // Unauthenticated, anyone could merge arbitrary guest-cart contents
-  // into another customer's real cart. Fixed with the same established
-  // pattern used in `OrdersController.create` and
-  // `WishlistController` — a supplied `customerId` must match the
-  // authenticated caller when a token is present.
-  @Public()
+  // Cart merge is an authenticated operation: it moves a guest session's
+  // contents into the authenticated customer's cart.
   @Post("merge")
-  mergeGuestCart(@CurrentUser() user: AuthenticatedUser | undefined, @Body() body: { sessionId: string; customerId: string }) {
-    if (user && user.id !== body.customerId) {
+  mergeGuestCart(
+    @CurrentUser() user: AuthenticatedUser | undefined,
+    @Headers("x-cart-session-id") sessionId: string | undefined,
+    @Body() body: { sessionId: string; customerId: string },
+  ) {
+    if (!user || user.id !== body.customerId) {
       throw new ForbiddenException("The cart merge customerId must match the authenticated customer.");
     }
-    return this.cart.mergeGuestCart(body.sessionId, body.customerId);
+    if (!sessionId || sessionId !== body.sessionId) {
+      throw new ForbiddenException("The cart merge session must match the authenticated guest session.");
+    }
+    return this.cart.mergeGuestCart(body.sessionId, body.customerId, { sessionId, userId: user.id });
   }
 }
