@@ -43,7 +43,6 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     headers: {
       "Content-Type": "application/json",
       ...(sessionId ? { "x-cart-session-id": sessionId } : {}),
-      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
       ...(init?.headers ?? {}),
     },
     cache: "no-store",
