@@ -63,13 +63,19 @@ function EditProductContent() {
         description: form.description,
         // Preserve content/SEO fields that this screen does not edit.
         // The previous implementation replaced them with empty values on every save.
-        metaTitle: product.metaTitle ?? form.name,
-        metaDescription: product.metaDescription ?? (form.shortDescription || form.description),
+        metaTitle: form.name,
+        metaDescription: form.shortDescription || form.description,
         mediaUrls: form.mediaText.split("\n").map(v => v.trim()).filter(Boolean),
         content: {
-          ...(product.content ?? {}),
           shortDescription: form.shortDescription || form.description,
+          keyBenefits: product.content?.keyBenefits ?? [],
+          features: product.content?.features ?? [],
           ingredients: form.ingredients,
+          usageInstructions: product.content?.usageInstructions ?? [],
+          warnings: product.content?.warnings ?? "",
+          storageInstructions: product.content?.storageInstructions ?? "",
+          specifications: product.content?.specifications ?? {},
+          faqs: product.content?.faqs ?? [],
         },
         hsnCode: form.hsnCode.trim() || undefined, gstRate, taxInclusiveMrp: form.taxInclusiveMrp,
         variants: payloadVariants.map(variant => ({
