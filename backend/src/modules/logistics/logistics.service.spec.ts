@@ -98,13 +98,14 @@ describe("LogisticsService", () => {
   it("synchronizes picked-up shipment to shipped order and records history", async () => {
     const shipment = { id: "shipment-1", status: "ready_to_ship", orderId: "order-1" };
     shipments.findOne.mockResolvedValue(shipment);
-    orders.findOne.mockResolvedValue({ id: "order-1", status: "processing" });
+    orders.findOne.mockResolvedValue({ id: "order-1", status: "confirmed" });
 
     const result = await service.updateStatus("shipment-1", "picked_up");
 
     expect(result.status).toBe("picked_up");
     expect(result.shippedAt).toBeInstanceOf(Date);
     expect(orders.findOne).toHaveBeenCalledTimes(1);
+    expect(transactions.runInTransaction).toHaveBeenCalledTimes(1);
   });
 
   it("synchronizes delivered shipment to delivered order and records history", async () => {
