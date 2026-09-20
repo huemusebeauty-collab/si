@@ -80,6 +80,9 @@ export class PaymentService {
     if (transaction.status === "refunded") {
       throw new BadRequestException("This payment has already been refunded.");
     }
+    if (transaction.status === "refund_processing") {
+      throw new BadRequestException("A refund is already being processed for this payment.");
+    }
     const requestedAmount = Number(amount);
     const capturedAmount = Number(transaction.amount);
     // The current transaction model tracks one refundable amount and one
@@ -93,20 +96,47 @@ export class PaymentService {
       throw new BadRequestException(eligibility.reason ?? "This order is not eligible for a refund.");
     }
 
-    const result = await this.resilientCall.execute(
-      { provider: this.provider.name, operation: "initiateRefund", timeoutMs: 10_000, retry: { maxAttempts: 3 } },
-      () => this.provider.initiateRefund({
-        providerReference: transaction.providerReference,
-        amount: requestedAmount,
-        idempotencyKey: `refund:${transaction.id}`,
-        reason,
-      }),
+    // Claim the refund atomically before calling the external provider.
+    // Never hold a DB transaction open across the provider call.
+    const claim = await this.transactionsRepo.update(
+      { id: transaction.id, status: "succeeded" },
+      { status: "refund_processing" },
     );
-    if (result.status === "succeeded") {
-      transaction.status = "refunded";
-      await this.transactionsRepo.save(transaction);
+    if (!claim.affected) {
+      throw new BadRequestException("A refund is already being processed for this payment.");
     }
-    return result;
+
+    try {
+      const result = await this.resilientCall.execute(
+        { provider: this.provider.name, operation: "initiateRefund", timeoutMs: 10_000, retry: { maxAttempts: 3 } },
+        () => this.provider.initiateRefund({
+          providerReference: transaction.providerReference,
+          amount: requestedAmount,
+          idempotencyKey: `refund:${transaction.id}`,
+          reason,
+        }),
+      );
+      if (result.status === "succeeded") {
+        await this.transactionsRepo.update(
+          { id: transaction.id, status: "refund_processing" },
+          { status: "refunded" },
+        );
+      } else {
+        await this.transactionsRepo.update(
+          { id: transaction.id, status: "refund_processing" },
+          { status: "succeeded" },
+        );
+      }
+      return result;
+    } catch (error) {
+      // Provider retries use the same stable idempotency key. If the call
+      // ultimately fails, release the local claim so a later request can retry.
+      await this.transactionsRepo.update(
+        { id: transaction.id, status: "refund_processing" },
+        { status: "succeeded" },
+      );
+      throw error;
+    }
   }
 
   async syncStatus(providerReference: string): Promise<PaymentTransactionEntity> {
