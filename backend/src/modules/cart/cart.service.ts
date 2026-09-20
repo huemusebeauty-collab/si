@@ -7,6 +7,8 @@ import { ProductsService } from "@/modules/products/products.service";
 import { CouponsService } from "@/admin/coupons/coupons.service";
 import { SettingsService } from "@/admin/settings/settings.service";
 import { DomainErrorCode, DomainException } from "@/common/exceptions/domain.exception";
+import { ForbiddenException } from "@nestjs/common";
+import type { AuthenticatedUser } from "@/common/decorators/current-user.decorator";
 
 // Sprint 3.5 — CartService, method signatures per Phase 16 §16.6.
 // Sprint 4.4 — Cart Business Logic: real stock validation at write time
@@ -28,9 +30,16 @@ export class CartService {
     return this.carts.save(cart);
   }
 
-  async findById(cartId: string): Promise<CartEntity> {
+  async findById(cartId: string, access?: { sessionId?: string; userId?: string }): Promise<CartEntity> {
     const cart = await this.carts.findOne({ where: { id: cartId }, relations: ["lineItems"] });
     if (!cart) throw new NotFoundException("Cart not found.");
+    if (access) {
+      const ownsAsCustomer = Boolean(access.userId && cart.customerId === access.userId);
+      const ownsAsGuest = Boolean(access.sessionId && cart.sessionId === access.sessionId);
+      if (!ownsAsCustomer && !ownsAsGuest) {
+        throw new ForbiddenException("You do not have access to this cart.");
+      }
+    }
     return cart;
   }
 
@@ -53,9 +62,9 @@ export class CartService {
   // addItem(cartId, skuId, quantity) -> Cart
   // Sprint 4.4 — validates quantity shape AND real stock availability
   // before writing, rather than only at checkout-time validateCart.
-  async addItem(cartId: string, variantId: string, quantity: number): Promise<CartEntity> {
+  async addItem(cartId: string, variantId: string, quantity: number, access?: { sessionId?: string; userId?: string }): Promise<CartEntity> {
     this.validateQuantity(quantity);
-    const cart = await this.findById(cartId);
+    const cart = await this.findById(cartId, access);
     const existing = cart.lineItems.find((li) => li.variantId === variantId && !li.savedForLater);
     const totalRequested = (existing?.quantity ?? 0) + quantity;
     await this.assertStockAvailable(variantId, totalRequested);
@@ -66,34 +75,38 @@ export class CartService {
     } else {
       await this.lineItems.save(this.lineItems.create({ cart, variantId, quantity }));
     }
-    return this.findById(cartId);
+    return this.findById(cartId, access);
   }
 
   // updateQuantity(cartId, lineItemId, quantity) -> Cart
-  async updateQuantity(cartId: string, lineItemId: string, quantity: number): Promise<CartEntity> {
+  async updateQuantity(cartId: string, lineItemId: string, quantity: number, access?: { sessionId?: string; userId?: string }): Promise<CartEntity> {
     this.validateQuantity(quantity);
+    await this.findById(cartId, access);
     const item = await this.lineItems.findOne({ where: { id: lineItemId, cart: { id: cartId } } });
     if (!item) throw new NotFoundException("Cart line item not found.");
     await this.assertStockAvailable(item.variantId, quantity);
     item.quantity = quantity;
     await this.lineItems.save(item);
-    return this.findById(cartId);
+    return this.findById(cartId, access);
   }
 
   // removeItem(cartId, lineItemId) -> Cart
-  async removeItem(cartId: string, lineItemId: string): Promise<CartEntity> {
+  async removeItem(cartId: string, lineItemId: string, access?: { sessionId?: string; userId?: string }): Promise<CartEntity> {
+    await this.findById(cartId, access);
     await this.lineItems.delete({ id: lineItemId, cart: { id: cartId } });
     return this.findById(cartId);
   }
 
   // saveForLater(cartId, lineItemId) -> Cart
-  async saveForLater(cartId: string, lineItemId: string): Promise<CartEntity> {
+  async saveForLater(cartId: string, lineItemId: string, access?: { sessionId?: string; userId?: string }): Promise<CartEntity> {
+    await this.findById(cartId, access);
     await this.lineItems.update({ id: lineItemId, cart: { id: cartId } }, { savedForLater: true });
     return this.findById(cartId);
   }
 
   // moveBackToCart(cartId, savedItemId) -> Cart
-  async moveBackToCart(cartId: string, savedItemId: string): Promise<CartEntity> {
+  async moveBackToCart(cartId: string, savedItemId: string, access?: { sessionId?: string; userId?: string }): Promise<CartEntity> {
+    await this.findById(cartId, access);
     await this.lineItems.update({ id: savedItemId, cart: { id: cartId } }, { savedForLater: false });
     return this.findById(cartId);
   }
@@ -102,8 +115,8 @@ export class CartService {
   // Sprint 4.4 — re-checks exact quantity against current stock (not
   // just coarse StockState), catching stale cart data from a long
   // browsing session per Phase 16 §16.6.
-  async validateCart(cartId: string): Promise<{ valid: boolean; issues: string[] }> {
-    const cart = await this.findById(cartId);
+  async validateCart(cartId: string, access?: { sessionId?: string; userId?: string }): Promise<{ valid: boolean; issues: string[] }> {
+    const cart = await this.findById(cartId, access);
     const issues: string[] = [];
     for (const item of cart.lineItems.filter((li) => !li.savedForLater)) {
       const variant = await this.products.findVariantById(item.variantId).catch(() => null);
@@ -121,8 +134,8 @@ export class CartService {
   // not own it"); does NOT snapshot price — that happens at Order
   // creation only, per Phase 8 §4's immutability principle applying to
   // Orders specifically, not Cart.
-  async getTotals(cartId: string): Promise<{ subtotal: number; discountAmount: number; total: number; itemCount: number }> {
-    const cart = await this.findById(cartId);
+  async getTotals(cartId: string, access?: { sessionId?: string; userId?: string }): Promise<{ subtotal: number; discountAmount: number; total: number; itemCount: number }> {
+    const cart = await this.findById(cartId, access);
     let subtotal = 0;
     let itemCount = 0;
     for (const item of cart.lineItems.filter((li) => !li.savedForLater)) {
@@ -149,13 +162,13 @@ export class CartService {
   // Sprint 7.5 — gated behind the "coupons.enabled" feature flag (see
   // FEATURE_FLAGS.md) — the first real, working example of a flag
   // actually gating behavior rather than just being stored data.
-  async applyCoupon(cartId: string, code: string): Promise<CartEntity> {
+  async applyCoupon(cartId: string, code: string, access?: { sessionId?: string; userId?: string }): Promise<CartEntity> {
     const couponsEnabled = await this.settings.isFeatureEnabled("coupons.enabled");
     if (!couponsEnabled) {
       throw new DomainException(DomainErrorCode.INVALID_STATUS_TRANSITION, "Coupon codes are not currently available.");
     }
-    const cart = await this.findById(cartId);
-    const totals = await this.getTotals(cartId);
+    const cart = await this.findById(cartId, access);
+    const totals = await this.getTotals(cartId, access);
     const { discountAmount } = await this.coupons.validateAndComputeDiscount(code, totals.subtotal);
     cart.couponCode = code;
     cart.discountAmount = discountAmount.toFixed(2);
@@ -166,7 +179,7 @@ export class CartService {
   // estimateShipping(cartId, postalCode) -> ShippingEstimate
   // Sprint 4.4 — "Shipping estimate placeholders" per this sprint's own
   // deliverable wording; Settings module remains out of scope.
-  async estimateShipping(_cartId: string, _postalCode: string): Promise<{ available: false; reason: string }> {
+  async estimateShipping(_cartId: string, _postalCode: string, _access?: { sessionId?: string; userId?: string }): Promise<{ available: false; reason: string }> {
     return { available: false, reason: "Shipping configuration is not yet implemented (Settings module, future sprint)." };
   }
 
