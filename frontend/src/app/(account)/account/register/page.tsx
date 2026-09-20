@@ -42,7 +42,8 @@ export default function RegisterPage() {
         throw new Error(body.message || "Unable to create your account.");
       }
 
-      sessionStorage.setItem("silku_session_token", result.sessionToken);\n      if (result.customerId) await mergeGuestCart(result.customerId);
+      sessionStorage.setItem("silku_session_token", result.sessionToken);
+      if (result.customerId) await mergeGuestCart(result.customerId);
       if (result.refreshToken) sessionStorage.setItem("silku_refresh_token", result.refreshToken);
       window.location.assign(ROUTES.account);
     } catch (err) {
