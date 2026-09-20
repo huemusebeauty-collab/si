@@ -5,6 +5,7 @@ import { CategoriesService } from "@/modules/categories/categories.service";
 import { CollectionsService } from "@/modules/collections/collections.service";
 import { ContentValidationService } from "@/admin/content-validation/content-validation.service";
 import { PRODUCT_SEEDS } from "../data/products";
+import HAIR_CARE from "../data/haircare";
 
 // Sprint 7.4.5 execution order #4 — depends on both categories (every
 // product references one) and collections (products are assigned to
@@ -25,7 +26,9 @@ export class ProductsSeedProvider implements SeedProvider {
     const start = Date.now();
     const outcomes: SeedEntityOutcome[] = [];
 
-    for (const seed of PRODUCT_SEEDS) {
+    const allProductSeeds = [...PRODUCT_SEEDS, ...HAIR_CARE];
+
+    for (const seed of allProductSeeds) {
       const existing = await this.products.getProduct(seed.slug).catch(() => null);
 
       const report = await this.validation.validateProductContent({

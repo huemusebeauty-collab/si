@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" role="img" aria-labelledby="title desc">
+<title id="title">Smooth &amp; Hydrate Conditioner</title><desc id="desc">Silku CONDITIONER product packshot.</desc>
+<rect width="800" height="800" rx="48" fill="#dcecf5"/>
+<ellipse cx="400" cy="690" rx="220" ry="32" fill="#b7b1ad" opacity=".28"/>
+<rect x="285" y="180" width="230" height="430" rx="46" fill="#fbfaf8" stroke="#222" stroke-width="5"/>
+<rect x="330" y="125" width="140" height="70" rx="18" fill="#242424"/>
+<rect x="320" y="300" width="160" height="185" rx="12" fill="#fff" stroke="#ddd"/>
+<text x="400" y="350" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" letter-spacing="4" fill="#111">SILKU</text>
+<text x="400" y="390" text-anchor="middle" font-family="Arial,sans-serif" font-size="16" font-weight="700" letter-spacing="2" fill="#555">CONDITIONER</text>
+<text x="400" y="430" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#777">Smooth &amp; Hydrate Conditioner</text>
+<path d="M365 465h70" stroke="#222" stroke-width="2"/><circle cx="400" cy="520" r="18" fill="none" stroke="#222" stroke-width="3"/>
+</svg>

@@ -19,8 +19,15 @@ import { SmsProcessor } from "@/integrations/queue/processors/sms.processor";
       provide: SMS_PROVIDER,
       inject: [ConfigService, MockSmsProvider],
       useFactory: (config: ConfigService, mock: MockSmsProvider) => {
-        void config.get<string>("sms.provider");
-        return mock;
+        const provider = config.get<string>("sms.provider") ?? "mock";
+
+        if (provider === "mock") {
+          return mock;
+        }
+
+        throw new Error(
+          `Unsupported SMS provider "${provider}". Configure a supported provider before enabling it.`,
+        );
       },
     },
     OtpService,

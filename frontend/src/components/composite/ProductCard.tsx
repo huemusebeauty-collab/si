@@ -8,6 +8,8 @@ import { ProductSwatchImage } from "@/components/composite/ProductSwatchImage";
 
 export function ProductCard({ product }: { product: Product }) {
   const isOutOfStock = product.availability === "out-of-stock";
+  const displayPrice = product.salePrice ?? product.price;
+  const discountPercent = product.mrp && product.mrp > displayPrice ? Math.round(((product.mrp - displayPrice) / product.mrp) * 100) : 0;
 
   return (
     <article className="group relative flex flex-col rounded-md bg-white shadow-rest transition-shadow duration-base hover:shadow-hover">
@@ -47,21 +49,20 @@ export function ProductCard({ product }: { product: Product }) {
         {product.shadeCount ? (
           <p className="text-[13px] leading-[18px] text-stone">{product.shadeCount} shades</p>
         ) : null}
-        <div className="flex items-baseline gap-2">
-          {product.salePrice ? (
+        <div className="flex items-baseline gap-2 flex-wrap">
+          <span className={product.salePrice ? "text-[20px] leading-6 font-semibold text-primary-rose" : "text-[20px] leading-6 font-semibold text-ink"}>
+            {formatCurrency(displayPrice, product.currency)}
+          </span>
+          {product.mrp && product.mrp > displayPrice ? (
             <>
-              <span className="text-[20px] leading-6 font-semibold text-primary-rose">
-                {formatCurrency(product.salePrice, product.currency)}
-              </span>
               <span className="text-[13px] leading-[18px] text-stone line-through">
-                {formatCurrency(product.price, product.currency)}
+                MRP {formatCurrency(product.mrp, product.currency)}
+              </span>
+              <span className="text-[12px] leading-[16px] font-semibold text-success">
+                {discountPercent}% OFF
               </span>
             </>
-          ) : (
-            <span className="text-[20px] leading-6 font-semibold text-ink">
-              {formatCurrency(product.price, product.currency)}
-            </span>
-          )}
+          ) : null}
         </div>
         <AvailabilityLabel status={product.availability} />
       </div>

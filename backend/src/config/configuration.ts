@@ -28,6 +28,7 @@ export default () => ({
     accessKey: process.env.STORAGE_ACCESS_KEY,
     secretKey: process.env.STORAGE_SECRET_KEY,
     bucket: process.env.STORAGE_BUCKET,
+    publicBaseUrl: process.env.STORAGE_PUBLIC_BASE_URL,
   },
 
   cors: {

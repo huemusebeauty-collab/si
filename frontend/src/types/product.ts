@@ -14,6 +14,7 @@ export interface Shade {
   name: string;
   hex: string;
   inStock: boolean;
+  mrp?: number;
   imageUrl?: string;
 }
 
@@ -24,6 +25,7 @@ export interface Product {
   categoryId: string;
   price: number;
   salePrice?: number;
+  mrp?: number;
   currency: string;
   imageUrl: string;
   imageUrls: string[];

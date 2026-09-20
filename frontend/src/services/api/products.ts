@@ -11,6 +11,7 @@ interface ApiProductVariant {
   hexColor: string | null;
   stockState: "in-stock" | "low-stock" | "out-of-stock";
   stockQuantity: number;
+  mrp: string;
 }
 
 interface ApiProduct {
@@ -81,8 +82,13 @@ function resolveVariantImage(mediaUrls: string[], variantName: string): string |
 }
 
 function mapProduct(p: ApiProduct): Product {
-  const imageUrls = p.mediaUrls.filter((url) => /^https?:\/\//.test(url));
+  const imageUrls = p.mediaUrls.filter((url) => {
+    const value = url.trim();
+    return /^https?:\/\//.test(value) || value.startsWith("/");
+  });
   const imageUrl = imageUrls[0] ?? "";
+  const variantMrps = p.variants.map((v) => Number.parseFloat(v.mrp)).filter(Number.isFinite);
+  const productMrp = variantMrps.length > 0 && variantMrps.every((mrp) => mrp === variantMrps[0]) ? variantMrps[0] : undefined;
 
   return {
     id: p.id,
@@ -91,6 +97,7 @@ function mapProduct(p: ApiProduct): Product {
     categoryId: p.category.id,
     price: Number.parseFloat(p.price),
     salePrice: p.salePrice ? Number.parseFloat(p.salePrice) : undefined,
+    mrp: productMrp,
     currency: p.currency,
     imageUrl,
     imageUrls,
@@ -103,6 +110,7 @@ function mapProduct(p: ApiProduct): Product {
       name: v.name,
       hex: v.hexColor ?? "#CCCCCC",
       inStock: v.stockState === "in-stock",
+      mrp: Number.parseFloat(v.mrp),
       imageUrl: resolveVariantImage(imageUrls, v.name),
     })),
     rating: 0,

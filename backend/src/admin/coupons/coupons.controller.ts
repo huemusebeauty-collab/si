@@ -4,7 +4,6 @@ import { CouponsService } from "./coupons.service";
 import { RequirePermission } from "@/admin/common/require-permission.decorator";
 import { Audit } from "@/admin/audit/audit.decorator";
 import type { DiscountType } from "./entities/coupon.entity";
-import { PaginationQueryDto } from "@/common/dto/pagination-query.dto";
 
 @ApiTags("admin-coupons")
 @ApiBearerAuth()
@@ -21,8 +20,12 @@ export class CouponsController {
 
   @RequirePermission("coupons", "view")
   @Get()
-  list(@Query() query: PaginationQueryDto & { activeOnly?: boolean }) {
-    return this.coupons.list(query);
+  list(@Query("page") page = "1", @Query("pageSize") pageSize = "20", @Query("activeOnly") activeOnly?: string) {
+    return this.coupons.list({
+      page: Math.max(1, Math.floor(Number(page) || 1)),
+      pageSize: Math.min(100, Math.max(1, Math.floor(Number(pageSize) || 20))),
+      activeOnly: activeOnly === "true",
+    });
   }
 
   @RequirePermission("coupons", "full")

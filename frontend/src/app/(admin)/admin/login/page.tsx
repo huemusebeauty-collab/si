@@ -137,9 +137,9 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-paper px-4">
-      <div className="w-full max-w-sm rounded-md bg-white p-8 shadow-rest">
-        <h1 className="font-display text-[24px] font-semibold text-primary-plum">Silku Admin</h1>
+    <div className="flex min-h-dvh items-center justify-center bg-paper px-3 py-4 sm:px-4 sm:py-6">
+      <div className="w-full max-w-md rounded-md bg-white p-5 shadow-rest sm:p-8">
+        <h1 className="font-display text-[22px] font-semibold leading-tight text-primary-plum sm:text-[24px]">Silku Admin</h1>
         <p className="mt-1 text-[13px] text-stone">
           {mode === "login" && loginStep === "credentials" && "Step 1 of 2 — Sign in with your admin credentials."}
           {mode === "login" && loginStep === "phone" && "Step 2 of 2 — Confirm your admin phone number."}
@@ -150,9 +150,9 @@ export default function AdminLoginPage() {
         </p>
 
         {mode === "login" && (
-          <div className="mt-5 flex items-center gap-2 text-[12px] font-semibold">
-            <span className={`rounded-full px-3 py-1 ${loginStep === "credentials" ? "bg-primary-plum text-white" : "bg-fog text-charcoal"}`}>1 Password</span>
-            <span className={`rounded-full px-3 py-1 ${loginStep !== "credentials" ? "bg-primary-plum text-white" : "bg-fog text-charcoal"}`}>2 Phone OTP</span>
+          <div className="mt-5 flex flex-wrap items-center gap-2 text-[11px] font-semibold sm:text-[12px]">
+            <span className={`rounded-full px-2.5 py-1 sm:px-3 ${loginStep === "credentials" ? "bg-primary-plum text-white" : "bg-fog text-charcoal"}`}>1 Password</span>
+            <span className={`rounded-full px-2.5 py-1 sm:px-3 ${loginStep !== "credentials" ? "bg-primary-plum text-white" : "bg-fog text-charcoal"}`}>2 Phone OTP</span>
           </div>
         )}
 
@@ -167,7 +167,7 @@ export default function AdminLoginPage() {
         )}
 
         {mode === "login" && loginStep === "credentials" && (
-          <form onSubmit={handleCredentials} className="mt-6 flex flex-col gap-4">
+          <form onSubmit={handleCredentials} className="mt-5 flex flex-col gap-4 sm:mt-6">
             <Input label="Email" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required />
             <Input label="Password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
             <Button type="submit" variant="primary" fullWidth isLoading={isSubmitting}>Continue</Button>

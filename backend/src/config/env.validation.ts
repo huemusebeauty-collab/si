@@ -49,6 +49,10 @@ class EnvironmentVariables {
   STORAGE_BUCKET?: string;
 
   @IsOptional()
+  @IsString()
+  STORAGE_PUBLIC_BASE_URL?: string;
+
+  @IsOptional()
   @IsEnum(PaymentProvider)
   PAYMENT_PROVIDER?: PaymentProvider;
 
@@ -72,6 +76,12 @@ export function validateEnv(config: Record<string, unknown>) {
       .map((e) => Object.values(e.constraints ?? {}).join(", "))
       .join("; ");
     throw new Error(`Invalid environment configuration: ${details}`);
+  }
+
+  if (config.NODE_ENV === Environment.Production) {
+    if (typeof config.STORAGE_PUBLIC_BASE_URL !== "string" || !config.STORAGE_PUBLIC_BASE_URL) {
+      throw new Error("Invalid environment configuration: STORAGE_PUBLIC_BASE_URL is required in production.");
+    }
   }
 
   const provider = config.PAYMENT_PROVIDER ?? "mock";
