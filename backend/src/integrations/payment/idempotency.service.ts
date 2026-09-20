@@ -27,7 +27,7 @@ export class IdempotencyService {
   async storeResponse<T>(key: string, scope: string, responseBody: T): Promise<void> {
     await this.keys.update(
       { key: this.storageKey(key, scope) },
-      { responseBody },
+      { responseBody: responseBody as object },
     );
   }
 
