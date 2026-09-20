@@ -95,7 +95,12 @@ export class PaymentService {
 
     const result = await this.resilientCall.execute(
       { provider: this.provider.name, operation: "initiateRefund", timeoutMs: 10_000, retry: { maxAttempts: 3 } },
-      () => this.provider.initiateRefund({ providerReference: transaction.providerReference, amount: requestedAmount, reason }),
+      () => this.provider.initiateRefund({
+        providerReference: transaction.providerReference,
+        amount: requestedAmount,
+        idempotencyKey: `refund:${transaction.id}`,
+        reason,
+      }),
     );
     if (result.status === "succeeded") {
       transaction.status = "refunded";
