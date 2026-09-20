@@ -59,11 +59,14 @@ export class StripePaymentProvider implements PaymentProvider {
 
   async initiateRefund(input: RefundInput): Promise<RefundResult> {
     const stripe = this.getClient();
-    const refund = await stripe.refunds.create({
-      payment_intent: input.providerReference,
-      amount: Math.round(input.amount * 100),
-      reason: this.mapRefundReason(input.reason),
-    });
+    const refund = await stripe.refunds.create(
+      {
+        payment_intent: input.providerReference,
+        amount: Math.round(input.amount * 100),
+        reason: this.mapRefundReason(input.reason),
+      },
+      { idempotencyKey: input.idempotencyKey },
+    );
     return {
       refundReference: refund.id,
       status: refund.status === "succeeded" ? "succeeded" : refund.status === "pending" ? "pending" : "failed",
