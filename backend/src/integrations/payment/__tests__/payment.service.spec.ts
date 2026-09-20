@@ -214,13 +214,15 @@ describe("PaymentService reliability", () => {
     await expect(first).resolves.toEqual({ refundReference: "re_race", status: "succeeded" });
   });
 
-  it("passes a stable transaction-scoped idempotency key to refund providers", async () => {
+  it("passes a stable transaction-scoped idempotency key when a failed refund is retried", async () => {
     const transaction = { id: "tx-1", orderId: "o6", providerReference: "pi_6", amount: "500.00", status: "succeeded" };
     transactionsRepo.findOne
       .mockResolvedValueOnce({ ...transaction })
       .mockResolvedValueOnce({ ...transaction });
     orders.checkRefundEligibility.mockResolvedValue({ eligible: true });
-    provider.initiateRefund.mockResolvedValue({ refundReference: "re_1", status: "succeeded" });
+    provider.initiateRefund
+      .mockResolvedValueOnce({ refundReference: "re_failed", status: "failed" })
+      .mockResolvedValueOnce({ refundReference: "re_retry", status: "succeeded" });
     transactionsRepo.update.mockResolvedValue({ affected: 1 });
 
     await service.initiateRefund("o6", 500, "requested_by_customer");
