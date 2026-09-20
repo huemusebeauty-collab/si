@@ -100,7 +100,7 @@ export class OrdersController {
   @RequirePermission("orders", "edit")
   @Patch(":orderId/status")
   updateStatus(@Param("orderId") orderId: string, @Body("status") status: OrderStatus) {
-    return this.orders.updateStatus(orderId, status);
+    return this.orders.updateAdminStatus(orderId, status);
   }
 
   @Post(":orderId/cancel")
