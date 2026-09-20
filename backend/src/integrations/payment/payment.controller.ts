@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from "@nestjs/common";
+import { Body, Controller, Get, Headers, Param, Post } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { PaymentService } from "./payment.service";
 import { InitiatePaymentDto } from "./dto/initiate-payment.dto";
@@ -24,8 +24,9 @@ export class PaymentController {
   verify(
     @Param("providerReference") providerReference: string,
     @CurrentUser() user: AuthenticatedUser | undefined,
+    @Headers("x-guest-checkout-token") guestCheckoutToken?: string,
   ) {
-    return this.payments.verifyPayment(providerReference, undefined, user);
+    return this.payments.verifyPayment(providerReference, undefined, user, guestCheckoutToken);
   }
 
   @RequirePermission("orders", "edit")
@@ -39,7 +40,7 @@ export class PaymentController {
   sync(
     @Param("providerReference") providerReference: string,
     @CurrentUser() user: AuthenticatedUser | undefined,
-    @Body("guestCheckoutToken") guestCheckoutToken?: string,
+    @Headers("x-guest-checkout-token") guestCheckoutToken?: string,
   ) {
     return this.payments.syncStatus(providerReference, guestCheckoutToken, user);
   }
