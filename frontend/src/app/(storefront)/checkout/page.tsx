@@ -19,6 +19,46 @@ import { getStripe } from "@/services/stripe";
 import { trackWebsiteEvent } from "@/components/WebsiteEventTracker";
 import type { Stripe, StripeElements, StripePaymentElement } from "@stripe/stripe-js";
 
+const INDIA_STATES: Array<{ name: string; code: string }> = [
+  { name: "Andaman and Nicobar Islands", code: "35" },
+  { name: "Andhra Pradesh", code: "37" },
+  { name: "Arunachal Pradesh", code: "12" },
+  { name: "Assam", code: "18" },
+  { name: "Bihar", code: "10" },
+  { name: "Chandigarh", code: "04" },
+  { name: "Chhattisgarh", code: "22" },
+  { name: "Dadra and Nagar Haveli and Daman and Diu", code: "26" },
+  { name: "Delhi", code: "07" },
+  { name: "Goa", code: "30" },
+  { name: "Gujarat", code: "24" },
+  { name: "Haryana", code: "06" },
+  { name: "Himachal Pradesh", code: "02" },
+  { name: "Jammu and Kashmir", code: "01" },
+  { name: "Jharkhand", code: "20" },
+  { name: "Karnataka", code: "29" },
+  { name: "Kerala", code: "32" },
+  { name: "Ladakh", code: "38" },
+  { name: "Lakshadweep", code: "31" },
+  { name: "Madhya Pradesh", code: "23" },
+  { name: "Maharashtra", code: "27" },
+  { name: "Manipur", code: "14" },
+  { name: "Meghalaya", code: "17" },
+  { name: "Mizoram", code: "15" },
+  { name: "Nagaland", code: "13" },
+  { name: "Odisha", code: "21" },
+  { name: "Puducherry", code: "34" },
+  { name: "Punjab", code: "03" },
+  { name: "Rajasthan", code: "08" },
+  { name: "Sikkim", code: "11" },
+  { name: "Tamil Nadu", code: "33" },
+  { name: "Telangana", code: "36" },
+  { name: "Tripura", code: "16" },
+  { name: "Uttar Pradesh", code: "09" },
+  { name: "Uttarakhand", code: "05" },
+  { name: "West Bengal", code: "19" },
+];
+
+
 export default function CheckoutPage() {
   const [cart, setCart] = useState<ApiCart | null>(null);
   const [totals, setTotals] = useState({ subtotal: 0, discountAmount: 0, total: 0, itemCount: 0 });
@@ -48,6 +88,7 @@ export default function CheckoutPage() {
     customerGstin: "",
     customerLegalName: "",
   });
+  const [phoneCountryCode, setPhoneCountryCode] = useState("+91");
 
   useEffect(() => {
     async function load() {
@@ -111,7 +152,9 @@ export default function CheckoutPage() {
     setError(null);
     setSubmitting(true);
     try {
-      if (form.country === "IN" && !/^\\d{2}$/.test(form.stateCode)) throw new Error("Please enter the two-digit state/UT code for the delivery address.");
+      if (form.country === "IN" && !form.stateCode) throw new Error("Please select the delivery state.");
+      if (form.country === "IN" && !/^\\d{2}$/.test(form.stateCode)) throw new Error("Please select a valid delivery state.");
+      if (!/^\\d{10}$/.test(form.phone)) throw new Error("Please enter a valid 10-digit mobile number.");
       const createdOrder = await createOrder(form);
       const idempotencyKey = crypto.randomUUID();
       const nextPayment = await initiatePayment(createdOrder, idempotencyKey);
@@ -238,14 +281,66 @@ export default function CheckoutPage() {
             ] as const).map(([field, label]) => (
               <label key={field} className={field === "addressLine1" || field === "addressLine2" ? "sm:col-span-2" : ""}>
                 <span className="text-sm font-medium text-ink">{label}</span>
-                <input
-                  required={!["addressLine2", "customerLegalName", "customerGstin"].includes(field)}
-                  value={form[field]}
-                  onChange={(event) => updateField(field, event.target.value)}
-                  className="mt-1 w-full rounded-md border border-fog bg-white px-3 py-3 text-sm text-ink outline-none focus:border-ink"
-                  autoComplete={field === "postalCode" ? "postal-code" : field === "fullName" ? "name" : undefined}
-                  maxLength={field === "stateCode" ? 2 : field === "customerGstin" ? 15 : undefined}
-                />
+                {field === "phone" ? (
+                  <div className="mt-1 flex gap-2">
+                    <select
+                      aria-label="Country calling code"
+                      value={phoneCountryCode}
+                      onChange={(event) => setPhoneCountryCode(event.target.value)}
+                      className="w-24 rounded-md border border-fog bg-white px-2 py-3 text-sm text-ink outline-none focus:border-ink"
+                    >
+                      <option value="+91">+91 India</option>
+                    </select>
+                    <input
+                      required
+                      type="tel"
+                      inputMode="numeric"
+                      value={form.phone}
+                      onChange={(event) => updateField("phone", event.target.value.replace(/\\D/g, "").slice(0, 10))}
+                      className="min-w-0 flex-1 rounded-md border border-fog bg-white px-3 py-3 text-sm text-ink outline-none focus:border-ink"
+                      autoComplete="tel-national"
+                      maxLength={10}
+                      placeholder="10-digit mobile number"
+                    />
+                  </div>
+                ) : field === "state" ? (
+                  <select
+                    required
+                    value={form.state}
+                    onChange={(event) => {
+                      const selected = INDIA_STATES.find((item) => item.name === event.target.value);
+                      setForm((current) => ({
+                        ...current,
+                        state: selected?.name ?? "",
+                        stateCode: selected?.code ?? "",
+                      }));
+                    }}
+                    className="mt-1 w-full rounded-md border border-fog bg-white px-3 py-3 text-sm text-ink outline-none focus:border-ink"
+                  >
+                    <option value="">Select state / UT</option>
+                    {INDIA_STATES.map((item) => (
+                      <option key={item.code} value={item.name}>{item.name}</option>
+                    ))}
+                  </select>
+                ) : field === "stateCode" ? (
+                  <input
+                    required
+                    value={form.stateCode}
+                    readOnly
+                    aria-readonly="true"
+                    className="mt-1 w-full rounded-md border border-fog bg-stone/5 px-3 py-3 text-sm text-ink outline-none"
+                    placeholder="Auto-filled"
+                  />
+                ) : (
+                  <input
+                    required={!["addressLine2", "customerLegalName", "customerGstin"].includes(field)}
+                    value={form[field]}
+                    onChange={(event) => updateField(field, event.target.value)}
+                    className="mt-1 w-full rounded-md border border-fog bg-white px-3 py-3 text-sm text-ink outline-none focus:border-ink"
+                    autoComplete={field === "postalCode" ? "postal-code" : field === "fullName" ? "name" : undefined}
+                    maxLength={field === "customerGstin" ? 15 : undefined}
+                  />
+                )}
               </label>
             ))}
           </div>
