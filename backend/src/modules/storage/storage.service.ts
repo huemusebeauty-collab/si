@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable, InternalServerErrorException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -26,12 +26,14 @@ export type UploadCategory = "product-media" | "cms-assets" | "review-media";
 export class StorageService {
   private readonly client: S3Client;
   private readonly bucket: string;
+  private readonly publicBaseUrl?: string;
 
   constructor(
     private readonly config: ConfigService,
     private readonly settings: SettingsService,
   ) {
     this.bucket = this.config.get<string>("storage.bucket")!;
+    this.publicBaseUrl = this.config.get<string>("storage.publicBaseUrl");
     this.client = new S3Client({
       endpoint: this.config.get<string>("storage.endpoint"),
       region: "us-east-1", // required by the SDK; not meaningful for MinIO
@@ -78,7 +80,16 @@ export class StorageService {
       }),
     );
 
-    return { key, url: `${this.config.get<string>("storage.endpoint")}/${this.bucket}/${key}` };
+    if (this.publicBaseUrl) {
+      const baseUrl = this.publicBaseUrl.replace(/\/+$/, "");
+      return { key, url: baseUrl + "/" + key };
+    }
+
+    if (this.config.get<string>("env") === "production") {
+      throw new InternalServerErrorException("Storage public base URL is not configured.");
+    }
+
+    return { key, url: this.config.get<string>("storage.endpoint") + "/" + this.bucket + "/" + key };
   }
 
   // Sprint 5.6 — Signed URLs: time-limited read access to an object,
