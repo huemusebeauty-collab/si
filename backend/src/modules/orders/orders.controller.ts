@@ -6,6 +6,7 @@ import { CurrentUser, type AuthenticatedUser } from "@/common/decorators/current
 import { Public } from "@/common/decorators/public.decorator";
 import { DomainErrorCode, DomainException } from "@/common/exceptions/domain.exception";
 import { RequirePermission } from "@/admin/common/require-permission.decorator";
+import { createGuestCheckoutToken } from "@/common/security/guest-checkout-token";
 
 @ApiTags("orders")
 @ApiBearerAuth()
@@ -124,7 +125,7 @@ export class OrdersController {
   // are still protected by the customerId check below.
   @Public()
   @Post()
-  create(
+  async create(
     @CurrentUser() user: AuthenticatedUser | undefined,
     @Headers("idempotency-key") idempotencyKey: string | undefined,
     @Body() body: { customerId: string; cartId: string; shippingAddress: Record<string, unknown>; customerGstin?: string; customerLegalName?: string },
@@ -135,7 +136,8 @@ export class OrdersController {
         "The order's customerId must match the authenticated customer.",
       );
     }
-    return this.orders.createOrder(body.customerId, body.cartId, body.shippingAddress, idempotencyKey, body.customerGstin, body.customerLegalName);
+    const order = await this.orders.createOrder(body.customerId, body.cartId, body.shippingAddress, idempotencyKey, body.customerGstin, body.customerLegalName);
+    return user ? order : { ...order, guestCheckoutToken: createGuestCheckoutToken(order.id) };
   }
 
   @Get(":orderId/refund-eligibility")
