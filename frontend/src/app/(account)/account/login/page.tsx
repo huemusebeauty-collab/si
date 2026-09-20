@@ -38,7 +38,8 @@ export default function LoginPage() {
         throw new Error(body.message || "Invalid email or password.");
       }
 
-      sessionStorage.setItem("silku_session_token", result.sessionToken);\n      if (result.customerId) await mergeGuestCart(result.customerId);
+      sessionStorage.setItem("silku_session_token", result.sessionToken);
+      if (result.customerId) await mergeGuestCart(result.customerId);
       if (result.expiresAt) sessionStorage.setItem("silku_session_expires_at", result.expiresAt);
       window.location.assign(ROUTES.account);
     } catch (err) {
