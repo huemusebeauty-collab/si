@@ -27,6 +27,7 @@ export interface VerifyPaymentResult {
 export interface RefundInput {
   providerReference: string;
   amount: number; // partial or full
+  idempotencyKey: string; // stable key derived from the payment transaction
   reason?: string;
 }
 
