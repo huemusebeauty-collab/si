@@ -79,7 +79,7 @@ export class CartController {
 
   @Public()
   @Get(":cartId/shipping-estimate")
-  estimateShipping(@Param("cartId") cartId: string, @Query("postalCode") postalCode?: string, @Headers("x-cart-session-id") sessionId: string | undefined, @CurrentUser() user: AuthenticatedUser | undefined) {
+  estimateShipping(@Param("cartId") cartId: string, @Query("postalCode") postalCode: string | undefined, @Headers("x-cart-session-id") sessionId: string | undefined, @CurrentUser() user: AuthenticatedUser | undefined) {
     return this.cart.estimateShipping(cartId, postalCode ?? "", this.access(sessionId, user));
   }
 
