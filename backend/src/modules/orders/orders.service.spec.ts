@@ -169,6 +169,19 @@ describe("OrdersService", () => {
     );
   });
 
+  it("blocks admin fulfillment milestones that must come from logistics", async () => {
+    for (const [from, to] of [
+      ["processing", "shipped"],
+      ["shipped", "delivered"],
+      ["delivered", "returned"],
+    ] as const) {
+      orderRepo.findOne.mockResolvedValue({ id: "o1", status: from, lineItems: [], statusHistory: [] } as unknown as OrderEntity);
+      await expect(service.updateAdminStatus("o1", to)).rejects.toThrow(
+        "Fulfillment status transitions must be completed by the logistics workflow.",
+      );
+    }
+  });
+
   it("throws NotFoundException for a missing order", async () => {
     orderRepo.findOne.mockResolvedValue(null);
     await expect(service.getOrder("missing-id")).rejects.toThrow(NotFoundException);
