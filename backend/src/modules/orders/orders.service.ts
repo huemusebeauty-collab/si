@@ -280,6 +280,22 @@ export class OrdersService {
     return this.updateStatus(orderId, "confirmed");
   }
 
+  async updateAdminStatus(orderId: string, status: OrderStatus): Promise<OrderEntity> {
+    const order = await this.getOrder(orderId);
+    const paymentControlledTransitions: Array<[OrderStatus, OrderStatus]> = [
+      ["pending_payment", "confirmed"],
+      ["pending_payment", "payment_failed"],
+      ["payment_failed", "pending_payment"],
+    ];
+    if (paymentControlledTransitions.some(([from, to]) => order.status === from && status === to)) {
+      throw new DomainException(
+        DomainErrorCode.INVALID_STATUS_TRANSITION,
+        "Payment status transitions must be completed by the verified payment service.",
+      );
+    }
+    return this.updateStatus(orderId, status);
+  }
+
   async updateStatus(orderId: string, status: OrderStatus): Promise<OrderEntity> {
     const order = await this.getOrder(orderId);
     if (!VALID_TRANSITIONS[order.status].includes(status)) {
