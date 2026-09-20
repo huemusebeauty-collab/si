@@ -66,11 +66,11 @@ export class PaymentService {
     });
   }
 
-  async verifyPayment(providerReference: string, _guestCheckoutToken?: string, user?: AuthenticatedUser, guestCheckoutToken?: string) {
+  async verifyPayment(providerReference: string, guestCheckoutToken?: string, user?: AuthenticatedUser) {
     const transaction = await this.transactionsRepo.findOne({ where: { providerReference } });
     if (!transaction) throw new NotFoundException("Payment transaction not found.");
     const order = await this.orders.getOrder(transaction.orderId);
-    this.authorizeOrderAccess(order, user, guestCheckoutToken ?? _guestCheckoutToken);
+    this.authorizeOrderAccess(order, user, guestCheckoutToken);
 
     return this.resilientCall.execute(
       { provider: this.provider.name, operation: "verifyPayment", timeoutMs: 8_000, retry: { maxAttempts: 2 } },
