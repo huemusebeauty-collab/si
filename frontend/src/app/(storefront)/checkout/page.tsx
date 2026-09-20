@@ -143,7 +143,7 @@ export default function CheckoutPage() {
 
       let syncResult: unknown = null;
       for (let attempt = 0; attempt < 5; attempt += 1) {
-        syncResult = await syncPayment(payment.providerReference);
+        syncResult = await syncPayment(payment.providerReference, order.guestCheckoutToken);
         if (typeof syncResult === "object" && syncResult !== null && "status" in syncResult && syncResult.status === "succeeded") break;
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
