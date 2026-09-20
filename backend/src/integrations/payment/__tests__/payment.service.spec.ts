@@ -128,10 +128,11 @@ describe("PaymentService reliability", () => {
 
     await service.initiateRefund("o-pending", 500);
 
-    expect(transactionsRepo.update).toHaveBeenLastCalledWith(
-      { id: "tx-pending", status: "refund_processing" },
+    expect(transactionsRepo.update).toHaveBeenCalledWith(
+      { id: "tx-pending", status: "succeeded" },
       { status: "refund_processing" },
     );
+    expect(transactionsRepo.update).toHaveBeenCalledTimes(1);
   });
 
   it("keeps an unknown refund outcome claimed after provider failure", async () => {
