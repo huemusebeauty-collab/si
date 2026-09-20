@@ -25,6 +25,7 @@ export interface ApiOrder {
   total: string;
   currency: string;
   shippingAddress: Record<string, unknown>;
+  guestCheckoutToken?: string;
 }
 
 export interface PaymentIntentResponse {
@@ -158,10 +159,13 @@ export async function initiatePayment(order: ApiOrder, idempotencyKey: string): 
       amount: Number(order.total),
       currency: order.currency,
       idempotencyKey,
+      guestCheckoutToken: order.guestCheckoutToken,
     }),
   });
 }
 
-export async function syncPayment(providerReference: string): Promise<unknown> {
-  return request(`/payments/${encodeURIComponent(providerReference)}/sync`);
+export async function syncPayment(providerReference: string, guestCheckoutToken?: string): Promise<unknown> {
+  return request(`/payments/${encodeURIComponent(providerReference)}/sync`, {
+    headers: guestCheckoutToken ? { "x-guest-checkout-token": guestCheckoutToken } : undefined,
+  });
 }
