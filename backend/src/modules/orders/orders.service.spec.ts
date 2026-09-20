@@ -162,6 +162,13 @@ describe("OrdersService", () => {
     expect(transactionService.runInTransaction).not.toHaveBeenCalled();
   });
 
+  it("blocks admin status changes that would bypass verified payment", async () => {
+    orderRepo.findOne.mockResolvedValue({ id: "o1", status: "pending_payment", lineItems: [], statusHistory: [] } as unknown as OrderEntity);
+    await expect(service.updateAdminStatus("o1", "confirmed")).rejects.toThrow(
+      "Payment status transitions must be completed by the verified payment service.",
+    );
+  });
+
   it("throws NotFoundException for a missing order", async () => {
     orderRepo.findOne.mockResolvedValue(null);
     await expect(service.getOrder("missing-id")).rejects.toThrow(NotFoundException);
