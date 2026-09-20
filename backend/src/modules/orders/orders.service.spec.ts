@@ -199,6 +199,34 @@ describe("OrdersService", () => {
     await expect(service.requestCancellation("o1", "too late")).rejects.toThrow(DomainException);
   });
 
+  it("cancels a pre-pickup shipment together with order cancellation", async () => {
+    orderRepo.findOne.mockResolvedValue({ id: "o1", status: "processing", lineItems: [{ variantId: "v1", quantity: 2 }], statusHistory: [] } as unknown as OrderEntity);
+    const shipment = { id: "s1", orderId: "o1", status: "ready_to_ship" };
+    const manager = {
+      findOne: jest.fn()
+        .mockResolvedValueOnce({ id: "o1", status: "processing", lineItems: [{ variantId: "v1", quantity: 2 }], statusHistory: [] })
+        .mockResolvedValueOnce(shipment),
+      update: jest.fn().mockResolvedValue(undefined),
+      create: jest.fn((_: unknown, entity: unknown) => entity),
+      save: jest.fn(async (entity: unknown) => entity),
+    };
+    transactionService.runInTransaction.mockImplementationOnce(async (work: (qr: unknown) => Promise<unknown>) => work({ manager }));
+
+    const result = await service.requestCancellation("o1", "changed my mind");
+
+    expect(result.accepted).toBe(true);
+    expect(shipment.status).toBe("cancelled");
+    expect(manager.save).toHaveBeenCalledWith(expect.objectContaining({
+      shipmentId: "s1",
+      status: "cancelled",
+    }));
+    expect(productService.adjustStock).toHaveBeenCalledWith("v1", 2, expect.any(Object), {
+      reason: "order_cancellation",
+      referenceType: "order",
+      referenceId: "o1",
+    });
+  });
+
   it("rejects a return request before delivery", async () => {
     orderRepo.findOne.mockResolvedValue({ id: "o1", status: "shipped", lineItems: [], statusHistory: [] } as unknown as OrderEntity);
     await expect(service.requestReturn("o1", ["li1"], "wrong shade")).rejects.toThrow(DomainException);
