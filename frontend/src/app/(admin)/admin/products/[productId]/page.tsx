@@ -60,9 +60,17 @@ function EditProductContent() {
     try {
       await adminApi.updateProduct(id, {
         name: form.name, slug: form.slug, categorySlug: form.categorySlug, price, salePrice,
-        description: form.description, metaTitle: form.name, metaDescription: form.shortDescription || form.description,
+        description: form.description,
+        // Preserve content/SEO fields that this screen does not edit.
+        // The previous implementation replaced them with empty values on every save.
+        metaTitle: product.metaTitle ?? form.name,
+        metaDescription: product.metaDescription ?? (form.shortDescription || form.description),
         mediaUrls: form.mediaText.split("\n").map(v => v.trim()).filter(Boolean),
-        content: { shortDescription: form.shortDescription || form.description, keyBenefits: [], features: [], ingredients: form.ingredients, usageInstructions: [], warnings: "", storageInstructions: "", specifications: {}, faqs: [] },
+        content: {
+          ...(product.content ?? {}),
+          shortDescription: form.shortDescription || form.description,
+          ingredients: form.ingredients,
+        },
         hsnCode: form.hsnCode.trim() || undefined, gstRate, taxInclusiveMrp: form.taxInclusiveMrp,
         variants: payloadVariants.map(variant => ({
           id: variant.id,
