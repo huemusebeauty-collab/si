@@ -26,7 +26,7 @@ export class PaymentController {
     @CurrentUser() user: AuthenticatedUser | undefined,
     @Headers("x-guest-checkout-token") guestCheckoutToken?: string,
   ) {
-    return this.payments.verifyPayment(providerReference, undefined, user, guestCheckoutToken);
+    return this.payments.verifyPayment(providerReference, guestCheckoutToken, user);
   }
 
   @RequirePermission("orders", "edit")
