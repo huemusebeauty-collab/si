@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { ROUTES } from "@/constants/routes";
+import { mergeGuestCart } from "@/services/api/cart";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/v1";
 
@@ -41,7 +42,7 @@ export default function RegisterPage() {
         throw new Error(body.message || "Unable to create your account.");
       }
 
-      sessionStorage.setItem("silku_session_token", result.sessionToken);
+      sessionStorage.setItem("silku_session_token", result.sessionToken);\n      if (result.customerId) await mergeGuestCart(result.customerId);
       if (result.refreshToken) sessionStorage.setItem("silku_refresh_token", result.refreshToken);
       window.location.assign(ROUTES.account);
     } catch (err) {
