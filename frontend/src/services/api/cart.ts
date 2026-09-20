@@ -1,7 +1,6 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/v1";
 const CART_STORAGE_KEY = "silku-cart-id";
 const SESSION_STORAGE_KEY = "silku-session-id";
-import { authenticatedFetch, getAccessToken } from "./auth";
+import { authenticatedFetch } from "./auth";
 
 interface ApiEnvelope<T> { data: T; }
 
