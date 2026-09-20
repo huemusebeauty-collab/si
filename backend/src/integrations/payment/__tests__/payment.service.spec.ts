@@ -13,6 +13,7 @@ describe("PaymentService reliability", () => {
     create: jest.fn((value) => value),
     save: jest.fn(async (value) => value),
     findOne: jest.fn(),
+    update: jest.fn(async () => ({ affected: 1 })),
   };
   const idempotency = { runOnce: jest.fn(async (_key, _scope, fn) => fn()) };
   const resilientCall = { execute: jest.fn(async (_options, fn) => fn()) };
@@ -104,6 +105,142 @@ describe("PaymentService reliability", () => {
 
     await expect(service.initiateRefund("o5", 500)).rejects.toBeInstanceOf(BadRequestException);
     expect(provider.initiateRefund).not.toHaveBeenCalled();
+  });
+
+  it("rejects a concurrent refund when another request already claimed the transaction", async () => {
+    const transaction = { id: "tx-concurrent", orderId: "o-concurrent", providerReference: "pi-concurrent", amount: "500.00", status: "succeeded" };
+    transactionsRepo.findOne.mockResolvedValue(transaction);
+    orders.checkRefundEligibility.mockResolvedValue({ eligible: true });
+    transactionsRepo.update.mockResolvedValue({ affected: 0 });
+
+    await expect(service.initiateRefund("o-concurrent", 500)).rejects.toThrow(
+      "A refund is already being processed for this payment.",
+    );
+    expect(provider.initiateRefund).not.toHaveBeenCalled();
+  });
+
+  it("keeps a pending provider refund in refund_processing", async () => {
+    const transaction = { id: "tx-pending", orderId: "o-pending", providerReference: "pi-pending", amount: "500.00", status: "succeeded" };
+    transactionsRepo.findOne.mockResolvedValue(transaction);
+    orders.checkRefundEligibility.mockResolvedValue({ eligible: true });
+    provider.initiateRefund.mockResolvedValue({ refundReference: "re_pending", status: "pending" });
+    transactionsRepo.update.mockResolvedValue({ affected: 1 });
+
+    await service.initiateRefund("o-pending", 500);
+
+    expect(transactionsRepo.update).toHaveBeenCalledWith(
+      { id: "tx-pending", status: "succeeded" },
+      { status: "refund_processing" },
+    );
+    expect(transactionsRepo.update).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps an unknown refund outcome claimed after provider failure", async () => {
+    const transaction = { id: "tx-unknown", orderId: "o-unknown", providerReference: "pi-unknown", amount: "500.00", status: "succeeded" };
+    transactionsRepo.findOne.mockResolvedValue(transaction);
+    orders.checkRefundEligibility.mockResolvedValue({ eligible: true });
+    provider.initiateRefund.mockRejectedValue(new Error("provider timeout"));
+    transactionsRepo.update.mockResolvedValue({ affected: 1 });
+
+    await expect(service.initiateRefund("o-unknown", 500)).rejects.toThrow("provider timeout");
+
+    expect(transactionsRepo.update).toHaveBeenCalledWith(
+      { id: "tx-unknown", status: "succeeded" },
+      { status: "refund_processing" },
+    );
+    expect(transactionsRepo.update).toHaveBeenCalledTimes(1);
+  });
+
+  it("allows recovery of a stale refund claim using the same provider idempotency key", async () => {
+    const transaction = {
+      id: "tx-stale",
+      orderId: "o-stale",
+      providerReference: "pi-stale",
+      amount: "500.00",
+      status: "refund_processing",
+      updatedAt: new Date(Date.now() - 10 * 60 * 1000),
+    };
+    transactionsRepo.findOne.mockResolvedValue(transaction);
+    orders.checkRefundEligibility.mockResolvedValue({ eligible: true });
+    provider.initiateRefund.mockResolvedValue({ refundReference: "re_stale", status: "succeeded" });
+    transactionsRepo.update.mockResolvedValue({ affected: 1 });
+
+    await service.initiateRefund("o-stale", 500, "requested_by_customer");
+
+    expect(provider.initiateRefund).toHaveBeenCalledWith({
+      providerReference: "pi-stale",
+      amount: 500,
+      idempotencyKey: "refund:tx-stale",
+      reason: "requested_by_customer",
+    });
+    expect(transactionsRepo.update).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "tx-stale", status: "refund_processing" }),
+      ]),
+      { status: "refund_processing" },
+    );
+  });
+
+  it("allows only one of two concurrent refund requests to claim the transaction", async () => {
+    const transaction = {
+      id: "tx-race",
+      orderId: "o-race",
+      providerReference: "pi-race",
+      amount: "500.00",
+      status: "succeeded",
+    };
+    transactionsRepo.findOne.mockResolvedValue(transaction);
+    orders.checkRefundEligibility.mockResolvedValue({ eligible: true });
+
+    let claimCount = 0;
+    transactionsRepo.update.mockImplementation(async () => {
+      claimCount += 1;
+      return { affected: claimCount === 1 ? 1 : 0 };
+    });
+
+    let releaseProvider: (() => void) | undefined;
+    provider.initiateRefund.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          releaseProvider = () => resolve({ refundReference: "re_race", status: "succeeded" });
+        }),
+    );
+
+    const first = service.initiateRefund("o-race", 500);
+    const second = service.initiateRefund("o-race", 500);
+    await expect(second).rejects.toThrow("A refund is already being processed for this payment.");
+    expect(provider.initiateRefund).toHaveBeenCalledTimes(1);
+
+    releaseProvider?.();
+    await expect(first).resolves.toEqual({ refundReference: "re_race", status: "succeeded" });
+  });
+
+  it("passes a stable transaction-scoped idempotency key when a failed refund is retried", async () => {
+    const transaction = { id: "tx-1", orderId: "o6", providerReference: "pi_6", amount: "500.00", status: "succeeded" };
+    transactionsRepo.findOne
+      .mockResolvedValueOnce({ ...transaction })
+      .mockResolvedValueOnce({ ...transaction });
+    orders.checkRefundEligibility.mockResolvedValue({ eligible: true });
+    provider.initiateRefund
+      .mockResolvedValueOnce({ refundReference: "re_failed", status: "failed" })
+      .mockResolvedValueOnce({ refundReference: "re_retry", status: "succeeded" });
+    transactionsRepo.update.mockResolvedValue({ affected: 1 });
+
+    await service.initiateRefund("o6", 500, "requested_by_customer");
+    await service.initiateRefund("o6", 500, "requested_by_customer");
+
+    expect(provider.initiateRefund).toHaveBeenNthCalledWith(1, {
+      providerReference: "pi_6",
+      amount: 500,
+      idempotencyKey: "refund:tx-1",
+      reason: "requested_by_customer",
+    });
+    expect(provider.initiateRefund).toHaveBeenNthCalledWith(2, {
+      providerReference: "pi_6",
+      amount: 500,
+      idempotencyKey: "refund:tx-1",
+      reason: "requested_by_customer",
+    });
   });
 
   it("rejects a partial refund until partial-refund accounting exists", async () => {

@@ -3,7 +3,7 @@ export type AdminRole = "super_admin" | "store_manager" | "product_manager" | "c
 export type PermissionLevel = "full" | "edit" | "view" | "none";
 export type AdminModule =
   | "dashboard" | "products" | "categories" | "orders" | "customers"
-  | "reviews" | "coupons" | "content" | "settings" | "reports" | "userRoles" | "billing";
+  | "reviews" | "coupons" | "content" | "settings" | "reports" | "userRoles" | "billing" | "logistics";
 
 export const PERMISSION_MATRIX: Record<AdminModule, Record<AdminRole, PermissionLevel>> = {
   dashboard: { super_admin: "full", store_manager: "full", product_manager: "view", content_manager: "view", customer_support: "view" },
@@ -18,6 +18,7 @@ export const PERMISSION_MATRIX: Record<AdminModule, Record<AdminRole, Permission
   reports: { super_admin: "full", store_manager: "full", product_manager: "view", content_manager: "none", customer_support: "none" },
   userRoles: { super_admin: "full", store_manager: "none", product_manager: "none", content_manager: "none", customer_support: "none" },
   billing: { super_admin: "full", store_manager: "full", product_manager: "none", content_manager: "none", customer_support: "view" },
+  logistics: { super_admin: "full", store_manager: "full", product_manager: "view", content_manager: "none", customer_support: "edit" },
 };
 
 const LEVEL_RANK: Record<PermissionLevel, number> = { none: 0, view: 1, edit: 2, full: 3 };

@@ -7,6 +7,7 @@ import { Public } from "@/common/decorators/public.decorator";
 import { Roles } from "@/common/decorators/roles.decorator";
 import { Cacheable } from "@/cache/cacheable.decorator";
 import { CreateVariantDto } from "./dto/create-variant.dto";
+import { CreateProductDto, SetInventoryStockDto, UpdateProductTaxDto } from "./dto/create-product.dto";
 import { RequirePermission } from "@/admin/common/require-permission.decorator";
 import { CategoriesService } from "@/modules/categories/categories.service";
 
@@ -34,14 +35,32 @@ export class ProductsController {
 
   @RequirePermission("products", "edit")
   @Post("admin")
-  async createProduct(@Body() body: {
-    slug: string; name: string; categorySlug: string; price: number; salePrice?: number; description: string;
-    content: { shortDescription: string; keyBenefits: string[]; features: string[]; ingredients: string; usageInstructions: string[]; warnings: string; storageInstructions: string; specifications: Record<string, string>; faqs: { question: string; answer: string }[] };
-    metaTitle: string; metaDescription: string; mediaUrls: string[];
-    variants: { sku: string; name: string; hexColor?: string; stockQuantity: number }[];
-  }) {
+  async createProduct(@Body() body: CreateProductDto) {
     const category = await this.categories.getCategory(body.categorySlug);
-    return this.products.upsertFullProduct({ ...body, category });
+    return this.products.upsertFullProduct({ ...body, category, content: { ...body.content, specifications: body.content.specifications ?? {} } });
+  }
+
+  @RequirePermission("products", "view")
+  @Get("admin/inventory")
+  listInventory() { return this.products.listInventory(); }
+
+  @RequirePermission("products", "edit")
+  @Patch("admin/inventory/:variantId")
+  setStock(@Param("variantId") variantId: string, @Body() body: SetInventoryStockDto) {
+    return this.products.setStock(variantId, body.quantity, body.expectedVersion);
+  }
+
+  @RequirePermission("products", "view")
+  @Get("admin/:productId")
+  getAdminProduct(@Param("productId") productId: string) {
+    return this.products.getAdminProduct(productId);
+  }
+
+  @RequirePermission("products", "edit")
+  @Patch("admin/:productId")
+  async updateProduct(@Param("productId") productId: string, @Body() body: CreateProductDto) {
+    const category = await this.categories.getCategory(body.categorySlug);
+    return this.products.updateProductById(productId, { ...body, category, content: { ...body.content, specifications: body.content.specifications ?? {} } });
   }
 
   @RequirePermission("products", "view")
@@ -52,23 +71,8 @@ export class ProductsController {
 
   @RequirePermission("products", "edit")
   @Patch("admin/:productId/tax")
-  updateTaxConfig(@Param("productId") productId: string, @Body() body: {
-    hsnCode?: string | null;
-    gstRate?: number | null;
-    taxInclusiveMrp?: boolean;
-    variants?: Array<{ variantId: string; mrp: number }>;
-  }) {
+  updateTaxConfig(@Param("productId") productId: string, @Body() body: UpdateProductTaxDto) {
     return this.productTax.updateTaxConfig(productId, body);
-  }
-
-  @RequirePermission("products", "view")
-  @Get("admin/inventory")
-  listInventory() { return this.products.listInventory(); }
-
-  @RequirePermission("products", "edit")
-  @Patch("admin/inventory/:variantId")
-  setStock(@Param("variantId") variantId: string, @Body() body: { quantity: number; expectedVersion?: number }) {
-    return this.products.setStock(variantId, body.quantity, body.expectedVersion);
   }
 
   @RequirePermission("products", "full")

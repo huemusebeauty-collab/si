@@ -38,7 +38,9 @@ export const adminApi = {
   confirmPasswordReset: (resetToken: string, code: string, newPassword: string) => request<{ reset: true }>("/admin/auth/password/reset/confirm", { method: "POST", body: JSON.stringify({ resetToken, code, newPassword }) }),
   getDashboardOverview: () => request<DashboardOverview>("/admin/dashboard/overview"),
   listProducts: (params: URLSearchParams) => request<Paginated<AdminProduct>>(`/products/admin?${params}`),
-  createProduct: (body: CreateProductInput) => request<AdminProduct>("/products/admin", { method: "POST", body: JSON.stringify(body) }),
+  createProduct: (body: CreateProductInput) => request<{ entity: AdminProduct; wasCreated: boolean }>("/products/admin", { method: "POST", body: JSON.stringify(body) }),
+  getAdminProduct: (id: string) => request<AdminProductDetail>(`/products/admin/${id}`),
+  updateProduct: (id: string, body: CreateProductInput) => request<AdminProduct>(`/products/admin/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   getProductTax: (productId: string) => request<ProductTaxConfig>(`/products/admin/${productId}/tax`),
   updateProductTax: (productId: string, body: UpdateProductTaxInput) => request<ProductTaxConfig>(`/products/admin/${productId}/tax`, { method: "PATCH", body: JSON.stringify(body) }),
   activateProduct: (id: string) => request<AdminProduct>(`/products/${id}/activate`, { method: "POST" }),
@@ -57,6 +59,9 @@ export const adminApi = {
   setCollectionFeatured: (id: string, featured: boolean) => request<AdminCollection>(`/collections/${id}/featured`, { method: "PATCH", body: JSON.stringify({ featured }) }),
   listOrders: (params: URLSearchParams) => request<SimpleList<AdminOrder>>(`/orders/admin/search?${params}`),
   getOrder: (id: string) => request<AdminOrder>(`/orders/admin/${id}`),
+  getAdminInvoice: (id: string, size = "A4", format = "STANDARD") =>
+    request<AdminInvoice>(`/orders/admin/${id}/invoice?size=${encodeURIComponent(size)}&format=${encodeURIComponent(format)}`),
+  issueAdminInvoice: (id: string) => request<AdminInvoice>(`/orders/admin/${id}/invoice`, { method: "POST" }),
   updateOrderStatus: (id: string, status: string) => request<AdminOrder>(`/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
   searchCustomers: (params: URLSearchParams) => request<SimpleList<AdminCustomer>>(`/admin/customers?${params}`),
   getCustomer: (id: string) => request<AdminCustomer>(`/admin/customers/${id}`),
@@ -93,26 +98,48 @@ export const adminApi = {
   },
   getIntegrationsStatus: () => request<IntegrationsStatus>("/integrations/status"),
   getDeadLetterJobs: (queueName: string) => request<DeadLetterJob[]>(`/integrations/dead-letter/${queueName}`),
+  getLogisticsDashboard: () => request<LogisticsDashboard>("/admin/logistics/dashboard"),
+  listShipments: (status?: string) => request<AdminShipment[]>(`/admin/logistics/shipments${status ? `?status=${encodeURIComponent(status)}` : ""}`),
+  getShipment: (id: string) => request<AdminShipment>(`/admin/logistics/shipments/${id}`),
+  getShipmentTracking: (id: string) => request<ShipmentEvent[]>(`/admin/logistics/shipments/${id}/tracking`),
+  getOrderShipment: (orderId: string) => request<AdminShipment | null>(`/admin/logistics/orders/${orderId}`),
+  createShipment: (body: CreateShipmentInput) => request<AdminShipment>("/admin/logistics/shipments", { method: "POST", body: JSON.stringify(body) }),
+  updateShipmentStatus: (id: string, body: UpdateShipmentStatusInput) => request<AdminShipment>(`/admin/logistics/shipments/${id}/status`, { method: "PATCH", body: JSON.stringify(body) }),
 };
 
 export interface CreateProductInput {
-  slug: string; name: string; categorySlug: string; price: number; salePrice?: number; description: string;
+  slug: string; name: string; categorySlug: string; price: number; salePrice?: number; hsnCode?: string; gstRate?: number; taxInclusiveMrp?: boolean; description: string;
   content: { shortDescription: string; keyBenefits: string[]; features: string[]; ingredients: string; usageInstructions: string[]; warnings: string; storageInstructions: string; specifications: Record<string, string>; faqs: { question: string; answer: string }[] };
   metaTitle: string; metaDescription: string; mediaUrls: string[];
-  variants: { sku: string; name: string; hexColor?: string; stockQuantity: number; mrp?: number }[];
+  variants: { id?: string; sku: string; name: string; hexColor?: string; stockQuantity: number; mrp?: number }[];
 }
 export interface UpdateProductTaxInput { hsnCode?: string; gstRate?: number; taxInclusiveMrp?: boolean; variants?: { variantId: string; mrp: number }[] }
 export interface ProductTaxConfig { productId: string; productName: string; hsnCode?: string; gstRate?: string; taxInclusiveMrp: boolean; variants: { variantId: string; sku: string; name: string; mrp?: string }[] }
 export interface Paginated<T> { items: T[]; meta: { page: number; pageSize: number; totalItems: number; totalPages: number } }
 export interface SimpleList<T> { items: T[]; totalItems: number }
 export interface DashboardOverview { kpis: { todaysOrders: number; todaysRevenue: number; lowStockCount: number; pendingReviews: number }; pendingTasks: { type: string; count: number; label: string }[]; recentActivity: AuditLogEntry[] }
-export interface AdminProduct { id: string; slug: string; name: string; price: string; status: string; visibility: string; category?: { name: string } }
+export interface AdminProduct { id: string; slug: string; name: string; price: string; status: string; visibility: string; category?: { id?: string; slug?: string; name: string } }
+export interface AdminProductDetail extends AdminProduct { salePrice?: string; description?: string; metaTitle?: string; metaDescription?: string; mediaUrls: string[]; content?: CreateProductInput["content"]; hsnCode?: string; gstRate?: string; taxInclusiveMrp: boolean; variants: { id: string; sku: string; name: string; hexColor?: string; stockQuantity: number; mrp?: string }[] }
 export interface AdminInventoryItem { id: string; sku: string; name: string; stockQuantity: number; stockState: "in-stock" | "low-stock" | "out-of-stock" | "coming-soon" | "pre-order"; version: number; product: { id: string; name: string; slug: string; category: string } }
 export interface CreateCategoryInput { name: string; slug: string; parentId?: string | null; displayOrder?: number; visible?: boolean; metaTitle?: string; metaDescription?: string }
 export interface UpdateCategoryInput { name?: string; slug?: string; parentId?: string | null; displayOrder?: number; visible?: boolean; metaTitle?: string; metaDescription?: string }
 export interface AdminCategory { id: string; slug: string; name: string; visible: boolean; displayOrder: number; parentId?: string | null; children?: AdminCategory[] }
 export interface AdminCollection { id: string; slug: string; name: string; active: boolean; featured: boolean; displayOrder: number }
 export interface AdminOrder { id: string; customerId: string; status: string; total: string; currency: string; createdAt: string; lineItems?: unknown[] }
+export interface AdminInvoice {
+  orderId: string;
+  lineItems: unknown[];
+  subtotal: string;
+  discountAmount: string;
+  taxableAmount: string;
+  taxAmount: string;
+  total: string;
+  currency: string;
+  issuedAt: string | null;
+  invoiceId?: string | null;
+  invoiceNumber?: string | null;
+  layout: { size: string; format: string; width: string };
+}
 export interface AdminCustomer { id: string; email: string; firstName: string; lastName: string; createdAt: string }
 export interface AdminReview { id: string; customerId: string; variantId: string; rating: number; text: string; status: string; createdAt: string }
 export interface AdminPage { slug: string; title: string; content: string }
@@ -123,5 +150,10 @@ export interface OrdersReport { orderCount: number; averageOrderValue: number; t
 export interface CustomersReport { newCustomers: number; totalCustomers: number }
 export interface ProductsReport { lowestStock: { id: string; sku: string; name: string; stockQuantity: number }[] }
 export interface AuditLogEntry { id: string; actorEmail: string; module: string; action: string; entityId?: string; createdAt: string }
+export interface CreateShipmentInput { orderId: string; carrier?: string; serviceLevel?: string; weightGrams?: number; lengthCm?: number; widthCm?: number; heightCm?: number; estimatedDeliveryAt?: string }
+export interface UpdateShipmentStatusInput { status: string; description?: string; location?: string; awbNumber?: string; trackingUrl?: string; failureReason?: string }
+export interface AdminShipment { id: string; orderId: string; status: string; carrier?: string; serviceLevel?: string; awbNumber?: string; trackingUrl?: string; weightGrams?: number; shippingAddress: Record<string, unknown>; estimatedDeliveryAt?: string; shippedAt?: string; deliveredAt?: string; failureReason?: string; createdAt: string; updatedAt: string }
+export interface ShipmentEvent { id: string; shipmentId: string; status: string; description?: string; location?: string; eventAt: string }
+export interface LogisticsDashboard { total: number; counts: Record<string, number>; exceptions: number; terminal: number }
 export interface IntegrationsStatus { providers: { provider: string; circuitState: string; lastSuccessAt: string | null; lastFailureAt: string | null; lastError: string | null }[]; queues: { name: string; waiting: number; active: number; completed: number; failed: number; delayed: number }[] }
 export interface DeadLetterJob { id?: string; name: string; data: unknown; failedReason: string; attemptsMade: number }

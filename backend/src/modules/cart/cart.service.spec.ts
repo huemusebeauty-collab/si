@@ -5,6 +5,8 @@ import { CartEntity } from "./entities/cart.entity";
 import { CartLineItemEntity } from "./entities/cart-line-item.entity";
 import { ProductsService } from "@/modules/products/products.service";
 import { DomainException } from "@/common/exceptions/domain.exception";
+import { CouponsService } from "@/admin/coupons/coupons.service";
+import { SettingsService } from "@/admin/settings/settings.service";
 
 // Sprint 4.12 — Business Rule Tests: Cart's Sprint 4.4 stock-validation
 // logic, exercised against a mocked ProductsService (no live DB needed).
@@ -34,6 +36,8 @@ describe("CartService — business rules", () => {
         { provide: getRepositoryToken(CartEntity), useValue: cartRepo },
         { provide: getRepositoryToken(CartLineItemEntity), useValue: lineItemRepo },
         { provide: ProductsService, useValue: productsService },
+        { provide: CouponsService, useValue: { validateAndComputeDiscount: jest.fn() } },
+        { provide: SettingsService, useValue: { isFeatureEnabled: jest.fn() } },
       ],
     }).compile();
 
@@ -72,3 +76,51 @@ describe("CartService — business rules", () => {
     await expect(service.addItem("c1", "v1", 5)).rejects.toThrow(DomainException);
   });
 });
+
+
+  it("rejects access to a cart when neither the session nor authenticated user owns it", async () => {
+    cartRepo.findOne.mockResolvedValue({ id: "c1", customerId: "owner-1", sessionId: "session-owner", lineItems: [] });
+
+    await expect(service.findById("c1", { userId: "attacker-1", sessionId: "session-attacker" }))
+      .rejects.toThrow("You do not have access to this cart.");
+  });
+
+  it("allows an authenticated customer to access their own cart without a guest session header", async () => {
+    cartRepo.findOne.mockResolvedValue({ id: "c1", customerId: "owner-1", sessionId: "session-owner", lineItems: [] });
+
+    await expect(service.findById("c1", { userId: "owner-1" })).resolves.toMatchObject({ id: "c1" });
+  });
+
+  it("requires both authenticated ownership and matching guest session for cart merge", async () => {
+    await expect(
+      service.mergeGuestCart("guest-session", "customer-1", { sessionId: "other-session", userId: "customer-1" }),
+    ).rejects.toThrow("Cart merge ownership could not be verified.");
+
+    await expect(
+      service.mergeGuestCart("guest-session", "customer-1", { sessionId: "guest-session", userId: "other-customer" }),
+    ).rejects.toThrow("Cart merge ownership could not be verified.");
+  });
+
+  it("merges a guest cart only for the authenticated customer", async () => {
+    const guestCart = {
+      id: "guest-cart",
+      sessionId: "guest-session",
+      lineItems: [{ id: "guest-line", variantId: "v1", quantity: 2, savedForLater: false }],
+    };
+    const customerCart = {
+      id: "customer-cart",
+      customerId: "customer-1",
+      lineItems: [{ id: "customer-line", variantId: "v1", quantity: 3, savedForLater: false }],
+    };
+    cartRepo.findOne
+      .mockResolvedValueOnce(guestCart)
+      .mockResolvedValueOnce(customerCart)
+      .mockResolvedValueOnce({ ...customerCart, lineItems: [{ ...customerCart.lineItems[0], quantity: 5 }] });
+
+    await expect(
+      service.mergeGuestCart("guest-session", "customer-1", { sessionId: "guest-session", userId: "customer-1" }),
+    ).resolves.toMatchObject({ id: "customer-cart" });
+
+    expect(lineItemRepo.save).toHaveBeenCalledWith(expect.objectContaining({ id: "customer-line", quantity: 5 }));
+    expect(cartRepo.delete).toHaveBeenCalledWith("guest-cart");
+  });

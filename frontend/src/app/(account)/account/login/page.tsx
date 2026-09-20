@@ -3,13 +3,17 @@
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { ROUTES } from "@/constants/routes";
+import { mergeGuestCart } from "@/services/api/cart";
+import { storeSession } from "@/services/api/auth";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/v1";
 
 type LoginResponse = {
-  data?: { sessionToken?: string; expiresAt?: string };
+  data?: { sessionToken?: string; expiresAt?: string; customerId?: string; refreshToken?: string };
   sessionToken?: string;
   expiresAt?: string;
+  customerId?: string;
+  refreshToken?: string;
   message?: string;
 };
 
@@ -37,8 +41,14 @@ export default function LoginPage() {
         throw new Error(body.message || "Invalid email or password.");
       }
 
-      sessionStorage.setItem("silku_session_token", result.sessionToken);
-      if (result.expiresAt) sessionStorage.setItem("silku_session_expires_at", result.expiresAt);
+      storeSession(result.sessionToken, result.refreshToken, result.expiresAt);
+      if (result.customerId) {
+        try {
+          await mergeGuestCart(result.customerId);
+        } catch (mergeError) {
+          console.warn("Guest cart merge failed after sign-in; continuing with account session.", mergeError);
+        }
+      }
       window.location.assign(ROUTES.account);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to sign in. Please try again.");
@@ -57,35 +67,17 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className="mt-8 space-y-5">
           <label className="block text-sm font-medium text-ink">
             Email
-            <input
-              required
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              className="mt-2 w-full rounded-lg border border-fog px-3 py-3 outline-none focus:border-primary-rose"
-            />
+            <input required type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} className="mt-2 w-full rounded-lg border border-fog px-3 py-3 outline-none focus:border-primary-rose" />
           </label>
 
           <label className="block text-sm font-medium text-ink">
             Password
-            <input
-              required
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="mt-2 w-full rounded-lg border border-fog px-3 py-3 outline-none focus:border-primary-rose"
-            />
+            <input required type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} className="mt-2 w-full rounded-lg border border-fog px-3 py-3 outline-none focus:border-primary-rose" />
           </label>
 
           {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-primary-plum px-4 py-3 font-semibold text-white transition-opacity disabled:opacity-60"
-          >
+          <button type="submit" disabled={loading} className="w-full rounded-lg bg-primary-plum px-4 py-3 font-semibold text-white transition-opacity disabled:opacity-60">
             {loading ? "Signing in…" : "Sign in"}
           </button>
         </form>

@@ -1,6 +1,6 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/v1";
 const CART_STORAGE_KEY = "silku-cart-id";
 const SESSION_STORAGE_KEY = "silku-session-id";
+import { authenticatedFetch } from "./auth";
 
 interface ApiEnvelope<T> { data: T; }
 
@@ -25,6 +25,7 @@ export interface ApiOrder {
   total: string;
   currency: string;
   shippingAddress: Record<string, unknown>;
+  guestCheckoutToken?: string;
 }
 
 export interface PaymentIntentResponse {
@@ -36,9 +37,14 @@ export interface PaymentIntentResponse {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
+  const sessionId = typeof window !== "undefined" ? getStoredSessionId() : null;
+  const response = await authenticatedFetch(path, {
     ...init,
-    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+    headers: {
+      "Content-Type": "application/json",
+      ...(sessionId ? { "x-cart-session-id": sessionId } : {}),
+      ...(init?.headers ?? {}),
+    },
     cache: "no-store",
   });
   const body = (await response.json().catch(() => null)) as ApiEnvelope<T> | { message?: string } | null;
@@ -124,13 +130,41 @@ export async function getCartTotals(): Promise<{ subtotal: number; discountAmoun
   return request(`/carts/${cartId}/totals`);
 }
 
+export async function mergeGuestCart(customerId: string): Promise<ApiCart | null> {
+  const sessionId = getStoredSessionId();
+  if (!sessionId) return null;
+  const cart = await request<ApiCart>("/carts/merge", {
+    method: "POST",
+    body: JSON.stringify({ sessionId, customerId }),
+  });
+  storeCartId(cart.id);
+  notifyCartUpdated();
+  return cart;
+}
+
 export async function createOrder(shippingAddress: Record<string, string>): Promise<ApiOrder> {
   const cartId = getStoredCartId();
   const sessionId = getStoredSessionId();
   if (!cartId || !sessionId) throw new Error("Your cart session could not be found. Please return to cart and try again.");
   return request<ApiOrder>("/orders", {
     method: "POST",
-    body: JSON.stringify({ customerId: sessionId, cartId, shippingAddress }),
+    body: JSON.stringify({
+      customerId: sessionId,
+      cartId,
+      shippingAddress: {
+        line1: shippingAddress.addressLine1,
+        line2: shippingAddress.addressLine2,
+        city: shippingAddress.city,
+        region: shippingAddress.state,
+        stateCode: shippingAddress.stateCode,
+        postalCode: shippingAddress.postalCode,
+        country: shippingAddress.country,
+        fullName: shippingAddress.fullName,
+        phone: shippingAddress.phone,
+      },
+      customerGstin: shippingAddress.customerGstin || undefined,
+      customerLegalName: shippingAddress.customerLegalName || undefined,
+    }),
   });
 }
 
@@ -142,10 +176,13 @@ export async function initiatePayment(order: ApiOrder, idempotencyKey: string): 
       amount: Number(order.total),
       currency: order.currency,
       idempotencyKey,
+      guestCheckoutToken: order.guestCheckoutToken,
     }),
   });
 }
 
-export async function syncPayment(providerReference: string): Promise<unknown> {
-  return request(`/payments/${encodeURIComponent(providerReference)}/sync`);
+export async function syncPayment(providerReference: string, guestCheckoutToken?: string): Promise<unknown> {
+  return request(`/payments/${encodeURIComponent(providerReference)}/sync`, {
+    headers: guestCheckoutToken ? { "x-guest-checkout-token": guestCheckoutToken } : undefined,
+  });
 }

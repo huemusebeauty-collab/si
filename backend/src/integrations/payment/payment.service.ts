@@ -1,6 +1,6 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { LessThan, Repository } from "typeorm";
 import {
   PAYMENT_PROVIDER,
   type PaymentProvider,
@@ -13,6 +13,9 @@ import { ProductsService } from "@/modules/products/products.service";
 import { TransactionService } from "@/database/transaction.service";
 import { OrderEntity } from "@/modules/orders/entities/order.entity";
 import { OrderStatusHistoryEntity } from "@/modules/orders/entities/order-status-history.entity";
+import { ForbiddenException } from "@nestjs/common";
+import type { AuthenticatedUser } from "@/common/decorators/current-user.decorator";
+import { verifyGuestCheckoutToken } from "@/common/security/guest-checkout-token";
 
 @Injectable()
 export class PaymentService {
@@ -26,9 +29,10 @@ export class PaymentService {
     private readonly transactionService: TransactionService,
   ) {}
 
-  async initiatePayment(orderId: string, _amount: number, _currency: string, idempotencyKey: string) {
+  async initiatePayment(orderId: string, _amount: number, _currency: string, idempotencyKey: string, guestCheckoutToken?: string, user?: AuthenticatedUser) {
     return this.idempotency.runOnce(idempotencyKey, "payment:initiate", async () => {
       const order = await this.orders.getOrder(orderId);
+      this.authorizeOrderAccess(order, user, guestCheckoutToken);
       if (order.status !== "pending_payment") {
         throw new Error(`Order ${orderId} is not awaiting payment.`);
       }
@@ -65,7 +69,12 @@ export class PaymentService {
     });
   }
 
-  async verifyPayment(providerReference: string) {
+  async verifyPayment(providerReference: string, guestCheckoutToken?: string, user?: AuthenticatedUser) {
+    const transaction = await this.transactionsRepo.findOne({ where: { providerReference } });
+    if (!transaction) throw new NotFoundException("Payment transaction not found.");
+    const order = await this.orders.getOrder(transaction.orderId);
+    this.authorizeOrderAccess(order, user, guestCheckoutToken);
+
     return this.resilientCall.execute(
       { provider: this.provider.name, operation: "verifyPayment", timeoutMs: 8_000, retry: { maxAttempts: 2 } },
       () => this.provider.verifyPayment(providerReference),
@@ -80,6 +89,15 @@ export class PaymentService {
     if (transaction.status === "refunded") {
       throw new BadRequestException("This payment has already been refunded.");
     }
+    const refundProcessingTimeoutMs = 5 * 60 * 1000;
+    const refundProcessingCutoff = new Date(Date.now() - refundProcessingTimeoutMs);
+    const refundProcessingIsStale =
+      transaction.status === "refund_processing" &&
+      transaction.updatedAt instanceof Date &&
+      transaction.updatedAt < refundProcessingCutoff;
+    if (transaction.status === "refund_processing" && !refundProcessingIsStale) {
+      throw new BadRequestException("A refund is already being processed for this payment.");
+    }
     const requestedAmount = Number(amount);
     const capturedAmount = Number(transaction.amount);
     // The current transaction model tracks one refundable amount and one
@@ -93,22 +111,63 @@ export class PaymentService {
       throw new BadRequestException(eligibility.reason ?? "This order is not eligible for a refund.");
     }
 
-    const result = await this.resilientCall.execute(
-      { provider: this.provider.name, operation: "initiateRefund", timeoutMs: 10_000, retry: { maxAttempts: 3 } },
-      () => this.provider.initiateRefund({ providerReference: transaction.providerReference, amount: requestedAmount, reason }),
+    // Claim the refund atomically before calling the external provider.
+    // Never hold a DB transaction open across the provider call.
+    const claimCriteria = refundProcessingIsStale
+      ? [
+          { id: transaction.id, status: "succeeded" as const },
+          { id: transaction.id, status: "refund_processing" as const, updatedAt: LessThan(refundProcessingCutoff) },
+        ]
+      : { id: transaction.id, status: "succeeded" as const };
+    const claim = await this.transactionsRepo.update(
+      claimCriteria,
+      { status: "refund_processing" },
     );
-    if (result.status === "succeeded") {
-      transaction.status = "refunded";
-      await this.transactionsRepo.save(transaction);
+    if (!claim.affected) {
+      throw new BadRequestException("A refund is already being processed for this payment.");
     }
-    return result;
+
+    try {
+      const result = await this.resilientCall.execute(
+        { provider: this.provider.name, operation: "initiateRefund", timeoutMs: 10_000, retry: { maxAttempts: 3 } },
+        () => this.provider.initiateRefund({
+          providerReference: transaction.providerReference,
+          amount: requestedAmount,
+          idempotencyKey: `refund:${transaction.id}`,
+          reason,
+        }),
+      );
+      if (result.status === "succeeded") {
+        await this.transactionsRepo.update(
+          { id: transaction.id, status: "refund_processing" },
+          { status: "refunded" },
+        );
+      } else if (result.status === "failed") {
+        // A definitive provider failure is retryable, so release the claim.
+        await this.transactionsRepo.update(
+          { id: transaction.id, status: "refund_processing" },
+          { status: "succeeded" },
+        );
+      }
+      // A pending provider refund remains refund_processing locally.
+      // This prevents a second refund attempt while the provider is still
+      // processing the same stable idempotency key.
+      return result;
+    } catch (error) {
+      // A timeout/network error has an unknown provider outcome. Keep the
+      // local claim so the stale-claim recovery path can reconcile/retry
+      // safely using the same provider idempotency key.
+      throw error;
+    }
   }
 
-  async syncStatus(providerReference: string): Promise<PaymentTransactionEntity> {
+  async syncStatus(providerReference: string, guestCheckoutToken?: string, user?: AuthenticatedUser): Promise<PaymentTransactionEntity> {
     const transaction = await this.transactionsRepo.findOne({ where: { providerReference } });
     if (!transaction) throw new NotFoundException("Payment transaction not found.");
+    const order = await this.orders.getOrder(transaction.orderId);
+    this.authorizeOrderAccess(order, user, guestCheckoutToken);
 
-    const verification = await this.verifyPayment(providerReference);
+    const verification = await this.verifyPayment(providerReference, guestCheckoutToken, user);
     if (verification.providerReference !== transaction.providerReference) {
       throw new Error("Payment provider reference mismatch.");
     }
@@ -122,13 +181,18 @@ export class PaymentService {
     }
 
     if (verification.status === "succeeded") {
-      const order = await this.orders.getOrder(transaction.orderId);
       if (order.status === "pending_payment") await this.orders.confirmOrder(transaction.orderId, providerReference);
     } else if (verification.status === "failed") {
       await this.failPaymentAndReleaseStock(transaction.orderId, "Payment failed at the provider.");
     }
 
     return transaction;
+  }
+
+  private authorizeOrderAccess(order: OrderEntity, user?: AuthenticatedUser, guestCheckoutToken?: string): void {
+    if (user?.id === order.customerId) return;
+    if (!user && guestCheckoutToken && verifyGuestCheckoutToken(order.id, guestCheckoutToken)) return;
+    throw new ForbiddenException("Payment access is not authorized for this order.");
   }
 
   private async failPaymentAndReleaseStock(orderId: string, reason: string): Promise<void> {

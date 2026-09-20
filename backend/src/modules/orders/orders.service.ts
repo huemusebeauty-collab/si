@@ -1,15 +1,20 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { QueryFailedError, Repository } from "typeorm";
 import { OrderEntity, type OrderStatus } from "./entities/order.entity";
 import { OrderLineItemEntity } from "./entities/order-line-item.entity";
 import { OrderStatusHistoryEntity } from "./entities/order-status-history.entity";
+import { InvoiceEntity } from "./entities/invoice.entity";
+import { InvoiceSequenceEntity } from "./entities/invoice-sequence.entity";
+import { ShipmentEntity } from "@/modules/logistics/entities/shipment.entity";
+import { ShipmentEventEntity } from "@/modules/logistics/entities/shipment-event.entity";
 import { CartService } from "@/modules/cart/cart.service";
 import { ProductsService } from "@/modules/products/products.service";
 import { TransactionService } from "@/database/transaction.service";
 import { DomainErrorCode, DomainException } from "@/common/exceptions/domain.exception";
 import { resolveInvoiceLayout, type InvoiceFormat, type InvoiceSize } from "./invoice.types";
 import { calculateGstWithinMrp, roundMoney } from "./tax.utils";
+import { SettingsService } from "@/admin/settings/settings.service";
 
 const CANCELLABLE_BEFORE: OrderStatus[] = ["pending_payment", "confirmed", "processing"];
 const RETURNABLE_AFTER: OrderStatus[] = ["delivered"];
@@ -33,9 +38,14 @@ export class OrdersService {
     @InjectRepository(OrderEntity) private readonly orders: Repository<OrderEntity>,
     @InjectRepository(OrderLineItemEntity) private readonly lineItems: Repository<OrderLineItemEntity>,
     @InjectRepository(OrderStatusHistoryEntity) private readonly history: Repository<OrderStatusHistoryEntity>,
+    @InjectRepository(InvoiceEntity) private readonly invoices: Repository<InvoiceEntity>,
+    @InjectRepository(InvoiceSequenceEntity) private readonly invoiceSequences: Repository<InvoiceSequenceEntity>,
+    @InjectRepository(ShipmentEntity) private readonly shipments: Repository<ShipmentEntity>,
+    @InjectRepository(ShipmentEventEntity) private readonly shipmentEvents: Repository<ShipmentEventEntity>,
     private readonly cart: CartService,
     private readonly products: ProductsService,
     private readonly transactions: TransactionService,
+    private readonly settings: SettingsService,
   ) {}
 
   async getOrder(orderId: string): Promise<OrderEntity> {
@@ -139,14 +149,35 @@ export class OrdersService {
     return { orderCount: orders.length, averageOrderValue: orders.length ? roundMoney(totalRevenue / orders.length) : 0, totalRevenue: roundMoney(totalRevenue), statusBreakdown };
   }
 
-  async createOrder(customerId: string, cartId: string, shippingAddress: Record<string, unknown>): Promise<OrderEntity> {
-    const cart = await this.cart.findById(cartId);
+  async createOrder(customerId: string, cartId: string, shippingAddress: Record<string, unknown>, idempotencyKey?: string, customerGstin?: string, customerLegalName?: string): Promise<OrderEntity> {
+    const normalizedIdempotencyKey = idempotencyKey?.trim();
+    const normalizedGstin = customerGstin?.trim().toUpperCase() || undefined;
+    if (normalizedGstin && !/^\d{2}[A-Z0-9]{10}[A-Z]\d[A-Z]Z[A-Z0-9]$/.test(normalizedGstin)) {
+      throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Customer GSTIN format is invalid.");
+    }
+    const normalizedLegalName = customerLegalName?.trim() || undefined;
+    const placeOfSupplyState = typeof shippingAddress.region === "string" ? shippingAddress.region.trim() || undefined : undefined;
+    const placeOfSupplyStateCode = typeof shippingAddress.stateCode === "string" ? shippingAddress.stateCode.trim() || undefined : undefined;
+    if (normalizedIdempotencyKey && (normalizedIdempotencyKey.length < 1 || normalizedIdempotencyKey.length > 128)) {
+      throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Idempotency-Key must be between 1 and 128 characters.");
+    }
+
+    if (normalizedIdempotencyKey) {
+      const existingOrder = await this.orders.findOne({
+        where: { customerId, idempotencyKey: normalizedIdempotencyKey },
+        relations: ["lineItems", "statusHistory"],
+      });
+      if (existingOrder) return existingOrder;
+    }
+
+    const cart = await this.cart.findById(cartId, { sessionId: customerId, userId: customerId });
     if (cart.customerId && cart.customerId !== customerId) throw new DomainException(DomainErrorCode.REAUTHENTICATION_REQUIRED, "The cart does not belong to the authenticated customer.");
     const activeLines = cart.lineItems.filter((li) => !li.savedForLater);
     if (activeLines.length === 0) throw new DomainException(DomainErrorCode.CART_EMPTY, "Cannot create an order from an empty cart.");
 
     return this.transactions.runInTransaction(async (queryRunner) => {
       const manager = queryRunner.manager;
+      const businessSettings = await this.settings.getBusinessSettings();
       const pricedLines: Array<{
         line: typeof activeLines[number];
         variant: Awaited<ReturnType<ProductsService["findVariantById"]>>;
@@ -156,7 +187,7 @@ export class OrdersService {
       let subtotal = 0;
 
       for (const line of activeLines) {
-        const variant = await this.products.findVariantById(line.variantId);
+        const variant = await this.products.findVariantById(line.variantId, manager);
         const unitPrice = Number(variant.product.salePrice ?? variant.product.price);
         const mrp = variant.mrp == null ? null : Number(variant.mrp);
         if (mrp != null && unitPrice > mrp + 0.005) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, `Selling price for ${variant.sku} cannot exceed MRP.`);
@@ -171,6 +202,9 @@ export class OrdersService {
       let taxableAmount = 0;
       let taxAmount = 0;
       let total = 0;
+      let cgstAmount = 0;
+      let sgstAmount = 0;
+      let igstAmount = 0;
       const snapshotLines: Partial<OrderLineItemEntity>[] = [];
 
       for (let index = 0; index < pricedLines.length; index += 1) {
@@ -182,9 +216,15 @@ export class OrdersService {
           mrp: variant.mrp == null ? null : Number(variant.mrp) * line.quantity,
           gstRate: variant.product.gstRate == null ? null : Number(variant.product.gstRate),
           taxInclusiveMrp: variant.product.taxInclusiveMrp,
+          gstRegistered: businessSettings.gstRegistered,
+          supplierStateCode: businessSettings.registeredStateCode,
+          placeOfSupplyStateCode,
         });
         taxableAmount = roundMoney(taxableAmount + tax.taxableAmount);
         taxAmount = roundMoney(taxAmount + tax.taxAmount);
+        cgstAmount = roundMoney(cgstAmount + tax.cgstAmount);
+        sgstAmount = roundMoney(sgstAmount + tax.sgstAmount);
+        igstAmount = roundMoney(igstAmount + tax.igstAmount);
         total = roundMoney(total + tax.grossAmount);
         snapshotLines.push({
           variantId: line.variantId,
@@ -197,13 +237,20 @@ export class OrdersService {
           discountAmount: lineDiscount.toFixed(2),
           taxableAmount: tax.taxableAmount.toFixed(2),
           taxAmount: tax.taxAmount.toFixed(2),
+          taxType: tax.taxType,
+          cgstRate: tax.cgstRate.toFixed(2),
+          cgstAmount: tax.cgstAmount.toFixed(2),
+          sgstRate: tax.sgstRate.toFixed(2),
+          sgstAmount: tax.sgstAmount.toFixed(2),
+          igstRate: tax.igstRate.toFixed(2),
+          igstAmount: tax.igstAmount.toFixed(2),
           quantity: line.quantity,
         });
-        await this.products.adjustStock(line.variantId, -line.quantity, manager);
+        await this.products.adjustStock(line.variantId, -line.quantity, manager, { reason: "order_reservation", referenceType: "cart_checkout", referenceId: cartId });
       }
 
       if (total < 0 || (subtotal > 0 && total > subtotal + 0.005 && discountAmount === 0)) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Invalid tax calculation.");
-      const order = manager.create(OrderEntity, { customerId, status: "pending_payment", subtotal: subtotal.toFixed(2), discountAmount: discountAmount.toFixed(2), taxableAmount: taxableAmount.toFixed(2), taxAmount: taxAmount.toFixed(2), total: total.toFixed(2), currency: "INR", shippingAddress });
+      const order = manager.create(OrderEntity, { customerId, idempotencyKey: normalizedIdempotencyKey, customerGstin: normalizedGstin, customerLegalName: normalizedLegalName, placeOfSupplyState, placeOfSupplyStateCode, status: "pending_payment", subtotal: subtotal.toFixed(2), discountAmount: discountAmount.toFixed(2), taxableAmount: taxableAmount.toFixed(2), taxAmount: taxAmount.toFixed(2), total: total.toFixed(2), currency: "INR", shippingAddress });
       const savedOrder = await manager.save(order);
       for (const snapshot of snapshotLines) await manager.save(manager.create(OrderLineItemEntity, { ...snapshot, order: savedOrder }));
       await manager.save(manager.create(OrderStatusHistoryEntity, { order: savedOrder, status: "pending_payment" }));
@@ -213,6 +260,16 @@ export class OrdersService {
       });
       if (!createdOrder) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Created order could not be loaded.");
       return createdOrder;
+    }).catch(async (error: unknown) => {
+      const driverError = error instanceof QueryFailedError ? (error as QueryFailedError & { driverError?: { code?: string; constraint?: string } }).driverError : undefined;
+      if (normalizedIdempotencyKey && driverError?.code === "23505" && ["UQ_orders_customerId_idempotencyKey", "UQ_orders_idempotencyKey"].includes(driverError.constraint ?? "")) {
+        const existingOrder = await this.orders.findOne({
+          where: { customerId, idempotencyKey: normalizedIdempotencyKey },
+          relations: ["lineItems", "statusHistory"],
+        });
+        if (existingOrder) return existingOrder;
+      }
+      throw error;
     });
   }
 
@@ -223,11 +280,75 @@ export class OrdersService {
     return this.updateStatus(orderId, "confirmed");
   }
 
-  async failOrder(orderId: string, _reason: string): Promise<OrderEntity> { return this.updateStatus(orderId, "payment_failed"); }
+  async updateAdminStatus(orderId: string, status: OrderStatus): Promise<OrderEntity> {
+    const order = await this.getOrder(orderId);
+    const paymentControlledTransitions: Array<[OrderStatus, OrderStatus]> = [
+      ["pending_payment", "confirmed"],
+      ["pending_payment", "payment_failed"],
+      ["payment_failed", "pending_payment"],
+    ];
+    if (paymentControlledTransitions.some(([from, to]) => order.status === from && status === to)) {
+      throw new DomainException(
+        DomainErrorCode.INVALID_STATUS_TRANSITION,
+        "Payment status transitions must be completed by the verified payment service.",
+      );
+    }
+
+    const logisticsControlledTransitions: Array<[OrderStatus, OrderStatus]> = [
+      ["processing", "shipped"],
+      ["shipped", "delivered"],
+      ["delivered", "returned"],
+    ];
+    if (logisticsControlledTransitions.some(([from, to]) => order.status === from && status === to)) {
+      throw new DomainException(
+        DomainErrorCode.INVALID_STATUS_TRANSITION,
+        "Fulfillment status transitions must be completed by the logistics workflow.",
+      );
+    }
+    return this.updateStatus(orderId, status);
+  }
 
   async updateStatus(orderId: string, status: OrderStatus): Promise<OrderEntity> {
     const order = await this.getOrder(orderId);
-    if (!VALID_TRANSITIONS[order.status].includes(status)) throw new DomainException(DomainErrorCode.INVALID_STATUS_TRANSITION, `Cannot transition an order from "${order.status}" to "${status}".`);
+    if (!VALID_TRANSITIONS[order.status].includes(status)) {
+      throw new DomainException(
+        DomainErrorCode.INVALID_STATUS_TRANSITION,
+        `Cannot transition an order from "${order.status}" to "${status}".`,
+      );
+    }
+
+    // Inventory restoration must lock and re-read the order inside the
+    // transaction. Otherwise two concurrent cancellation/return requests
+    // could both observe the old status and restore stock twice.
+    if (status === "cancelled" || status === "returned") {
+      return this.transactions.runInTransaction(async (queryRunner) => {
+        const manager = queryRunner.manager;
+        const lockedOrder = await manager.findOne(OrderEntity, {
+          where: { id: order.id },
+          relations: ["lineItems", "statusHistory"],
+          lock: { mode: "pessimistic_write" },
+        });
+        if (!lockedOrder) throw new NotFoundException("Order not found.");
+        if (!VALID_TRANSITIONS[lockedOrder.status].includes(status)) {
+          throw new DomainException(
+            DomainErrorCode.INVALID_STATUS_TRANSITION,
+            "Cannot transition an order from \"" + lockedOrder.status + "\" to \"" + status + "\".",
+          );
+        }
+        for (const line of lockedOrder.lineItems) {
+          await this.products.adjustStock(line.variantId, line.quantity, manager, { reason: status === "returned" ? "order_return" : "order_cancellation", referenceType: "order", referenceId: lockedOrder.id });
+        }
+        await manager.update(OrderEntity, lockedOrder.id, { status });
+        await manager.save(manager.create(OrderStatusHistoryEntity, { order: lockedOrder, status }));
+        const updated = await manager.findOne(OrderEntity, {
+          where: { id: lockedOrder.id },
+          relations: ["lineItems", "statusHistory"],
+        });
+        if (!updated) throw new NotFoundException("Order not found.");
+        return updated;
+      });
+    }
+
     order.status = status;
     await this.orders.save(order);
     await this.history.save(this.history.create({ order, status }));
@@ -239,9 +360,37 @@ export class OrdersService {
     if (!CANCELLABLE_BEFORE.includes(order.status)) throw new DomainException(DomainErrorCode.ORDER_NOT_CANCELLABLE, `Order cannot be cancelled once it has reached "${order.status}" status.`);
     await this.transactions.runInTransaction(async (queryRunner) => {
       const manager = queryRunner.manager;
-      for (const line of order.lineItems) await this.products.adjustStock(line.variantId, line.quantity, manager);
-      await manager.update(OrderEntity, order.id, { status: "cancelled" });
-      await manager.save(manager.create(OrderStatusHistoryEntity, { order, status: "cancelled" }));
+      const lockedOrder = await manager.findOne(OrderEntity, {
+        where: { id: order.id },
+        relations: ["lineItems", "statusHistory"],
+        lock: { mode: "pessimistic_write" },
+      });
+      if (!lockedOrder) throw new NotFoundException("Order not found.");
+      if (!CANCELLABLE_BEFORE.includes(lockedOrder.status)) {
+        throw new DomainException(
+          DomainErrorCode.ORDER_NOT_CANCELLABLE,
+          `Order cannot be cancelled once it has reached "${lockedOrder.status}" status.`,
+        );
+      }
+
+      const shipment = await manager.findOne(ShipmentEntity, {
+        where: { orderId: lockedOrder.id },
+        lock: { mode: "pessimistic_write" },
+      });
+      if (shipment && ["draft", "ready_to_ship", "pickup_scheduled"].includes(shipment.status)) {
+        shipment.status = "cancelled";
+        await manager.save(shipment);
+        await manager.save(manager.create(ShipmentEventEntity, {
+          shipmentId: shipment.id,
+          status: "cancelled",
+          description: "Shipment cancelled with the order.",
+          eventAt: new Date(),
+        }));
+      }
+
+      for (const line of lockedOrder.lineItems) await this.products.adjustStock(line.variantId, line.quantity, manager, { reason: "order_cancellation", referenceType: "order", referenceId: lockedOrder.id });
+      await manager.update(OrderEntity, lockedOrder.id, { status: "cancelled" });
+      await manager.save(manager.create(OrderStatusHistoryEntity, { order: lockedOrder, status: "cancelled" }));
     });
     return { orderId, reason, accepted: true };
   }
@@ -249,11 +398,49 @@ export class OrdersService {
   async requestReturn(orderId: string, lineItemIds: string[], reason: string): Promise<{ orderId: string; lineItemIds: string[]; reason: string; accepted: boolean }> {
     const order = await this.getOrder(orderId);
     if (!RETURNABLE_AFTER.includes(order.status)) throw new DomainException(DomainErrorCode.ORDER_NOT_RETURNABLE, `Returns can only be requested after delivery (current status: "${order.status}").`);
+    const requestedIds = new Set(lineItemIds);
+    const orderLineIds = new Set(order.lineItems.map((line) => line.id));
+    if (requestedIds.size === 0 || requestedIds.size !== orderLineIds.size || [...requestedIds].some((id) => !orderLineIds.has(id))) {
+      throw new DomainException(DomainErrorCode.ORDER_NOT_RETURNABLE, "Partial returns are not supported by the current order lifecycle; request a return for all order line items.");
+    }
     const deliveredEntry = order.statusHistory.find((h) => h.status === "delivered");
     const deliveredAt = deliveredEntry?.changedAt ?? order.updatedAt;
     const daysSinceDelivery = (Date.now() - deliveredAt.getTime()) / (1000 * 60 * 60 * 24);
     if (daysSinceDelivery > RETURN_WINDOW_DAYS) throw new DomainException(DomainErrorCode.RETURN_WINDOW_EXPIRED, `The ${RETURN_WINDOW_DAYS}-day return window for this order has passed.`);
-    return { orderId, lineItemIds, reason, accepted: true };
+
+    return this.transactions.runInTransaction(async (queryRunner) => {
+      const manager = queryRunner.manager;
+      const lockedOrder = await manager.findOne(OrderEntity, {
+        where: { id: orderId },
+        relations: ["lineItems", "statusHistory"],
+        lock: { mode: "pessimistic_write" },
+      });
+      if (!lockedOrder || lockedOrder.status !== "delivered") {
+        throw new DomainException(DomainErrorCode.ORDER_NOT_RETURNABLE, "Return request is no longer available for this order.");
+      }
+
+      const shipment = await manager.findOne(ShipmentEntity, {
+        where: { orderId },
+        lock: { mode: "pessimistic_write" },
+      });
+      if (!shipment) throw new DomainException(DomainErrorCode.ORDER_NOT_RETURNABLE, "A delivered shipment is required before a return can be requested.");
+      if (shipment.status === "return_requested" || shipment.status === "return_in_transit") {
+        throw new DomainException(DomainErrorCode.ORDER_NOT_RETURNABLE, "A return has already been requested for this order.");
+      }
+      if (shipment.status !== "delivered") {
+        throw new DomainException(DomainErrorCode.ORDER_NOT_RETURNABLE, `Return can only be requested from a delivered shipment (current: "${shipment.status}").`);
+      }
+
+      shipment.status = "return_requested";
+      await manager.save(shipment);
+      await manager.save(manager.create(ShipmentEventEntity, {
+        shipmentId: shipment.id,
+        status: "return_requested",
+        description: reason.trim() || "Customer return requested.",
+        eventAt: new Date(),
+      }));
+      return { orderId, lineItemIds, reason, accepted: true };
+    });
   }
 
   async checkRefundEligibility(orderId: string): Promise<{ eligible: boolean; reason?: string }> {
@@ -263,23 +450,94 @@ export class OrdersService {
     return { eligible: false, reason: `Orders in "${order.status}" status are not refund-eligible.` };
   }
 
-  async generateInvoice(orderId: string, size?: string, format?: string): Promise<{
-    orderId: string;
-    lineItems: unknown[];
-    subtotal: string;
-    discountAmount: string;
-    taxableAmount: string;
-    taxAmount: string;
-    total: string;
-    currency: string;
-    issuedAt: string;
-    layout: { size: InvoiceSize; format: InvoiceFormat; width: "full" | "compact" | "80mm" | "58mm" };
-  }> {
+  async generateInvoice(orderId: string, size?: string, format?: string) {
     const order = await this.getOrder(orderId);
+    if (!REVENUE_STATUSES.includes(order.status)) {
+      throw new DomainException(DomainErrorCode.INVALID_STATUS_TRANSITION, "An invoice is only available after payment is confirmed.");
+    }
+    const invoice = await this.invoices.findOne({ where: { orderId } });
     const layout = resolveInvoiceLayout(size, format);
-    return { orderId: order.id, lineItems: order.lineItems, subtotal: order.subtotal, discountAmount: order.discountAmount, taxableAmount: order.taxableAmount, taxAmount: order.taxAmount, total: order.total, currency: order.currency, issuedAt: new Date().toISOString(), layout };
+    if (invoice) {
+      return { ...invoice.snapshot, invoiceId: invoice.id, invoiceNumber: invoice.invoiceNumber, issuedAt: invoice.issuedAt.toISOString(), layout };
+    }
+    return {
+      orderId: order.id,
+      lineItems: order.lineItems,
+      subtotal: order.subtotal,
+      discountAmount: order.discountAmount,
+      taxableAmount: order.taxableAmount,
+      taxAmount: order.taxAmount,
+      total: order.total,
+      currency: order.currency,
+      issuedAt: null,
+      invoiceNumber: null,
+      layout,
+    };
   }
 
+  async issueInvoice(orderId: string) {
+    return this.transactions.runInTransaction(async (queryRunner) => {
+      const orderRepo = queryRunner.manager.getRepository(OrderEntity);
+      const invoiceRepo = queryRunner.manager.getRepository(InvoiceEntity);
+      const sequenceRepo = queryRunner.manager.getRepository(InvoiceSequenceEntity);
+      const order = await orderRepo.findOne({ where: { id: orderId }, relations: ["lineItems"], lock: { mode: "pessimistic_write" } });
+      if (!order) throw new NotFoundException("Order not found.");
+      if (!REVENUE_STATUSES.includes(order.status)) {
+        throw new DomainException(DomainErrorCode.INVALID_STATUS_TRANSITION, "An invoice can only be issued for a confirmed or fulfilled order.");
+      }
+      const existing = await invoiceRepo.findOne({ where: { orderId } });
+      if (existing) return { ...existing.snapshot, invoiceId: existing.id, invoiceNumber: existing.invoiceNumber, issuedAt: existing.issuedAt.toISOString() };
+
+      const businessSettings = await this.settings.getBusinessSettings();
+      if (businessSettings.gstRegistered && (!businessSettings.gstin || !businessSettings.registeredState || !businessSettings.registeredStateCode)) {
+        throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "GST-registered supplier settings are incomplete.");
+      }
+      const now = new Date();
+      const startYear = now.getUTCMonth() >= 3 ? now.getUTCFullYear() : now.getUTCFullYear() - 1;
+      const financialYear = `${startYear}/${String(startYear + 1).slice(-2)}`;
+      const seqRows = await sequenceRepo.query(
+        `INSERT INTO "invoice_sequences" ("financialYear", "nextNumber") VALUES ($1, 2)
+         ON CONFLICT ("financialYear") DO UPDATE SET "nextNumber" = "invoice_sequences"."nextNumber" + 1
+         RETURNING "nextNumber" - 1 AS "issuedNumber"`,
+        [financialYear],
+      );
+      const issuedNumber = Number(seqRows[0]?.issuedNumber);
+      if (!Number.isInteger(issuedNumber) || issuedNumber < 1) throw new Error("Unable to allocate invoice number.");
+      const shortFinancialYear = `${String(startYear).slice(-2)}-${String(startYear + 1).slice(-2)}`;
+      const invoiceNumber = `SLK/${shortFinancialYear}/${String(issuedNumber).padStart(6, "0")}`;
+      const issuedAt = now;
+      const snapshot = {
+        orderId: order.id,
+        customerId: order.customerId,
+        supplier: {
+          legalEntityName: businessSettings.legalEntityName ?? businessSettings.storeName,
+          gstRegistered: businessSettings.gstRegistered,
+          gstin: businessSettings.gstin ?? null,
+          address: businessSettings.registeredAddress ?? businessSettings.businessAddress ?? null,
+          state: businessSettings.registeredState ?? null,
+          stateCode: businessSettings.registeredStateCode ?? null,
+          reverseCharge: businessSettings.reverseChargeDefault,
+        },
+        recipient: {
+          legalName: order.customerLegalName ?? null,
+          gstin: order.customerGstin ?? null,
+          deliveryAddress: order.shippingAddress,
+        },
+        placeOfSupply: { state: order.placeOfSupplyState ?? null, stateCode: order.placeOfSupplyStateCode ?? null },
+        shippingAddress: order.shippingAddress,
+        lineItems: order.lineItems,
+        subtotal: order.subtotal,
+        discountAmount: order.discountAmount,
+        taxableAmount: order.taxableAmount,
+        taxAmount: order.taxAmount,
+        total: order.total,
+        currency: order.currency,
+        orderCreatedAt: order.createdAt.toISOString(),
+      };
+      const invoice = await invoiceRepo.save(invoiceRepo.create({ orderId: order.id, invoiceNumber, financialYear, issuedAt, snapshot }));
+      return { ...snapshot, invoiceId: invoice.id, invoiceNumber: invoice.invoiceNumber, issuedAt: invoice.issuedAt.toISOString() };
+    });
+  }
   async getTrackingStatus(orderId: string): Promise<{ orderId: string; timeline: OrderStatusHistoryEntity[] }> {
     const order = await this.getOrder(orderId);
     return { orderId: order.id, timeline: order.statusHistory };

@@ -3,7 +3,7 @@
 // exact shape — PaymentService (below) never imports a concrete
 // provider directly, only this interface, via the PAYMENT_PROVIDER DI
 // token (payment.module.ts).
-export type PaymentStatus = "pending" | "succeeded" | "failed" | "refunded" | "partially_refunded";
+export type PaymentStatus = "pending" | "succeeded" | "failed" | "refund_processing" | "refunded" | "partially_refunded";
 
 export interface InitiatePaymentInput {
   orderId: string;
@@ -27,6 +27,7 @@ export interface VerifyPaymentResult {
 export interface RefundInput {
   providerReference: string;
   amount: number; // partial or full
+  idempotencyKey: string; // stable key derived from the payment transaction
   reason?: string;
 }
 
