@@ -1,6 +1,6 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { LessThan, Repository } from "typeorm";
 import {
   PAYMENT_PROVIDER,
   type PaymentProvider,
@@ -80,7 +80,13 @@ export class PaymentService {
     if (transaction.status === "refunded") {
       throw new BadRequestException("This payment has already been refunded.");
     }
-    if (transaction.status === "refund_processing") {
+    const refundProcessingTimeoutMs = 5 * 60 * 1000;
+    const refundProcessingCutoff = new Date(Date.now() - refundProcessingTimeoutMs);
+    const refundProcessingIsStale =
+      transaction.status === "refund_processing" &&
+      transaction.updatedAt instanceof Date &&
+      transaction.updatedAt < refundProcessingCutoff;
+    if (transaction.status === "refund_processing" && !refundProcessingIsStale) {
       throw new BadRequestException("A refund is already being processed for this payment.");
     }
     const requestedAmount = Number(amount);
@@ -98,8 +104,14 @@ export class PaymentService {
 
     // Claim the refund atomically before calling the external provider.
     // Never hold a DB transaction open across the provider call.
+    const claimCriteria = refundProcessingIsStale
+      ? [
+          { id: transaction.id, status: "succeeded" as const },
+          { id: transaction.id, status: "refund_processing" as const, updatedAt: LessThan(refundProcessingCutoff) },
+        ]
+      : { id: transaction.id, status: "succeeded" as const };
     const claim = await this.transactionsRepo.update(
-      { id: transaction.id, status: "succeeded" },
+      claimCriteria,
       { status: "refund_processing" },
     );
     if (!claim.affected) {
