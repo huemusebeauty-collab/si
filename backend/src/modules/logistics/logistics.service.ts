@@ -158,11 +158,22 @@ export class LogisticsService {
         });
         if (!lockedOrder) throw new NotFoundException("Order not found.");
         if (lockedOrder.status !== mappedOrderStatus) {
-          if (!VALID_ORDER_TRANSITIONS[lockedOrder.status]?.includes(mappedOrderStatus)) {
-            throw new DomainException(
-              DomainErrorCode.INVALID_STATUS_TRANSITION,
-              `Cannot synchronize order "${lockedOrder.status}" with shipment "${status}".`,
-            );
+          // A shipment may be created while an order is confirmed. When the
+          // first physical fulfillment milestone is reached, move the order
+          // through processing before marking it shipped. Both transitions
+          // are recorded so the order history remains truthful.
+          if (mappedOrderStatus === "shipped" && lockedOrder.status === "confirmed") {
+            lockedOrder.status = "processing";
+            await manager.save(lockedOrder);
+            await manager.save(manager.create(OrderStatusHistoryEntity, { order: lockedOrder, status: "processing" }));
+          }
+          if (lockedOrder.status !== mappedOrderStatus) {
+            if (!VALID_ORDER_TRANSITIONS[lockedOrder.status]?.includes(mappedOrderStatus)) {
+              throw new DomainException(
+                DomainErrorCode.INVALID_STATUS_TRANSITION,
+                `Cannot synchronize order "${lockedOrder.status}" with shipment "${status}".`,
+              );
+            }
           }
           if (mappedOrderStatus === "returned") {
             for (const line of lockedOrder.lineItems ?? []) {
