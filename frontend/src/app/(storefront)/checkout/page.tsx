@@ -239,7 +239,7 @@ export default function CheckoutPage() {
               <label key={field} className={field === "addressLine1" || field === "addressLine2" ? "sm:col-span-2" : ""}>
                 <span className="text-sm font-medium text-ink">{label}</span>
                 <input
-                  required={field !== "addressLine2"}
+                  required={!["addressLine2", "customerLegalName", "customerGstin"].includes(field)}
                   value={form[field]}
                   onChange={(event) => updateField(field, event.target.value)}
                   className="mt-1 w-full rounded-md border border-fog bg-white px-3 py-3 text-sm text-ink outline-none focus:border-ink"
