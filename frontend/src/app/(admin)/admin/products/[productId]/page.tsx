@@ -63,8 +63,8 @@ function EditProductContent() {
         description: form.description,
         // Preserve content/SEO fields that this screen does not edit.
         // The previous implementation replaced them with empty values on every save.
-        metaTitle: form.name,
-        metaDescription: form.shortDescription || form.description,
+        metaTitle: product.metaTitle ?? form.name,
+        metaDescription: product.metaDescription ?? (form.shortDescription || form.description),
         mediaUrls: form.mediaText.split("\n").map(v => v.trim()).filter(Boolean),
         content: {
           shortDescription: form.shortDescription || form.description,
