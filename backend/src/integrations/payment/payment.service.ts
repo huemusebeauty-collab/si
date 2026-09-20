@@ -13,6 +13,9 @@ import { ProductsService } from "@/modules/products/products.service";
 import { TransactionService } from "@/database/transaction.service";
 import { OrderEntity } from "@/modules/orders/entities/order.entity";
 import { OrderStatusHistoryEntity } from "@/modules/orders/entities/order-status-history.entity";
+import { ForbiddenException } from "@nestjs/common";
+import type { AuthenticatedUser } from "@/common/decorators/current-user.decorator";
+import { verifyGuestCheckoutToken } from "@/common/security/guest-checkout-token";
 
 @Injectable()
 export class PaymentService {
