@@ -108,7 +108,9 @@ describe("PaymentService reliability", () => {
 
   it("passes a stable transaction-scoped idempotency key to refund providers", async () => {
     const transaction = { id: "tx-1", orderId: "o6", providerReference: "pi_6", amount: "500.00", status: "succeeded" };
-    transactionsRepo.findOne.mockResolvedValue(transaction);
+    transactionsRepo.findOne
+      .mockResolvedValueOnce({ ...transaction })
+      .mockResolvedValueOnce({ ...transaction });
     orders.checkRefundEligibility.mockResolvedValue({ eligible: true });
     provider.initiateRefund.mockResolvedValue({ refundReference: "re_1", status: "succeeded" });
 
