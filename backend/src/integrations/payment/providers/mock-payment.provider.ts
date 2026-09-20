@@ -45,7 +45,7 @@ export class MockPaymentProvider implements PaymentProvider {
   }
 
   async initiateRefund(input: RefundInput): Promise<RefundResult> {
-    return { refundReference: `mock_re_${randomUUID()}`, status: "succeeded" };
+    return { refundReference: `mock_re_${input.idempotencyKey}`, status: "succeeded" };
   }
 
   verifyWebhookSignature(rawBody: string, signatureHeader: string): boolean {
