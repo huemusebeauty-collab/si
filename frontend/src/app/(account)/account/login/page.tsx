@@ -11,6 +11,7 @@ type LoginResponse = {
   data?: { sessionToken?: string; expiresAt?: string; customerId?: string };
   sessionToken?: string;
   expiresAt?: string;
+  customerId?: string;
   message?: string;
 };
 
