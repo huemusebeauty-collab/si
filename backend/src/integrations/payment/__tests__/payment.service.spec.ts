@@ -176,9 +176,7 @@ describe("PaymentService reliability", () => {
 
     const first = service.initiateRefund("o-race", 500);
     const second = service.initiateRefund("o-race", 500);
-    const secondResult = await Promise.allSettled([first, second]);
-
-    expect(secondResult.filter((result) => result.status === "rejected")).toHaveLength(1);
+    await expect(second).rejects.toThrow("A refund is already being processed for this payment.");
     expect(provider.initiateRefund).toHaveBeenCalledTimes(1);
 
     releaseProvider?.();
