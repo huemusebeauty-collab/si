@@ -8,7 +8,6 @@ import { CouponsService } from "@/admin/coupons/coupons.service";
 import { SettingsService } from "@/admin/settings/settings.service";
 import { DomainErrorCode, DomainException } from "@/common/exceptions/domain.exception";
 import { ForbiddenException } from "@nestjs/common";
-import type { AuthenticatedUser } from "@/common/decorators/current-user.decorator";
 
 // Sprint 3.5 — CartService, method signatures per Phase 16 §16.6.
 // Sprint 4.4 — Cart Business Logic: real stock validation at write time
