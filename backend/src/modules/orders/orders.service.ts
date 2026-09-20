@@ -372,6 +372,22 @@ export class OrdersService {
           `Order cannot be cancelled once it has reached "${lockedOrder.status}" status.`,
         );
       }
+
+      const shipment = await manager.findOne(ShipmentEntity, {
+        where: { orderId: lockedOrder.id },
+        lock: { mode: "pessimistic_write" },
+      });
+      if (shipment && ["draft", "ready_to_ship", "pickup_scheduled"].includes(shipment.status)) {
+        shipment.status = "cancelled";
+        await manager.save(shipment);
+        await manager.save(manager.create(ShipmentEventEntity, {
+          shipmentId: shipment.id,
+          status: "cancelled",
+          description: "Shipment cancelled with the order.",
+          eventAt: new Date(),
+        }));
+      }
+
       for (const line of lockedOrder.lineItems) await this.products.adjustStock(line.variantId, line.quantity, manager, { reason: "order_cancellation", referenceType: "order", referenceId: lockedOrder.id });
       await manager.update(OrderEntity, lockedOrder.id, { status: "cancelled" });
       await manager.save(manager.create(OrderStatusHistoryEntity, { order: lockedOrder, status: "cancelled" }));
