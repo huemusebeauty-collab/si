@@ -106,6 +106,29 @@ describe("PaymentService reliability", () => {
     expect(provider.initiateRefund).not.toHaveBeenCalled();
   });
 
+  it("passes a stable transaction-scoped idempotency key to refund providers", async () => {
+    const transaction = { id: "tx-1", orderId: "o6", providerReference: "pi_6", amount: "500.00", status: "succeeded" };
+    transactionsRepo.findOne.mockResolvedValue(transaction);
+    orders.checkRefundEligibility.mockResolvedValue({ eligible: true });
+    provider.initiateRefund.mockResolvedValue({ refundReference: "re_1", status: "succeeded" });
+
+    await service.initiateRefund("o6", 500, "requested_by_customer");
+    await service.initiateRefund("o6", 500, "requested_by_customer");
+
+    expect(provider.initiateRefund).toHaveBeenNthCalledWith(1, {
+      providerReference: "pi_6",
+      amount: 500,
+      idempotencyKey: "refund:tx-1",
+      reason: "requested_by_customer",
+    });
+    expect(provider.initiateRefund).toHaveBeenNthCalledWith(2, {
+      providerReference: "pi_6",
+      amount: 500,
+      idempotencyKey: "refund:tx-1",
+      reason: "requested_by_customer",
+    });
+  });
+
   it("rejects a partial refund until partial-refund accounting exists", async () => {
     transactionsRepo.findOne.mockResolvedValue({ orderId: "o6", providerReference: "pi_6", amount: "500.00", status: "succeeded" });
 
