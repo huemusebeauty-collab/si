@@ -8,9 +8,6 @@ import { RefreshDto } from "./dto/refresh.dto";
 import { Public } from "@/common/decorators/public.decorator";
 import { CurrentUser, type AuthenticatedUser } from "@/common/decorators/current-user.decorator";
 
-// Sprint 3.3/3.7 — Phase 16 §16.14: rate limiting applied to
-// authentication endpoints specifically (tighter than the global
-// default configured in configuration.ts).
 @ApiTags("auth")
 @Controller({ path: "auth", version: "1" })
 export class AuthController {
@@ -31,7 +28,8 @@ export class AuthController {
   @Post("login")
   async login(@Body() dto: LoginDto) {
     const result = await this.auth.login(dto.email, dto.password);
-    return result;
+    const refreshToken = await this.auth.issueRefreshToken(result.customerId);
+    return { ...result, refreshToken };
   }
 
   @Public()
