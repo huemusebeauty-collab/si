@@ -155,7 +155,7 @@ export default function CheckoutPage() {
       if (form.country === "IN" && !form.stateCode) throw new Error("Please select the delivery state.");
       if (form.country === "IN" && !/^\\d{2}$/.test(form.stateCode)) throw new Error("Please select a valid delivery state.");
       if (!/^\\d{10}$/.test(form.phone)) throw new Error("Please enter a valid 10-digit mobile number.");
-      const createdOrder = await createOrder(form);
+      const createdOrder = await createOrder({ ...form, phone: `${phoneCountryCode}${form.phone}` });
       const idempotencyKey = crypto.randomUUID();
       const nextPayment = await initiatePayment(createdOrder, idempotencyKey);
       if (!nextPayment.clientSecret) throw new Error("Payment gateway did not return a secure payment session.");
