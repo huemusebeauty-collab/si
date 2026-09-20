@@ -138,7 +138,19 @@ export async function getCartTotals(): Promise<{ subtotal: number; discountAmoun
   return request(`/carts/${cartId}/totals`);
 }
 
-export async function mergeGuestCart(customerId: string): Promise<ApiCart | null> {\n  const sessionId = getStoredSessionId();\n  if (!sessionId) return null;\n  const cart = await request<ApiCart>("/carts/merge", {\n    method: "POST",\n    body: JSON.stringify({ sessionId, customerId }),\n  });\n  storeCartId(cart.id);\n  notifyCartUpdated();\n  return cart;\n}\n\nexport async function createOrder(shippingAddress: Record<string, string>): Promise<ApiOrder> {
+export async function mergeGuestCart(customerId: string): Promise<ApiCart | null> {
+  const sessionId = getStoredSessionId();
+  if (!sessionId) return null;
+  const cart = await request<ApiCart>("/carts/merge", {
+    method: "POST",
+    body: JSON.stringify({ sessionId, customerId }),
+  });
+  storeCartId(cart.id);
+  notifyCartUpdated();
+  return cart;
+}
+
+export async function createOrder(shippingAddress: Record<string, string>): Promise<ApiOrder> {
   const cartId = getStoredCartId();
   const sessionId = getStoredSessionId();
   if (!cartId || !sessionId) throw new Error("Your cart session could not be found. Please return to cart and try again.");
