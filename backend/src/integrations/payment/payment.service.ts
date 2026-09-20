@@ -133,20 +133,21 @@ export class PaymentService {
           { id: transaction.id, status: "refund_processing" },
           { status: "refunded" },
         );
-      } else {
+      } else if (result.status === "failed") {
+        // A definitive provider failure is retryable, so release the claim.
         await this.transactionsRepo.update(
           { id: transaction.id, status: "refund_processing" },
           { status: "succeeded" },
         );
       }
+      // A pending provider refund remains refund_processing locally.
+      // This prevents a second refund attempt while the provider is still
+      // processing the same stable idempotency key.
       return result;
     } catch (error) {
-      // Provider retries use the same stable idempotency key. If the call
-      // ultimately fails, release the local claim so a later request can retry.
-      await this.transactionsRepo.update(
-        { id: transaction.id, status: "refund_processing" },
-        { status: "succeeded" },
-      );
+      // A timeout/network error has an unknown provider outcome. Keep the
+      // local claim so the stale-claim recovery path can reconcile/retry
+      // safely using the same provider idempotency key.
       throw error;
     }
   }
