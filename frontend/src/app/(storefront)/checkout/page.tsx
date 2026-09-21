@@ -307,7 +307,7 @@ export default function CheckoutPage() {
                       type="tel"
                       inputMode="numeric"
                       value={form.phone}
-                      onChange={(event) => updateField("phone", event.target.value.replace(/\\D/g, "").slice(0, 10))}
+                      onChange={(event) => updateField("phone", event.target.value.replace(/\D/g, "").slice(0, 10))}
                       className="min-w-0 flex-1 rounded-md border border-fog bg-white px-3 py-3 text-sm text-ink outline-none focus:border-ink"
                       autoComplete="tel-national"
                       maxLength={10}
