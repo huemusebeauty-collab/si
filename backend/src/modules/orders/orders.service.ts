@@ -487,7 +487,7 @@ export class OrdersService {
         throw new DomainException(DomainErrorCode.INVALID_STATUS_TRANSITION, "An invoice can only be issued for a confirmed or fulfilled order.");
       }
       const existing = await invoiceRepo.findOne({ where: { orderId } });
-      if (existing) return { ...existing.snapshot, invoiceId: existing.id, invoiceNumber: existing.invoiceNumber, issuedAt: existing.issuedAt.toISOString() };
+      if (existing) return { ...existing.snapshot, invoiceId: existing.id, invoiceNumber: existing.invoiceNumber, issuedAt: existing.issuedAt.toISOString(), layout: resolveInvoiceLayout("A4", "STANDARD") };
 
       const businessSettings = await this.settings.getBusinessSettings();
       if (businessSettings.gstRegistered && (!businessSettings.gstin || !businessSettings.registeredState || !businessSettings.registeredStateCode)) {
@@ -536,7 +536,7 @@ export class OrdersService {
         orderCreatedAt: order.createdAt.toISOString(),
       };
       const invoice = await invoiceRepo.save(invoiceRepo.create({ orderId: order.id, invoiceNumber, financialYear, issuedAt, snapshot }));
-      return { ...snapshot, invoiceId: invoice.id, invoiceNumber: invoice.invoiceNumber, issuedAt: invoice.issuedAt.toISOString() };
+      return { ...snapshot, invoiceId: invoice.id, invoiceNumber: invoice.invoiceNumber, issuedAt: invoice.issuedAt.toISOString(), layout: resolveInvoiceLayout("A4", "STANDARD") };
     });
   }
   async getTrackingStatus(orderId: string): Promise<{ orderId: string; timeline: OrderStatusHistoryEntity[] }> {
