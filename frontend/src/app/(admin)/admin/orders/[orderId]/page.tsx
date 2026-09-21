@@ -12,6 +12,10 @@ import { Badge } from "@/components/basic/Badge";
 import { Button } from "@/components/basic/Button";
 import { Toast } from "@/components/composite/Toast";
 
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"\x27]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "\x27": "&#39;" }[character] ?? character));
+}
+
 const VALID_TRANSITIONS: Record<string, string[]> = {
   pending_payment: ["confirmed", "payment_failed", "cancelled"],
   confirmed: ["processing", "cancelled"],
@@ -27,10 +31,34 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
   const [toast, setToast] = useState<string | null>(null);
   const [invoice, setInvoice] = useState<AdminInvoice | null>(null);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
+  const [printing, setPrinting] = useState(false);
   const { data: order, isLoading, error, refetch } = useAdminQuery(() => adminApi.getOrder(orderId), [orderId]);
 
   if (isLoading) return <SkeletonLoader className="h-64 w-full" />;
   if (error || !order) return <ErrorRecovery body={error ?? "Order not found."} onRetry={refetch} />;
+\n  const printInvoice = async () => {
+    setPrinting(true);
+    try {
+      const issued = invoice?.invoiceNumber ? invoice : await adminApi.issueAdminInvoice(order.id);
+      setInvoice(issued);
+      const lines = Array.isArray(issued.lineItems)
+        ? issued.lineItems.map((item, index) => {
+            const row = item as Record<string, unknown>;
+            const name = String(row.productName ?? row.name ?? `Item ${index + 1}`);
+            const quantity = Number(row.quantity ?? 1);
+            const unitPrice = String(row.unitPrice ?? "0.00");
+            return `<tr><td>${escapeHtml(name)}</td><td style="text-align:center">${quantity}</td><td style="text-align:right">₹${escapeHtml(unitPrice)}</td></tr>`;
+          }).join("")
+        : "";
+      const html = `<!doctype html><html><head><title>Invoice ${escapeHtml(issued.invoiceNumber ?? order.id)}</title><style>body{font-family:Arial,sans-serif;margin:32px;color:#222}h1{margin:0 0 4px}table{width:100%;border-collapse:collapse;margin-top:24px}th,td{border-bottom:1px solid #ddd;padding:9px;text-align:left}.total{margin-top:18px;text-align:right;font-size:18px;font-weight:700}@media print{button{display:none}}</style></head><body><h1>SILKU</h1><div>Tax Invoice</div><p>Invoice: <strong>${escapeHtml(issued.invoiceNumber ?? "")}</strong><br>Order: ${escapeHtml(order.id)}<br>Issued: ${escapeHtml(issued.issuedAt ? new Date(issued.issuedAt).toLocaleString() : "")}</p><table><thead><tr><th>Item</th><th>Qty</th><th style="text-align:right">Price</th></tr></thead><tbody>${lines}</tbody></table><div class="total">Total: ₹${escapeHtml(issued.total)} ${escapeHtml(issued.currency)}</div><script>window.onload=()=>window.print()</script></body></html>`;
+      const popup = window.open("", "silku-invoice-print", "width=900,height=700");
+      if (!popup) throw new Error("Please allow pop-ups to print the invoice.");
+      popup.document.open(); popup.document.write(html); popup.document.close();
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "Unable to print invoice.");
+    } finally { setPrinting(false); }
+  };
+
 
   return (
     <div className="flex flex-col gap-6">
