@@ -7,12 +7,14 @@ import { ShipmentEventEntity } from "./entities/shipment-event.entity";
 import { OrderEntity } from "@/modules/orders/entities/order.entity";
 import { OrdersModule } from "@/modules/orders/orders.module";
 import { ProductsModule } from "@/modules/products/products.module";
+import { DatabaseModule } from "@/database/database.module";
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([ShipmentEntity, ShipmentEventEntity, OrderEntity]),
     OrdersModule,
     ProductsModule,
+    DatabaseModule,
   ],
   controllers: [LogisticsController],
   providers: [LogisticsService],
