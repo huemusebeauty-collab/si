@@ -39,18 +39,6 @@ export class OrdersController {
   }
 
   @RequirePermission("orders", "view")
-  @Get("admin/:orderId")
-  adminGet(@Param("orderId") orderId: string) {
-    return this.orders.getOrder(orderId);
-  }
-
-  @RequirePermission("orders", "view")
-  @Get("admin/customer/:customerId")
-  adminOrdersForCustomer(@Param("customerId") customerId: string) {
-    return this.orders.listOrderHistory(customerId);
-  }
-
-  @RequirePermission("orders", "view")
   @Get("admin/search")
   adminSearch(
     @Query("status") status?: OrderStatus,
@@ -70,6 +58,17 @@ export class OrdersController {
     });
   }
 
+  @RequirePermission("orders", "view")
+  @Get("admin/:orderId")
+  adminGet(@Param("orderId") orderId: string) {
+    return this.orders.getOrder(orderId);
+  }
+
+  @RequirePermission("orders", "view")
+  @Get("admin/customer/:customerId")
+  adminOrdersForCustomer(@Param("customerId") customerId: string) {
+    return this.orders.listOrderHistory(customerId);
+  }
 
   @Get()
   listMine(@CurrentUser() user: AuthenticatedUser) {
