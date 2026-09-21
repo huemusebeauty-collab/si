@@ -36,7 +36,8 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
 
   if (isLoading) return <SkeletonLoader className="h-64 w-full" />;
   if (error || !order) return <ErrorRecovery body={error ?? "Order not found."} onRetry={refetch} />;
-\n  const printInvoice = async () => {
+
+  const printInvoice = async () => {
     setPrinting(true);
     try {
       const issued = invoice?.invoiceNumber ? invoice : await adminApi.issueAdminInvoice(order.id);
