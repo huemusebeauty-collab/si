@@ -480,8 +480,9 @@ export class OrdersService {
       const orderRepo = queryRunner.manager.getRepository(OrderEntity);
       const invoiceRepo = queryRunner.manager.getRepository(InvoiceEntity);
       const sequenceRepo = queryRunner.manager.getRepository(InvoiceSequenceEntity);
-      const order = await orderRepo.findOne({ where: { id: orderId }, relations: ["lineItems"], lock: { mode: "pessimistic_write" } });
+      const order = await orderRepo.findOne({ where: { id: orderId }, lock: { mode: "pessimistic_write" } });
       if (!order) throw new NotFoundException("Order not found.");
+      order.lineItems = await queryRunner.manager.getRepository(OrderLineItemEntity).find({ where: { order: { id: order.id } } });
       if (!REVENUE_STATUSES.includes(order.status)) {
         throw new DomainException(DomainErrorCode.INVALID_STATUS_TRANSITION, "An invoice can only be issued for a confirmed or fulfilled order.");
       }
