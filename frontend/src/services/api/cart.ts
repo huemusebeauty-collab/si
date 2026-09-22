@@ -23,6 +23,7 @@ export interface ApiOrder {
   customerId: string;
   status: string;
   total: string;
+  shippingAmount: string;
   currency: string;
   shippingAddress: Record<string, unknown>;
   guestCheckoutToken?: string;
@@ -140,6 +141,10 @@ export async function mergeGuestCart(customerId: string): Promise<ApiCart | null
   storeCartId(cart.id);
   notifyCartUpdated();
   return cart;
+}
+
+export async function getShippingQuote(subtotal: number, stateCode: string, country = "IN"): Promise<{ shippingAmount: number; freeShipping: boolean; threshold: number; region: string; currency: string }> {
+  return request("/orders/shipping-quote", { method: "POST", body: JSON.stringify({ subtotal, stateCode, country }) });
 }
 
 export async function createOrder(shippingAddress: Record<string, string>): Promise<ApiOrder> {
