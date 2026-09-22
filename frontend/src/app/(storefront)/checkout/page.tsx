@@ -410,7 +410,7 @@ export default function CheckoutPage() {
             {shippingQuote && <div className="flex justify-between"><span className="text-stone">Shipping / Logistics</span><span>{shippingQuote.freeShipping ? "FREE" : formatCurrency(shippingQuote.shippingAmount)}</span></div>}
             {shippingQuote && !shippingQuote.freeShipping && <p className="text-xs text-stone">Free shipping on orders ₹500 or above.</p>}
             {shippingQuote?.freeShipping && <p className="text-xs text-stone">Free shipping applied.</p>}
-            <div className="border-t border-fog pt-3 flex justify-between font-semibold text-ink"><span>Total</span><span>{formatCurrency(totals.total)}</span></div>
+            <div className="border-t border-fog pt-3 flex justify-between font-semibold text-ink"><span>Total</span><span>{formatCurrency(totals.total + (shippingQuote?.shippingAmount ?? 0))}</span></div>
           </div>
           <Link href="/cart" className="mt-5 inline-block text-sm font-semibold text-ink underline underline-offset-4">Edit cart</Link>
         </aside>
