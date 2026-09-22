@@ -9,6 +9,7 @@ import {
   createOrder,
   getCartTotals,
   getOrCreateGuestCart,
+  getShippingQuote,
   initiatePayment,
   syncPayment,
   type ApiCart,
@@ -73,6 +74,7 @@ function resolveIndiaState(value: string): { name: string; code: string } | null
 export default function CheckoutPage() {
   const [cart, setCart] = useState<ApiCart | null>(null);
   const [totals, setTotals] = useState({ subtotal: 0, discountAmount: 0, total: 0, itemCount: 0 });
+  const [shippingQuote, setShippingQuote] = useState<{ shippingAmount: number; freeShipping: boolean; threshold: number; region: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [paying, setPaying] = useState(false);
@@ -100,6 +102,11 @@ export default function CheckoutPage() {
     customerLegalName: "",
   });
   const [phoneCountryCode, setPhoneCountryCode] = useState("+91");
+
+  useEffect(() => {
+    if (form.country !== "IN" || !form.stateCode) { setShippingQuote(null); return; }
+    void getShippingQuote(Math.max(0, totals.subtotal - totals.discountAmount), form.stateCode, form.country).then(setShippingQuote).catch(() => setShippingQuote(null));
+  }, [form.country, form.stateCode, totals.subtotal, totals.discountAmount]);
 
   useEffect(() => {
     async function load() {
@@ -400,6 +407,9 @@ export default function CheckoutPage() {
             <div className="flex justify-between"><span className="text-stone">Items</span><span>{totals.itemCount}</span></div>
             <div className="flex justify-between"><span className="text-stone">Subtotal</span><span>{formatCurrency(totals.subtotal)}</span></div>
             {totals.discountAmount > 0 && <div className="flex justify-between"><span className="text-stone">Discount</span><span>-{formatCurrency(totals.discountAmount)}</span></div>}
+            {shippingQuote && <div className="flex justify-between"><span className="text-stone">Shipping / Logistics</span><span>{shippingQuote.freeShipping ? "FREE" : formatCurrency(shippingQuote.shippingAmount)}</span></div>}
+            {shippingQuote && !shippingQuote.freeShipping && <p className="text-xs text-stone">Free shipping on orders ₹500 or above.</p>}
+            {shippingQuote?.freeShipping && <p className="text-xs text-stone">Free shipping applied.</p>}
             <div className="border-t border-fog pt-3 flex justify-between font-semibold text-ink"><span>Total</span><span>{formatCurrency(totals.total)}</span></div>
           </div>
           <Link href="/cart" className="mt-5 inline-block text-sm font-semibold text-ink underline underline-offset-4">Edit cart</Link>
