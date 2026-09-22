@@ -70,6 +70,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
       </div>
       <div className="rounded-md bg-white p-6 shadow-rest">
         <p><strong>Customer:</strong> {order.customerId}</p>
+        <p><strong>Shipping / Logistics:</strong> ₹{order.shippingAmount ?? "0.00"}</p>
         <p><strong>Total:</strong> ₹{order.total} {order.currency}</p>
         <p><strong>Placed:</strong> {new Date(order.createdAt).toLocaleString()}</p>
       </div>
@@ -118,6 +119,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
             <div className="flex justify-between"><span>Discount</span><strong>₹{invoice.discountAmount}</strong></div>
             <div className="flex justify-between"><span>Taxable</span><strong>₹{invoice.taxableAmount}</strong></div>
             <div className="flex justify-between"><span>GST</span><strong>₹{invoice.taxAmount}</strong></div>
+            <div className="flex justify-between"><span>Shipping / Logistics</span><strong>₹{invoice.shippingAmount}</strong></div>
             <div className="flex justify-between border-t border-line pt-2"><span>Total</span><strong>₹{invoice.total} {invoice.currency}</strong></div>
             <div className="text-xs text-muted">Layout: {invoice.layout.size} / {invoice.layout.format} · Generated {invoice.issuedAt ? new Date(invoice.issuedAt).toLocaleString() : "Not issued"}</div>
           </div>
