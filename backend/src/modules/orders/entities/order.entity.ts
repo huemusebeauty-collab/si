@@ -47,6 +47,9 @@ export class OrderEntity {
   @Column({ type: "decimal", precision: 10, scale: 2 })
   total!: string;
 
+  @Column({ type: "decimal", precision: 10, scale: 2, default: 0 })
+  shippingAmount!: string;
+
   @Column({ default: "INR" })
   currency!: string;
 
