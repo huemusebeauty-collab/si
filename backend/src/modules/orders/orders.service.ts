@@ -19,6 +19,10 @@ import { SettingsService } from "@/admin/settings/settings.service";
 const CANCELLABLE_BEFORE: OrderStatus[] = ["pending_payment", "confirmed", "processing"];
 const RETURNABLE_AFTER: OrderStatus[] = ["delivered"];
 const RETURN_WINDOW_DAYS = 30;
+const FREE_SHIPPING_THRESHOLD = 500;
+const NORTH_REGION_STATE_CODES = new Set(["01", "02", "03", "04", "05", "06", "07", "08", "09", "38"]);
+const NORTH_REGION_SHIPPING = 50;
+const OTHER_INDIA_SHIPPING = 99;
 const REVENUE_STATUSES: OrderStatus[] = ["confirmed", "processing", "shipped", "delivered"];
 
 const VALID_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
@@ -149,6 +153,15 @@ export class OrdersService {
     return { orderCount: orders.length, averageOrderValue: orders.length ? roundMoney(totalRevenue / orders.length) : 0, totalRevenue: roundMoney(totalRevenue), statusBreakdown };
   }
 
+  getShippingQuote(subtotal: number, stateCode?: string, country = "IN") {
+    const amount = roundMoney(Math.max(0, subtotal));
+    if (country !== "IN") throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "International shipping is not enabled yet.");
+    const code = stateCode?.trim();
+    if (!code || !/^\d{2}$/.test(code)) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "A valid Indian state/UT code is required for shipping.");
+    const shippingAmount = amount >= FREE_SHIPPING_THRESHOLD ? 0 : NORTH_REGION_STATE_CODES.has(code) ? NORTH_REGION_SHIPPING : OTHER_INDIA_SHIPPING;
+    return { shippingAmount, freeShipping: shippingAmount === 0, threshold: FREE_SHIPPING_THRESHOLD, region: NORTH_REGION_STATE_CODES.has(code) ? "north_india" : "other_india", currency: "INR" };
+  }
+
   async createOrder(customerId: string, cartId: string, shippingAddress: Record<string, unknown>, idempotencyKey?: string, customerGstin?: string, customerLegalName?: string): Promise<OrderEntity> {
     const normalizedIdempotencyKey = idempotencyKey?.trim();
     const normalizedGstin = customerGstin?.trim().toUpperCase() || undefined;
@@ -198,6 +211,8 @@ export class OrdersService {
 
       const requestedDiscount = Math.max(0, Number(cart.discountAmount ?? 0));
       const discountAmount = roundMoney(Math.min(requestedDiscount, subtotal));
+      const shippingQuote = this.getShippingQuote(roundMoney(subtotal - discountAmount), placeOfSupplyStateCode, typeof shippingAddress.country === "string" ? shippingAddress.country : "IN");
+      const shippingAmount = shippingQuote.shippingAmount;
       let allocatedDiscount = 0;
       let taxableAmount = 0;
       let taxAmount = 0;
@@ -249,8 +264,9 @@ export class OrdersService {
         await this.products.adjustStock(line.variantId, -line.quantity, manager, { reason: "order_reservation", referenceType: "cart_checkout", referenceId: cartId });
       }
 
-      if (total < 0 || (subtotal > 0 && total > subtotal + 0.005 && discountAmount === 0)) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Invalid tax calculation.");
-      const order = manager.create(OrderEntity, { customerId, idempotencyKey: normalizedIdempotencyKey, customerGstin: normalizedGstin, customerLegalName: normalizedLegalName, placeOfSupplyState, placeOfSupplyStateCode, status: "pending_payment", subtotal: subtotal.toFixed(2), discountAmount: discountAmount.toFixed(2), taxableAmount: taxableAmount.toFixed(2), taxAmount: taxAmount.toFixed(2), total: total.toFixed(2), currency: "INR", shippingAddress });
+      total = roundMoney(total + shippingAmount);
+      if (total < 0 || (subtotal > 0 && total > subtotal + shippingAmount + 0.005 && discountAmount === 0)) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Invalid tax calculation.");
+      const order = manager.create(OrderEntity, { customerId, idempotencyKey: normalizedIdempotencyKey, customerGstin: normalizedGstin, customerLegalName: normalizedLegalName, placeOfSupplyState, placeOfSupplyStateCode, status: "pending_payment", subtotal: subtotal.toFixed(2), discountAmount: discountAmount.toFixed(2), taxableAmount: taxableAmount.toFixed(2), taxAmount: taxAmount.toFixed(2), total: total.toFixed(2), shippingAmount: shippingAmount.toFixed(2), currency: "INR", shippingAddress });
       const savedOrder = await manager.save(order);
       for (const snapshot of snapshotLines) await manager.save(manager.create(OrderLineItemEntity, { ...snapshot, order: savedOrder }));
       await manager.save(manager.create(OrderStatusHistoryEntity, { order: savedOrder, status: "pending_payment" }));
@@ -468,6 +484,7 @@ export class OrdersService {
       taxableAmount: order.taxableAmount,
       taxAmount: order.taxAmount,
       total: order.total,
+      shippingAmount: order.shippingAmount,
       currency: order.currency,
       issuedAt: null,
       invoiceNumber: null,
@@ -532,6 +549,7 @@ export class OrdersService {
         taxableAmount: order.taxableAmount,
         taxAmount: order.taxAmount,
         total: order.total,
+        shippingAmount: order.shippingAmount,
         currency: order.currency,
         orderCreatedAt: order.createdAt.toISOString(),
       };
