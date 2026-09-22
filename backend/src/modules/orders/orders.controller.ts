@@ -38,6 +38,12 @@ export class OrdersController {
     return this.orders.issueInvoice(orderId);
   }
 
+  @Public()
+  @Post("shipping-quote")
+  shippingQuote(@Body() body: { subtotal: number; stateCode?: string; country?: string }) {
+    return this.orders.getShippingQuote(body.subtotal, body.stateCode, body.country ?? "IN");
+  }
+
   @RequirePermission("orders", "view")
   @Get("admin/search")
   adminSearch(
