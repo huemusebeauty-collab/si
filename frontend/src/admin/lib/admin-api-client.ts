@@ -125,7 +125,7 @@ export interface CreateCategoryInput { name: string; slug: string; parentId?: st
 export interface UpdateCategoryInput { name?: string; slug?: string; parentId?: string | null; displayOrder?: number; visible?: boolean; metaTitle?: string; metaDescription?: string }
 export interface AdminCategory { id: string; slug: string; name: string; visible: boolean; displayOrder: number; parentId?: string | null; children?: AdminCategory[] }
 export interface AdminCollection { id: string; slug: string; name: string; active: boolean; featured: boolean; displayOrder: number }
-export interface AdminOrder { id: string; customerId: string; status: string; total: string; currency: string; createdAt: string; lineItems?: unknown[] }
+export interface AdminOrder { id: string; customerId: string; status: string; total: string; shippingAmount?: string; currency: string; createdAt: string; lineItems?: unknown[] }
 export interface AdminInvoice {
   orderId: string;
   lineItems: unknown[];
@@ -134,6 +134,7 @@ export interface AdminInvoice {
   taxableAmount: string;
   taxAmount: string;
   total: string;
+  shippingAmount: string;
   currency: string;
   issuedAt: string | null;
   invoiceId?: string | null;
