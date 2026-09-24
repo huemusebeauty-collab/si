@@ -28,6 +28,7 @@ export class CashfreePaymentProvider implements PaymentProvider {
   private readonly secretKey?: string;
   private readonly apiVersion: string;
   private readonly returnUrl?: string;
+  private readonly notifyUrl?: string;
   private readonly environment: "sandbox" | "production";
 
   constructor(
