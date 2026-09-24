@@ -56,6 +56,7 @@ export default () => ({
       environment: process.env.CASHFREE_ENVIRONMENT ?? "sandbox",
       apiVersion: process.env.CASHFREE_API_VERSION ?? "2025-01-01",
       returnUrl: process.env.CASHFREE_RETURN_URL,
+      notifyUrl: process.env.CASHFREE_NOTIFY_URL,
     },
   },
   shipping: {
