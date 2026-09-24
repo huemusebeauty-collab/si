@@ -1,7 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import axios, { type AxiosInstance } from "axios";
-import { createHmac } from "node:crypto";
 import type {
   InitiatePaymentInput,
   InitiatePaymentResult,
