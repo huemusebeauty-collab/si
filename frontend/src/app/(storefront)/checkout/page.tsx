@@ -86,11 +86,6 @@ export default function CheckoutPage() {
   const [order, setOrder] = useState<ApiOrder | null>(null);
   const [payment, setPayment] = useState<PaymentIntentResponse | null>(null);
   const [paymentComplete, setPaymentComplete] = useState(false);
-  const [paymentReady, setPaymentReady] = useState(false);
-  const paymentMountRef = useRef<HTMLDivElement | null>(null);
-  const elementsRef = useRef<StripeElements | null>(null);
-  const paymentElementRef = useRef<StripePaymentElement | null>(null);
-  const stripeRef = useRef<Stripe | null>(null);
 
   const [form, setForm] = useState({
     fullName: "",
