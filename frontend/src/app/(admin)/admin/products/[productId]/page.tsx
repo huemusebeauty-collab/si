@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
+type MediaItem = { url: string; type: "image" | "video" };
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { RequireAdminAuth } from "@/admin/components/RequireAdminAuth";
@@ -17,7 +19,9 @@ function EditProductContent() {
   const id = params.productId;
   const [product, setProduct] = useState<AdminProductDetail | null>(null);
   const [categories, setCategories] = useState<Array<{ id: string; slug: string; name: string }>>([]);
-  const [form, setForm] = useState({ name: "", slug: "", categorySlug: "", price: "", salePrice: "", gstRate: "", hsnCode: "", taxInclusiveMrp: true, description: "", shortDescription: "", ingredients: "", mediaText: "" });
+  const [form, setForm] = useState({ name: "", slug: "", categorySlug: "", price: "", salePrice: "", gstRate: "", hsnCode: "", taxInclusiveMrp: true, description: "", shortDescription: "", ingredients: "" });
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [variants, setVariants] = useState<Array<{ id?: string; sku: string; name: string; hexColor: string; stock: string; mrp: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -31,8 +35,9 @@ function EditProductContent() {
         name: p.name, slug: p.slug, categorySlug: p.category?.slug ?? "", price: p.price, salePrice: p.salePrice ?? "",
         gstRate: p.gstRate ?? "", hsnCode: p.hsnCode ?? "", taxInclusiveMrp: p.taxInclusiveMrp,
         description: p.description ?? "", shortDescription: p.content?.shortDescription ?? "", ingredients: p.content?.ingredients ?? "",
-        mediaText: p.mediaUrls.join("\n"),
+
       });
+      setMediaItems(p.mediaUrls.map((url) => ({ url, type: /\.(mp4|webm|mov)(?:[?#].*)?$/i.test(url) ? "video" : "image" })));
       setVariants(p.variants.map(item => ({
         id: item.id, sku: item.sku, name: item.name, hexColor: item.hexColor ?? "", stock: String(item.stockQuantity), mrp: item.mrp ?? "",
       })));
@@ -65,7 +70,7 @@ function EditProductContent() {
         // The previous implementation replaced them with empty values on every save.
         metaTitle: product.metaTitle ?? form.name,
         metaDescription: product.metaDescription ?? (form.shortDescription || form.description),
-        mediaUrls: form.mediaText.split("\n").map(v => v.trim()).filter(Boolean),
+        mediaUrls: mediaItems.map((item) => item.url),
         content: {
           shortDescription: form.shortDescription || form.description,
           keyBenefits: product.content?.keyBenefits ?? [],
@@ -125,7 +130,10 @@ function EditProductContent() {
         <label className="text-sm font-semibold sm:col-span-2">Short description<input className={inputClass} value={form.shortDescription} onChange={e=>setForm({...form,shortDescription:e.target.value})}/></label>
         <label className="text-sm font-semibold sm:col-span-2">Description<textarea className={inputClass+" min-h-28"} value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/></label>
         <label className="text-sm font-semibold sm:col-span-2">Ingredients<textarea className={inputClass+" min-h-24"} value={form.ingredients} onChange={e=>setForm({...form,ingredients:e.target.value})}/></label>
-        <label className="text-sm font-semibold sm:col-span-2">Media URLs<textarea className={inputClass+" min-h-24"} value={form.mediaText} onChange={e=>setForm({...form,mediaText:e.target.value})}/></label>
+        <div className="sm:col-span-2 rounded-lg border border-line p-4">
+          <div className="mb-3 flex items-center justify-between gap-3"><div><p className="text-sm font-semibold">Product Media</p><p className="text-xs font-normal text-muted">Existing media is preserved. Add multiple product photos and videos; uploads go directly through the admin storage API.</p></div><label className="cursor-pointer rounded-lg border border-line px-3 py-2 text-sm font-semibold hover:bg-surface"><input className="hidden" type="file" accept="image/*,video/mp4,video/webm" multiple disabled={uploading} onChange={async (e) => { const files = Array.from(e.target.files ?? []); e.currentTarget.value = ""; if (!files.length) return; setError(null); setUploading(true); try { const uploaded: MediaItem[] = []; for (const file of files) { const result = await adminApi.uploadMedia(file); uploaded.push({ url: result.url, type: file.type.startsWith("video/") ? "video" : "image" }); } setMediaItems((items) => [...items, ...uploaded]); } catch (err) { setError(err instanceof Error ? err.message : "Unable to upload media."); } finally { setUploading(false); } }} />{uploading ? "Uploading…" : "＋ Add photos / video"}</label></div>
+          {mediaItems.length === 0 ? <p className="text-sm text-muted">No media added yet.</p> : <div className="grid gap-3 sm:grid-cols-2">{mediaItems.map((item, index) => <div key={item.url} className="rounded-lg border border-line p-3"><div className="mb-2 aspect-video overflow-hidden rounded-md bg-surface">{item.type === "video" ? <video src={item.url} controls className="h-full w-full object-contain" /> : <img src={item.url} alt={`Product media ${index + 1}`} className="h-full w-full object-contain" />}</div><div className="flex items-center justify-between gap-2"><span className="truncate text-xs text-muted">{item.type === "video" ? "Video" : "Image"} {index + 1}</span><div className="flex gap-1"><Button variant="text" disabled={index === 0} onClick={() => setMediaItems((items) => { const next = [...items]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; return next; })}>↑</Button><Button variant="text" disabled={index === mediaItems.length - 1} onClick={() => setMediaItems((items) => { const next = [...items]; [next[index], next[index + 1]] = [next[index + 1], next[index]]; return next; })}>↓</Button><Button variant="text" onClick={() => setMediaItems((items) => items.filter((_, i) => i !== index))}>Remove</Button></div></div></div>)}</div>}
+        </div>
         <div className="sm:col-span-2"><Button variant="primary" disabled={saving} onClick={save}>{saving ? "Saving..." : "Save Product Changes"}</Button></div>
       </div>
     </RoleGate>
