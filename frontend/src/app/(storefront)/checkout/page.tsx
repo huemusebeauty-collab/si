@@ -17,7 +17,15 @@ import {
 } from "@/services/api/cart";
 import { trackWebsiteEvent } from "@/components/WebsiteEventTracker";
 
-declare global {\n  interface Window {\n    Cashfree?: (options: { mode: "sandbox" | "production" }) => {\n      checkout: (options: { paymentSessionId: string }) => Promise<unknown>;\n    };\n  }\n}\n\nconst INDIA_STATES: Array<{ name: string; code: string }> = [
+declare global {
+  interface Window {
+    Cashfree?: (options: { mode: "sandbox" | "production" }) => {
+      checkout: (options: { paymentSessionId: string }) => Promise<unknown>;
+    };
+  }
+}
+
+const INDIA_STATES: Array<{ name: string; code: string }> = [
   { name: "Andaman and Nicobar Islands", code: "35" },
   { name: "Andhra Pradesh", code: "37" },
   { name: "Arunachal Pradesh", code: "12" },
