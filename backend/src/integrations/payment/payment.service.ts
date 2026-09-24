@@ -13,7 +13,7 @@ import { ProductsService } from "@/modules/products/products.service";
 import { TransactionService } from "@/database/transaction.service";
 import { OrderEntity } from "@/modules/orders/entities/order.entity";
 import { OrderStatusHistoryEntity } from "@/modules/orders/entities/order-status-history.entity";
-import { ForbiddenException } from "@nestjs/common";
+import { ForbiddenException, UnauthorizedException } from "@nestjs/common";
 import type { AuthenticatedUser } from "@/common/decorators/current-user.decorator";
 import { verifyGuestCheckoutToken } from "@/common/security/guest-checkout-token";
 
@@ -159,6 +159,41 @@ export class PaymentService {
       // safely using the same provider idempotency key.
       throw error;
     }
+  }
+
+  async processWebhook(rawBody: string, signatureHeader: string, timestampHeader?: string) {
+    if (!this.provider.verifyWebhookSignature(rawBody, signatureHeader, timestampHeader)) {
+      throw new UnauthorizedException("Invalid payment webhook signature.");
+    }
+    let payload: unknown;
+    try { payload = JSON.parse(rawBody); } catch { throw new BadRequestException("Invalid payment webhook payload."); }
+    if (!payload || typeof payload !== "object") return { received: true, processed: false };
+    const body = payload as Record<string, unknown>;
+    const data = typeof body.data === "object" && body.data ? body.data as Record<string, unknown> : body;
+    const orderId = [body.order_id, body.orderId, data.order_id, data.orderId]
+      .find((v): v is string => typeof v === "string" && v.length > 0);
+    if (!orderId) return { received: true, processed: false };
+    const transaction = await this.transactionsRepo.findOne({ where: { orderId }, order: { createdAt: "DESC" } });
+    if (!transaction || transaction.provider !== this.provider.name) return { received: true, processed: false };
+    const verification = await this.resilientCall.execute(
+      { provider: this.provider.name, operation: "verifyPayment:webhook", timeoutMs: 8_000, retry: { maxAttempts: 2 } },
+      () => this.provider.verifyPayment(transaction.providerReference),
+    );
+    if (verification.providerReference !== transaction.providerReference) throw new BadRequestException("Payment provider reference mismatch.");
+    if (verification.status === "succeeded" && Math.abs(verification.amountCaptured - Number(transaction.amount)) > 0.01) {
+      throw new BadRequestException("Captured payment amount does not match the recorded order amount.");
+    }
+    if (verification.status !== transaction.status) {
+      transaction.status = verification.status;
+      await this.transactionsRepo.save(transaction);
+    }
+    const order = await this.orders.getOrder(transaction.orderId);
+    if (verification.status === "succeeded" && order.status === "pending_payment") {
+      await this.orders.confirmOrder(transaction.orderId, transaction.providerReference);
+    } else if (verification.status === "failed") {
+      await this.failPaymentAndReleaseStock(transaction.orderId, "Payment failed at the provider.");
+    }
+    return { received: true, processed: true, status: verification.status };
   }
 
   async syncStatus(providerReference: string, guestCheckoutToken?: string, user?: AuthenticatedUser): Promise<PaymentTransactionEntity> {
