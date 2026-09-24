@@ -111,6 +111,7 @@ describe("OrdersService", () => {
     };
     const transactionSequenceRepo = {
       query: jest.fn().mockResolvedValue([{ issuedNumber: "1" }]),
+      find: jest.fn().mockResolvedValue([]),
     };
     transactionService.runInTransaction.mockImplementationOnce(async (work: (qr: unknown) => Promise<unknown>) =>
       work({
