@@ -130,6 +130,9 @@ export function validateEnv(config: Record<string, unknown>) {
     if (typeof config.CASHFREE_RETURN_URL !== "string" || !config.CASHFREE_RETURN_URL) {
       throw new Error("Invalid environment configuration: CASHFREE_RETURN_URL is required when PAYMENT_PROVIDER=cashfree.");
     }
+    if (typeof config.CASHFREE_NOTIFY_URL !== "string" || !config.CASHFREE_NOTIFY_URL) {
+      throw new Error("Invalid environment configuration: CASHFREE_NOTIFY_URL is required when PAYMENT_PROVIDER=cashfree.");
+    }
   }
 
   if (provider === "stripe") {
