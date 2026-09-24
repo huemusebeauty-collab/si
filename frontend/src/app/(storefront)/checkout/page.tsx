@@ -181,7 +181,8 @@ export default function CheckoutPage() {
       }
       if (!cashfree) throw new Error("Cashfree checkout could not be loaded.");
 
-      await cashfree({ mode: "production" }).checkout({ paymentSessionId: payment.clientSecret });
+      const mode = process.env.NEXT_PUBLIC_CASHFREE_ENVIRONMENT === "production" ? "production" : "sandbox";
+      await cashfree({ mode }).checkout({ paymentSessionId: payment.clientSecret });
 
       let syncResult: unknown = null;
       for (let attempt = 0; attempt < 8; attempt += 1) {
