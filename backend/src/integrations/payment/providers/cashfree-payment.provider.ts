@@ -117,7 +117,8 @@ export class CashfreePaymentProvider implements PaymentProvider {
   }
 
   async initiateRefund(input: RefundInput): Promise<RefundResult> {
-    const refundId = `refund_${input.providerReference.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 32)}_${Date.now()}`;
+    const stableKey = input.idempotencyKey.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 48);
+    const refundId = `refund_${stableKey || input.providerReference.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 48)}`;
     const response = await this.client.post<{ refund_status?: string }>(
       `/orders/${encodeURIComponent(input.providerReference)}/refunds`,
       {
