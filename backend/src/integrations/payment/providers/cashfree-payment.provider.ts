@@ -68,6 +68,9 @@ export class CashfreePaymentProvider implements PaymentProvider {
     if (!this.returnUrl) {
       throw new Error("PAYMENT_PROVIDER=cashfree requires CASHFREE_RETURN_URL.");
     }
+    if (!this.notifyUrl) {
+      throw new Error("PAYMENT_PROVIDER=cashfree requires CASHFREE_NOTIFY_URL.");
+    }
 
     const order = await this.orders.getOrder(input.orderId);
     const shipping = order.shippingAddress as Record<string, unknown>;
