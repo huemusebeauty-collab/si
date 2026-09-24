@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useState, useEffect } from "react";
 import { Breadcrumb } from "@/components/patterns/Breadcrumb";
 import { Button } from "@/components/basic/Button";
 import { formatCurrency } from "@/utils/formatCurrency";
@@ -15,9 +15,15 @@ import {
   type ApiOrder,
   type PaymentIntentResponse,
 } from "@/services/api/cart";
-import { getStripe } from "@/services/stripe";
 import { trackWebsiteEvent } from "@/components/WebsiteEventTracker";
-import type { Stripe, StripeElements, StripePaymentElement } from "@stripe/stripe-js";
+
+declare global {
+  interface Window {
+    Cashfree?: (options: { mode: "sandbox" | "production" }) => {
+      checkout: (options: { paymentSessionId: string }) => Promise<unknown>;
+    };
+  }
+}
 
 const INDIA_STATES: Array<{ name: string; code: string }> = [
   { name: "Andaman and Nicobar Islands", code: "35" },
@@ -80,11 +86,6 @@ export default function CheckoutPage() {
   const [order, setOrder] = useState<ApiOrder | null>(null);
   const [payment, setPayment] = useState<PaymentIntentResponse | null>(null);
   const [paymentComplete, setPaymentComplete] = useState(false);
-  const [paymentReady, setPaymentReady] = useState(false);
-  const paymentMountRef = useRef<HTMLDivElement | null>(null);
-  const elementsRef = useRef<StripeElements | null>(null);
-  const paymentElementRef = useRef<StripePaymentElement | null>(null);
-  const stripeRef = useRef<Stripe | null>(null);
 
   const [form, setForm] = useState({
     fullName: "",
@@ -119,38 +120,14 @@ export default function CheckoutPage() {
     void load();
   }, []);
 
-  useEffect(() => () => {
-    paymentElementRef.current?.destroy();
-    paymentElementRef.current = null;
-  }, []);
-
   useEffect(() => {
-    if (!payment?.clientSecret || !paymentMountRef.current || paymentComplete) return;
-    let cancelled = false;
-
-    async function mountPaymentElement() {
-      try {
-        const stripe = await getStripe();
-        if (!stripe || cancelled || !paymentMountRef.current) throw new Error("Stripe could not be loaded.");
-        stripeRef.current = stripe;
-        const elements = stripe.elements({ clientSecret: payment.clientSecret });
-        elementsRef.current = elements;
-        const element = elements.create("payment", { layout: "accordion" });
-        element.mount(paymentMountRef.current);
-        paymentElementRef.current = element;
-        if (!cancelled) setPaymentReady(true);
-      } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Could not load secure payment form.");
-      }
-    }
-
-    void mountPaymentElement();
+    if (!payment?.clientSecret || paymentComplete || window.Cashfree) return;
+    const script = document.createElement("script");
+    script.src = "https://sdk.cashfree.com/js/v3/cashfree.js";
+    script.async = true;
+    document.head.appendChild(script);
     return () => {
-      cancelled = true;
-      paymentElementRef.current?.destroy();
-      paymentElementRef.current = null;
-      elementsRef.current = null;
-      setPaymentReady(false);
+      script.remove();
     };
   }, [payment?.clientSecret, paymentComplete]);
 
@@ -181,29 +158,44 @@ export default function CheckoutPage() {
 
   async function confirmPayment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!order || !payment?.providerReference || !stripeRef.current || !elementsRef.current) {
-      setError("Secure payment form is not ready yet.");
+    if (!order || !payment?.providerReference || !payment.clientSecret) {
+      setError("Secure payment session is not ready yet.");
       return;
     }
 
     setError(null);
     setPaying(true);
     try {
-      const result = await stripeRef.current.confirmPayment({
-        elements: elementsRef.current,
-        redirect: "if_required",
-      });
-      if (result.error) throw new Error(result.error.message ?? "Payment could not be completed.");
+      let cashfree = window.Cashfree;
+      if (!cashfree) {
+        await new Promise<void>((resolve, reject) => {
+          const started = Date.now();
+          const timer = window.setInterval(() => {
+            if (window.Cashfree) {
+              window.clearInterval(timer);
+              resolve();
+            } else if (Date.now() - started > 8000) {
+              window.clearInterval(timer);
+              reject(new Error("Cashfree checkout could not be loaded."));
+            }
+          }, 100);
+        });
+        cashfree = window.Cashfree;
+      }
+      if (!cashfree) throw new Error("Cashfree checkout could not be loaded.");
+
+      const mode = process.env.NEXT_PUBLIC_CASHFREE_ENVIRONMENT === "production" ? "production" : "sandbox";
+      await cashfree({ mode }).checkout({ paymentSessionId: payment.clientSecret });
 
       let syncResult: unknown = null;
-      for (let attempt = 0; attempt < 5; attempt += 1) {
+      for (let attempt = 0; attempt < 8; attempt += 1) {
         syncResult = await syncPayment(payment.providerReference, order.guestCheckoutToken);
-        if (typeof syncResult === "object" && syncResult !== null && "status" in syncResult && syncResult.status === "succeeded") break;
+        if (typeof syncResult === "object" && syncResult !== null && "status" in syncResult && (syncResult.status === "succeeded" || syncResult.status === "failed")) break;
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
 
       if (typeof syncResult === "object" && syncResult !== null && "status" in syncResult && syncResult.status === "failed") {
-        throw new Error("Payment was declined. Your reserved stock has been released; you can try again.");
+        throw new Error("Payment was declined or cancelled. Your reserved stock has been released; you can try again.");
       }
 
       if (typeof syncResult === "object" && syncResult !== null && "status" in syncResult && syncResult.status === "succeeded") {
@@ -264,11 +256,11 @@ export default function CheckoutPage() {
 
         <form onSubmit={confirmPayment} className="mt-8 max-w-2xl rounded-md bg-white p-6 shadow-rest">
           <h2 className="font-display text-xl font-semibold text-ink">Payment details</h2>
-          <div ref={paymentMountRef} className="mt-5 min-h-[160px]" />
-          <Button type="submit" variant="primary" fullWidth className="mt-6" disabled={!paymentReady || paying}>
-            {paying ? "Confirming payment…" : "Pay securely"}
+          <p className="mt-5 text-sm text-stone">Cashfree secure checkout supports UPI, cards, net banking and other available payment methods.</p>
+          <Button type="submit" variant="primary" fullWidth className="mt-6" disabled={paying}>
+            {paying ? "Opening secure payment…" : "Pay securely with Cashfree"}
           </Button>
-          <p className="mt-3 text-center text-xs text-stone">Payments are processed securely by Stripe. Your card details are not stored by Silku.</p>
+          <p className="mt-3 text-center text-xs text-stone">Payments are processed securely by Cashfree. Your payment details are not stored by Silku.</p>
         </form>
       </div>
     );
@@ -278,7 +270,7 @@ export default function CheckoutPage() {
     <div className="py-6">
       <Breadcrumb items={[{ label: "Home", href: "/" }, { label: "Cart", href: "/cart" }, { label: "Checkout" }]} />
       <h1 className="mt-4 font-display text-[32px] leading-10 font-semibold text-ink">Checkout</h1>
-      <p className="mt-2 text-sm text-stone">Secure guest checkout with Stripe payment.</p>
+      <p className="mt-2 text-sm text-stone">Secure guest checkout with Cashfree payment.</p>
 
       {error && <p role="alert" className="mt-4 rounded-md bg-paper p-3 text-[13px] leading-[18px] text-error">{error}</p>}
 

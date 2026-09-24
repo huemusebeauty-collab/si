@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Headers, Param, Post } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, Headers, Param, Post, Req } from "@nestjs/common";
+import type { Request } from "express";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { PaymentService } from "./payment.service";
 import { InitiatePaymentDto } from "./dto/initiate-payment.dto";
@@ -27,6 +28,18 @@ export class PaymentController {
     @Headers("x-guest-checkout-token") guestCheckoutToken?: string,
   ) {
     return this.payments.verifyPayment(providerReference, guestCheckoutToken, user);
+  }
+
+  @Public()
+  @Post("webhook")
+  webhook(
+    @Req() req: Request & { rawBody?: Buffer },
+    @Headers("x-webhook-signature") signature?: string,
+    @Headers("x-webhook-timestamp") timestamp?: string,
+  ) {
+    const rawBody = req.rawBody?.toString("utf8");
+    if (!rawBody || !signature) throw new BadRequestException("Invalid payment webhook.");
+    return this.payments.processWebhook(rawBody, signature, timestamp);
   }
 
   @RequirePermission("orders", "edit")

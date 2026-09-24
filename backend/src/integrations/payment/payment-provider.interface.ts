@@ -46,7 +46,7 @@ export interface PaymentProvider {
   // HMAC-SHA256 over rawBody) — validated here, not in the generic
   // WebhookController, since the algorithm/header names are provider-
   // specific even though the *framework* around it (Sprint 5.7) is not.
-  verifyWebhookSignature(rawBody: string, signatureHeader: string): boolean;
+  verifyWebhookSignature(rawBody: string, signatureHeader: string, timestampHeader?: string): boolean;
 }
 
 export const PAYMENT_PROVIDER = Symbol("PAYMENT_PROVIDER");
