@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import axios, { type AxiosInstance } from "axios";
+import { createHmac } from "node:crypto";
 import type {
   InitiatePaymentInput,
   InitiatePaymentResult,
@@ -136,15 +137,10 @@ export class CashfreePaymentProvider implements PaymentProvider {
     };
   }
 
-  verifyWebhookSignature(rawBody: string, signatureHeader: string): boolean {
-    // Cashfree webhook signatures are calculated from timestamp + raw request body
-    // and encoded as base64. The generic interface currently supplies only one
-    // header, so signature verification is intentionally fail-closed here.
-    // Webhook handling must pass x-webhook-timestamp separately before enabling
-    // automated webhook fulfillment.
-    void rawBody;
-    void signatureHeader;
-    return false;
+  verifyWebhookSignature(rawBody: string, signatureHeader: string, timestampHeader?: string): boolean {
+    if (!this.secretKey || !signatureHeader || !timestampHeader) return false;
+    const expected = createHmac("sha256", this.secretKey).update(timestampHeader + rawBody).digest("base64");
+    return expected === signatureHeader;
   }
 
   private mapOrderStatus(status?: string): "pending" | "succeeded" | "failed" {
