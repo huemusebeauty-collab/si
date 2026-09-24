@@ -84,6 +84,10 @@ class EnvironmentVariables {
   @IsOptional()
   @IsString()
   CASHFREE_RETURN_URL?: string;
+
+  @IsOptional()
+  @IsString()
+  CASHFREE_NOTIFY_URL?: string;
 }
 
 export function validateEnv(config: Record<string, unknown>) {
