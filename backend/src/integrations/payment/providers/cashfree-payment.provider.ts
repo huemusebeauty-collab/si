@@ -92,6 +92,7 @@ export class CashfreePaymentProvider implements PaymentProvider {
         },
         order_meta: {
           return_url: `${this.returnUrl}?order_id={order_id}`,
+          notify_url: this.notifyUrl,
         },
       },
       { headers: this.getHeaders(input.idempotencyKey) },
