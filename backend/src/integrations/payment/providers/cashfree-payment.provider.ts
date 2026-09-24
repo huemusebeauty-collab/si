@@ -39,6 +39,7 @@ export class CashfreePaymentProvider implements PaymentProvider {
     this.secretKey = this.config.get<string>("payment.cashfree.secretKey");
     this.apiVersion = this.config.get<string>("payment.cashfree.apiVersion") ?? "2025-01-01";
     this.returnUrl = this.config.get<string>("payment.cashfree.returnUrl");
+    this.notifyUrl = this.config.get<string>("payment.cashfree.notifyUrl");
     this.environment = this.config.get<string>("payment.cashfree.environment") === "production" ? "production" : "sandbox";
 
     this.client = axios.create({
