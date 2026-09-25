@@ -68,7 +68,7 @@ export class AuthService {
   private async issueAccessToken(sub: string, email: string, role: string): Promise<string> {
     return this.jwt.signAsync(
       { sub, email, role },
-      { secret: this.config.get<string>("jwt.secret"), expiresIn: this.config.get<string>("jwt.accessTokenTtl") },
+      { secret: this.config.get<string>("jwt.secret"), expiresIn: this.config.get<any>("jwt.accessTokenTtl") },
     );
   }
 
