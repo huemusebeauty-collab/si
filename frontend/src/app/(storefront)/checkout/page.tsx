@@ -185,7 +185,11 @@ export default function CheckoutPage() {
       }
       if (!cashfree) throw new Error("Cashfree checkout could not be loaded.");
 
-      const mode = process.env.NEXT_PUBLIC_CASHFREE_ENVIRONMENT === "production" ? "production" : "sandbox";
+      const configuredEnvironment = process.env.NEXT_PUBLIC_CASHFREE_ENVIRONMENT;
+      if (process.env.NODE_ENV === "production" && configuredEnvironment !== "production") {
+        throw new Error("Secure payment is temporarily unavailable because the payment environment is not configured for production.");
+      }
+      const mode = configuredEnvironment === "production" ? "production" : "sandbox";
       await cashfree({ mode }).checkout({ paymentSessionId: payment.clientSecret });
 
       let syncResult: unknown = null;
