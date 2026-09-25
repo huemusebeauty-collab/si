@@ -23,11 +23,12 @@ function createMockRepo() {
 describe("CartService — business rules", () => {
   let service: CartService;
   let cartRepo: ReturnType<typeof createMockRepo>;
+  let lineItemRepo: ReturnType<typeof createMockRepo>;
   let productsService: { findVariantById: jest.Mock };
 
   beforeEach(async () => {
     cartRepo = createMockRepo();
-    const lineItemRepo = createMockRepo();
+    lineItemRepo = createMockRepo();
     productsService = { findVariantById: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -78,7 +79,79 @@ describe("CartService — business rules", () => {
 });
 
 
+
   it("rejects access to a cart when neither the session nor authenticated user owns it", async () => {
+    cartRepo.findOne.mockResolvedValue({ id: "c1", customerId: "owner-1", sessionId: "session-owner", lineItems: [] });
+
+    await expect(service.findById("c1", { userId: "attacker-1", sessionId: "session-attacker" }))
+      .rejects.toThrow("You do not have access to this cart.");
+  });
+
+  it("allows an authenticated customer to access their own cart without a guest session header", async () => {
+    cartRepo.findOne.mockResolvedValue({ id: "c1", customerId: "owner-1", sessionId: "session-owner", lineItems: [] });
+
+    await expect(service.findById("c1", { userId: "owner-1" })).resolves.toMatchObject({ id: "c1" });
+  });
+
+  it("requires both authenticated ownership and matching guest session for cart merge", async () => {
+    await expect(
+      service.mergeGuestCart("guest-session", "customer-1", { sessionId: "other-session", userId: "customer-1" }),
+    ).rejects.toThrow("Cart merge ownership could not be verified.");
+
+    await expect(
+      service.mergeGuestCart("guest-session", "customer-1", { sessionId: "guest-session", userId: "other-customer" }),
+    ).rejects.toThrow("Cart merge ownership could not be verified.");
+  });
+
+  it("rejects a guest-cart merge when the combined active quantity exceeds stock", async () => {
+    const guestCart = {
+      id: "guest-cart",
+      sessionId: "guest-session",
+      lineItems: [{ id: "guest-line", variantId: "v1", quantity: 2, savedForLater: false }],
+    };
+    const customerCart = {
+      id: "customer-cart",
+      customerId: "customer-1",
+      lineItems: [{ id: "customer-line", variantId: "v1", quantity: 3, savedForLater: false }],
+    };
+    cartRepo.findOne
+      .mockResolvedValueOnce(guestCart)
+      .mockResolvedValueOnce(customerCart);
+    productsService.findVariantById.mockResolvedValue({ id: "v1", name: "Muse Rose", stockQuantity: 4 });
+
+    await expect(
+      service.mergeGuestCart("guest-session", "customer-1", { sessionId: "guest-session", userId: "customer-1" }),
+    ).rejects.toThrow(DomainException);
+
+    expect(lineItemRepo.save).not.toHaveBeenCalled();
+    expect(cartRepo.delete).not.toHaveBeenCalled();
+  });
+
+  it("merges a guest cart when the combined active quantity is within stock", async () => {
+    const guestCart = {
+      id: "guest-cart",
+      sessionId: "guest-session",
+      lineItems: [{ id: "guest-line", variantId: "v1", quantity: 2, savedForLater: false }],
+    };
+    const customerCart = {
+      id: "customer-cart",
+      customerId: "customer-1",
+      lineItems: [{ id: "customer-line", variantId: "v1", quantity: 3, savedForLater: false }],
+    };
+    cartRepo.findOne
+      .mockResolvedValueOnce(guestCart)
+      .mockResolvedValueOnce(customerCart)
+      .mockResolvedValueOnce({ ...customerCart, lineItems: [{ ...customerCart.lineItems[0], quantity: 5 }] });
+    productsService.findVariantById.mockResolvedValue({ id: "v1", name: "Muse Rose", stockQuantity: 10 });
+
+    await expect(
+      service.mergeGuestCart("guest-session", "customer-1", { sessionId: "guest-session", userId: "customer-1" }),
+    ).resolves.toMatchObject({ id: "customer-cart" });
+
+    expect(lineItemRepo.save).toHaveBeenCalledWith(expect.objectContaining({ id: "customer-line", quantity: 5 }));
+    expect(cartRepo.delete).toHaveBeenCalledWith("guest-cart");
+  });
+ nor authenticated user owns it", async () => {
     cartRepo.findOne.mockResolvedValue({ id: "c1", customerId: "owner-1", sessionId: "session-owner", lineItems: [] });
 
     await expect(service.findById("c1", { userId: "attacker-1", sessionId: "session-attacker" }))
