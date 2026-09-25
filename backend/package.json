@@ -78,5 +78,10 @@
     "ts-jest": "^29.2.0",
     "typescript": "^5.5.0",
     "@types/multer": "^1.4.0"
+  },
+  "overrides": {
+    "tar": "^7.5.22",
+    "qs": "^6.16.0",
+    "file-type": "21.3.4"
   }
 }
