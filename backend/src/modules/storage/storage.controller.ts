@@ -75,6 +75,8 @@ export class StorageController {
     const object = await this.storage.getObject(`${category}/${id}`, range);
     response.status(object.statusCode);
     response.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    response.setHeader("Content-Length", String(object.contentLength ?? object.body.length));
+    response.setHeader("Content-Disposition", "inline");
     if (type === "video") {
       // Keep byte-range support independent of whether legacy objects have
       // trustworthy Content-Type metadata.
