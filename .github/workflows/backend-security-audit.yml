@@ -1,0 +1,53 @@
+name: backend-security-audit
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package.json
+
+      - name: Install dependencies and create lockfile
+        run: npm install --include=dev --legacy-peer-deps
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --json > npm-audit-production.json || true
+
+      - name: Audit all dependencies
+        run: npm audit --json > npm-audit-all.json || true
+
+      - name: Print audit summary
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          for (const file of ['npm-audit-production.json', 'npm-audit-all.json']) {
+            const r = JSON.parse(fs.readFileSync(file, 'utf8'));
+            console.log(file, JSON.stringify(r.metadata?.vulnerabilities ?? {}, null, 2));
+            for (const [name, item] of Object.entries(r.vulnerabilities ?? {})) {
+              console.log(name, item.severity, item.isDirect ? 'direct' : 'transitive', item.range, item.fixAvailable);
+            }
+          }
+          NODE
+
+      - name: Upload audit reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-security-audit
+          path: |
+            backend/npm-audit-production.json
+            backend/npm-audit-all.json
