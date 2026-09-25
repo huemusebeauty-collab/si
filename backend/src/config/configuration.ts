@@ -45,11 +45,6 @@ export default () => ({
   },
 
   payment: {
-    provider: process.env.PAYMENT_PROVIDER ?? "mock",
-    stripe: {
-      secretKey: process.env.STRIPE_SECRET_KEY,
-      webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
-    },
     cashfree: {
       appId: process.env.CASHFREE_APP_ID,
       secretKey: process.env.CASHFREE_SECRET_KEY,
