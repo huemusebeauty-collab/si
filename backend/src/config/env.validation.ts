@@ -7,12 +7,6 @@ enum Environment {
   Production = "production",
 }
 
-enum PaymentProvider {
-  Mock = "mock",
-  Stripe = "stripe",
-  Cashfree = "cashfree",
-}
-
 class EnvironmentVariables {
   @IsEnum(Environment)
   NODE_ENV!: Environment;
@@ -52,18 +46,6 @@ class EnvironmentVariables {
   @IsOptional()
   @IsString()
   STORAGE_PUBLIC_BASE_URL?: string;
-
-  @IsOptional()
-  @IsEnum(PaymentProvider)
-  PAYMENT_PROVIDER?: PaymentProvider;
-
-  @IsOptional()
-  @IsString()
-  STRIPE_SECRET_KEY?: string;
-
-  @IsOptional()
-  @IsString()
-  STRIPE_WEBHOOK_SECRET?: string;
 
   @IsOptional()
   @IsString()
@@ -109,39 +91,20 @@ export function validateEnv(config: Record<string, unknown>) {
     }
   }
 
-  const provider = config.PAYMENT_PROVIDER ?? "mock";
-
-  // Production must explicitly declare the payment provider. Never silently
-  // fall back to the mock provider because a deployment variable is missing.
-  if (config.NODE_ENV === Environment.Production && typeof config.PAYMENT_PROVIDER !== "string") {
-    throw new Error("Invalid environment configuration: PAYMENT_PROVIDER must be explicitly set in production.");
+  if (typeof config.CASHFREE_APP_ID !== "string" || !config.CASHFREE_APP_ID) {
+    throw new Error("Invalid environment configuration: CASHFREE_APP_ID is required.");
   }
-
-  if (provider === "cashfree") {
-    if (typeof config.CASHFREE_APP_ID !== "string" || !config.CASHFREE_APP_ID) {
-      throw new Error("Invalid environment configuration: CASHFREE_APP_ID is required when PAYMENT_PROVIDER=cashfree.");
-    }
-    if (typeof config.CASHFREE_SECRET_KEY !== "string" || !config.CASHFREE_SECRET_KEY) {
-      throw new Error("Invalid environment configuration: CASHFREE_SECRET_KEY is required when PAYMENT_PROVIDER=cashfree.");
-    }
-    if (config.NODE_ENV === Environment.Production && config.CASHFREE_ENVIRONMENT !== "production") {
-      throw new Error("Invalid environment configuration: CASHFREE_ENVIRONMENT=production is required for production Cashfree payments.");
-    }
-    if (typeof config.CASHFREE_RETURN_URL !== "string" || !config.CASHFREE_RETURN_URL) {
-      throw new Error("Invalid environment configuration: CASHFREE_RETURN_URL is required when PAYMENT_PROVIDER=cashfree.");
-    }
-    if (typeof config.CASHFREE_NOTIFY_URL !== "string" || !config.CASHFREE_NOTIFY_URL) {
-      throw new Error("Invalid environment configuration: CASHFREE_NOTIFY_URL is required when PAYMENT_PROVIDER=cashfree.");
-    }
+  if (typeof config.CASHFREE_SECRET_KEY !== "string" || !config.CASHFREE_SECRET_KEY) {
+    throw new Error("Invalid environment configuration: CASHFREE_SECRET_KEY is required.");
   }
-
-  if (provider === "stripe") {
-    if (typeof config.STRIPE_SECRET_KEY !== "string" || !config.STRIPE_SECRET_KEY) {
-      throw new Error("Invalid environment configuration: STRIPE_SECRET_KEY is required when PAYMENT_PROVIDER=stripe.");
-    }
-    if (typeof config.STRIPE_WEBHOOK_SECRET !== "string" || !config.STRIPE_WEBHOOK_SECRET) {
-      throw new Error("Invalid environment configuration: STRIPE_WEBHOOK_SECRET is required when PAYMENT_PROVIDER=stripe.");
-    }
+  if (typeof config.CASHFREE_RETURN_URL !== "string" || !config.CASHFREE_RETURN_URL) {
+    throw new Error("Invalid environment configuration: CASHFREE_RETURN_URL is required.");
+  }
+  if (typeof config.CASHFREE_NOTIFY_URL !== "string" || !config.CASHFREE_NOTIFY_URL) {
+    throw new Error("Invalid environment configuration: CASHFREE_NOTIFY_URL is required.");
+  }
+  if (config.NODE_ENV === Environment.Production && config.CASHFREE_ENVIRONMENT !== "production") {
+    throw new Error("Invalid environment configuration: CASHFREE_ENVIRONMENT=production is required for production Cashfree payments.");
   }
 
   return validated;
