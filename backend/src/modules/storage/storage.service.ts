@@ -3,7 +3,6 @@ import { ConfigService } from "@nestjs/config";
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { randomUUID } from "crypto";
-import type { Readable } from "node:stream";
 import { SettingsService } from "@/admin/settings/settings.service";
 
 const SIGNED_URL_TTL_SECONDS = 15 * 60; // Sprint 5.6 — signed URLs expire in 15 minutes
@@ -86,7 +85,7 @@ export class StorageService {
   }
 
   async getObject(key: string, range?: string): Promise<{
-    body: Readable;
+    body: Buffer;
     contentType: string;
     contentLength?: number;
     contentRange?: string;
@@ -101,10 +100,15 @@ export class StorageService {
         }),
       );
       if (!result.Body) throw new NotFoundException("Media object not found.");
+      // Materialize the SDK response before handing it to Nest. This avoids
+      // late stream errors from the S3/R2 body escaping the controller after
+      // the HTTP response has already started.
+      const bytes = await result.Body.transformToByteArray();
+      const body = Buffer.from(bytes);
       return {
-        body: result.Body as Readable,
+        body,
         contentType: result.ContentType ?? "application/octet-stream",
-        contentLength: result.ContentLength,
+        contentLength: body.length,
         contentRange: result.ContentRange,
         statusCode: range ? 206 : 200,
       };
