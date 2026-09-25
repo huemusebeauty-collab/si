@@ -55,6 +55,23 @@ describe("PaymentService reliability", () => {
     expect(provider.initiatePayment).toHaveBeenCalledWith(expect.objectContaining({ amount: 1499, currency: "INR", orderId: "o1" }));
   });
 
+  it("uses the stable order UUID for provider idempotency across checkout retries", async () => {
+    orders.getOrder.mockResolvedValue({ id: "8f3f2f3d-4a6f-4d6f-9b17-5d2c6f4a9e11", status: "pending_payment", total: "250.00", currency: "INR" });
+    provider.initiatePayment.mockResolvedValue({ providerReference: "cf_order_1", status: "pending", clientSecret: "session_1" });
+
+    await service.initiatePayment("8f3f2f3d-4a6f-4d6f-9b17-5d2c6f4a9e11", 250, "INR", "checkout-retry-1");
+    await service.initiatePayment("8f3f2f3d-4a6f-4d6f-9b17-5d2c6f4a9e11", 250, "INR", "checkout-retry-2");
+
+    expect(provider.initiatePayment).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      orderId: "8f3f2f3d-4a6f-4d6f-9b17-5d2c6f4a9e11",
+      idempotencyKey: "8f3f2f3d-4a6f-4d6f-9b17-5d2c6f4a9e11",
+    }));
+    expect(provider.initiatePayment).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      orderId: "8f3f2f3d-4a6f-4d6f-9b17-5d2c6f4a9e11",
+      idempotencyKey: "8f3f2f3d-4a6f-4d6f-9b17-5d2c6f4a9e11",
+    }));
+  });
+
   it("confirms the order only when payment initiation succeeds", async () => {
     orders.getOrder.mockResolvedValue({ id: "o1", status: "pending_payment", total: "100.00", currency: "INR" });
     provider.initiatePayment.mockResolvedValue({ providerReference: "pi_ok", status: "succeeded" });
