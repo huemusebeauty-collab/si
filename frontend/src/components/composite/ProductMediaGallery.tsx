@@ -5,7 +5,7 @@ import type { Product } from "@/types/product";
 import { ProductSwatchImage } from "@/components/composite/ProductSwatchImage";
 
 function isVideo(url: string): boolean {
-  return /\.(mp4|webm|mov)(?:\?.*)?$/i.test(url);
+  return /(?:[?&]type=video(?:&|$))|\.(mp4|webm|mov)(?:[?#].*)?$/i.test(url);
 }
 
 export function ProductMediaGallery({ product, selectedImageUrl }: { product: Product; selectedImageUrl?: string }) {

@@ -1,12 +1,20 @@
-import { Controller, Post, UploadedFile, UseInterceptors } from "@nestjs/common";
+import { BadRequestException, Controller, Get, Param, Post, Query, Req, Res, StreamableFile, UploadedFile, UseInterceptors } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { ApiBearerAuth, ApiConsumes, ApiTags } from "@nestjs/swagger";
-import { StorageService } from "./storage.service";
+import type { Request, Response } from "express";
+import { StorageService, type UploadCategory } from "./storage.service";
 import { Roles } from "@/common/decorators/roles.decorator";
+import { Public } from "@/common/decorators/public.decorator";
 
-// Sprint 3.8 — admin media upload endpoint (Phase 16 §16.14: "Admin
-// media uploads validated for type/size ... before being made publicly
-// accessible").
+const MEDIA_CATEGORIES: UploadCategory[] = ["product-media", "cms-assets", "review-media"];
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+// Storage endpoints: uploads require admin auth; public media reads are
+// streamed through the backend using server-side S3 credentials. This avoids
+// exposing private bucket URLs and prevents saved product media from expiring.
 @ApiTags("storage")
 @ApiBearerAuth()
 @Controller({ path: "storage", version: "1" })
@@ -17,7 +25,44 @@ export class StorageController {
   @ApiConsumes("multipart/form-data")
   @Post("upload")
   @UseInterceptors(FileInterceptor("file"))
-  upload(@UploadedFile() file: Express.Multer.File) {
-    return this.storage.upload(file);
+  async upload(@UploadedFile() file: Express.Multer.File, @Req() request: Request) {
+    const result = await this.storage.upload(file);
+    const [category, id] = result.key.split("/");
+    const protocol = String(request.headers["x-forwarded-proto"] ?? request.protocol).split(",")[0].trim();
+    const host = request.get("host");
+    const type = result.contentType.startsWith("video/") ? "video" : "image";
+
+    if (!category || !id || !host) {
+      throw new BadRequestException("Unable to construct media URL.");
+    }
+
+    return {
+      ...result,
+      url: `${protocol}://${host}/v1/storage/media/${encodeURIComponent(category)}/${encodeURIComponent(id)}?type=${type}`,
+    };
+  }
+
+  @Public()
+  @Get("media/:category/:id")
+  async readMedia(
+    @Param("category") category: string,
+    @Param("id") id: string,
+    @Query("type") type: string | undefined,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<StreamableFile> {
+    if (!MEDIA_CATEGORIES.includes(category as UploadCategory) || !isUuid(id)) {
+      throw new BadRequestException("Invalid media reference.");
+    }
+
+    const object = await this.storage.getObject(`${category}/${id}`);
+    response.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    if (type === "video" && object.contentType.startsWith("video/")) {
+      response.setHeader("Accept-Ranges", "bytes");
+    }
+
+    return new StreamableFile(object.body, {
+      type: object.contentType,
+      length: object.contentLength,
+    });
   }
 }

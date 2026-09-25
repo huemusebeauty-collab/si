@@ -37,7 +37,7 @@ function EditProductContent() {
         description: p.description ?? "", shortDescription: p.content?.shortDescription ?? "", ingredients: p.content?.ingredients ?? "",
 
       });
-      setMediaItems(p.mediaUrls.map((url) => ({ url, type: /\.(mp4|webm|mov)(?:[?#].*)?$/i.test(url) ? "video" : "image" })));
+      setMediaItems(p.mediaUrls.map((url) => ({ url, type: /(?:[?&]type=video(?:&|$))|\.(mp4|webm|mov)(?:[?#].*)?$/i.test(url) ? "video" : "image" })));
       setVariants(p.variants.map(item => ({
         id: item.id, sku: item.sku, name: item.name, hexColor: item.hexColor ?? "", stock: String(item.stockQuantity), mrp: item.mrp ?? "",
       })));
