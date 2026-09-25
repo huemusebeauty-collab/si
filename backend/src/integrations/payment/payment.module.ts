@@ -1,9 +1,7 @@
 import { Module } from "@nestjs/common";
-import { ConfigModule, ConfigService } from "@nestjs/config";
+import { ConfigModule } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { PAYMENT_PROVIDER } from "./payment-provider.interface";
-import { MockPaymentProvider } from "./providers/mock-payment.provider";
-import { StripePaymentProvider } from "./providers/stripe-payment.provider";
 import { CashfreePaymentProvider } from "./providers/cashfree-payment.provider";
 import { IdempotencyKeyEntity } from "./entities/idempotency-key.entity";
 import { PaymentTransactionEntity } from "./entities/payment-transaction.entity";
@@ -24,18 +22,10 @@ import { DatabaseModule } from "@/database/database.module";
   ],
   controllers: [PaymentController],
   providers: [
-    MockPaymentProvider,
-    StripePaymentProvider,
     CashfreePaymentProvider,
     {
       provide: PAYMENT_PROVIDER,
-      inject: [ConfigService, MockPaymentProvider, StripePaymentProvider, CashfreePaymentProvider],
-      useFactory: (config: ConfigService, mock: MockPaymentProvider, stripe: StripePaymentProvider, cashfree: CashfreePaymentProvider) => {
-        const selected = config.get<string>("payment.provider");
-        if (selected === "stripe") return stripe;
-        if (selected === "cashfree") return cashfree;
-        return mock;
-      },
+      useExisting: CashfreePaymentProvider,
     },
     IdempotencyService,
     PaymentService,
