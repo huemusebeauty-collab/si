@@ -66,10 +66,12 @@ export class StorageService {
   async upload(
     file: { buffer: Buffer; mimetype: string; size: number; originalname: string },
     category: UploadCategory = "product-media",
-  ): Promise<{ key: string; url: string }> {
+  ): Promise<{ key: string; url: string; originalName: string; contentType: string }> {
     await this.validate(file);
-    const extension = file.originalname.split(".").pop();
-    const key = `${category}/${randomUUID()}.${extension}`;
+    // Storage keys are intentionally independent of the original filename.
+    // This accepts any user filename (spaces, capitals, brackets, Unicode, etc.)
+    // without making it part of a path or relying on its extension for type detection.
+    const key = `${category}/${randomUUID()}`;
 
     await this.client.send(
       new PutObjectCommand({
@@ -82,14 +84,19 @@ export class StorageService {
 
     if (this.publicBaseUrl) {
       const baseUrl = this.publicBaseUrl.replace(/\/+$/, "");
-      return { key, url: baseUrl + "/" + key };
+      return { key, url: baseUrl + "/" + key, originalName: file.originalname, contentType: file.mimetype };
     }
 
     if (this.config.get<string>("env") === "production") {
       throw new InternalServerErrorException("Storage public base URL is not configured.");
     }
 
-    return { key, url: this.config.get<string>("storage.endpoint") + "/" + this.bucket + "/" + key };
+    return {
+      key,
+      url: this.config.get<string>("storage.endpoint") + "/" + this.bucket + "/" + key,
+      originalName: file.originalname,
+      contentType: file.mimetype,
+    };
   }
 
   // Sprint 5.6 — Signed URLs: time-limited read access to an object,
