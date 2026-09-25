@@ -19,7 +19,7 @@ import { CustomersModule } from "@/modules/customers/customers.module";
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         secret: config.get<string>("jwt.secret"),
-        signOptions: { expiresIn: config.get<string>("jwt.accessTokenTtl") },
+        signOptions: { expiresIn: config.get<any>("jwt.accessTokenTtl") },
       }),
     }),
   ],
