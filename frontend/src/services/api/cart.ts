@@ -148,6 +148,7 @@ export async function createOrder(shippingAddress: Record<string, string>, idemp
   if (!cartId || !sessionId) throw new Error("Your cart session could not be found. Please return to cart and try again.");
   return request<ApiOrder>("/orders", {
     method: "POST",
+    headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
     body: JSON.stringify({
       customerId: sessionId,
       cartId,
