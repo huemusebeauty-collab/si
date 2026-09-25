@@ -256,11 +256,11 @@ export default function CheckoutPage() {
 
         <form onSubmit={confirmPayment} className="mt-8 max-w-2xl rounded-md bg-white p-6 shadow-rest">
           <h2 className="font-display text-xl font-semibold text-ink">Payment details</h2>
-          <p className="mt-5 text-sm text-stone">Cashfree secure checkout supports UPI, cards, net banking and other available payment methods.</p>
+          <p className="mt-5 text-sm text-stone">Choose your preferred payment method to complete your order securely.</p>
           <Button type="submit" variant="primary" fullWidth className="mt-6" disabled={paying}>
-            {paying ? "Opening secure payment…" : "Pay securely with Cashfree"}
+            {paying ? "Opening payment…" : "Pay now"}
           </Button>
-          <p className="mt-3 text-center text-xs text-stone">Payments are processed securely by Cashfree. Your payment details are not stored by Silku.</p>
+          <p className="mt-3 text-center text-xs text-stone">Your payment is processed securely. Your payment details are not stored by Silku.</p>
         </form>
       </div>
     );
@@ -270,7 +270,7 @@ export default function CheckoutPage() {
     <div className="py-6">
       <Breadcrumb items={[{ label: "Home", href: "/" }, { label: "Cart", href: "/cart" }, { label: "Checkout" }]} />
       <h1 className="mt-4 font-display text-[32px] leading-10 font-semibold text-ink">Checkout</h1>
-      <p className="mt-2 text-sm text-stone">Secure guest checkout with Cashfree payment.</p>
+      <p className="mt-2 text-sm text-stone">Secure guest checkout.</p>
 
       {error && <p role="alert" className="mt-4 rounded-md bg-paper p-3 text-[13px] leading-[18px] text-error">{error}</p>}
 
