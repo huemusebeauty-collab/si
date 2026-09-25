@@ -8,8 +8,11 @@ import { Public } from "@/common/decorators/public.decorator";
 
 const MEDIA_CATEGORIES: UploadCategory[] = ["product-media", "cms-assets", "review-media"];
 
-function isUuid(value: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+function isMediaObjectId(value: string): boolean {
+  // Supports both current UUID-only keys and legacy UUID.extension keys.
+  // The extension is tightly bounded so this route cannot become an
+  // arbitrary S3 key/path traversal surface.
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}(?:\.[a-z0-9]{1,12})?$/i.test(value);
 }
 
 // Storage endpoints: uploads require admin auth; public media reads are
@@ -51,7 +54,7 @@ export class StorageController {
     @Headers("range") range: string | undefined,
     @Res({ passthrough: true }) response: Response,
   ): Promise<StreamableFile> {
-    if (!MEDIA_CATEGORIES.includes(category as UploadCategory) || !isUuid(id)) {
+    if (!MEDIA_CATEGORIES.includes(category as UploadCategory) || !isMediaObjectId(id)) {
       throw new BadRequestException("Invalid media reference.");
     }
 
