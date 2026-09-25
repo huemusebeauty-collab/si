@@ -7,6 +7,26 @@ import { SettingsService } from "@/admin/settings/settings.service";
 
 const SIGNED_URL_TTL_SECONDS = 15 * 60; // Sprint 5.6 — signed URLs expire in 15 minutes
 
+function sniffMediaContentType(body: Buffer): string | undefined {
+  if (body.length >= 3 && body[0] === 0xff && body[1] === 0xd8 && body[2] === 0xff) return "image/jpeg";
+  if (
+    body.length >= 8 &&
+    body[0] === 0x89 && body[1] === 0x50 && body[2] === 0x4e && body[3] === 0x47 &&
+    body[4] === 0x0d && body[5] === 0x0a && body[6] === 0x1a && body[7] === 0x0a
+  ) return "image/png";
+  if (body.length >= 6 && body.subarray(0, 6).toString("ascii") === "GIF89a") return "image/gif";
+  if (body.length >= 6 && body.subarray(0, 6).toString("ascii") === "GIF87a") return "image/gif";
+  if (body.length >= 12 && body.subarray(0, 4).toString("ascii") === "RIFF" && body.subarray(8, 12).toString("ascii") === "WEBP") return "image/webp";
+  if (body.length >= 12 && body.subarray(4, 8).toString("ascii") === "ftyp") {
+    const brand = body.subarray(8, 12).toString("ascii");
+    if (brand === "avif" || brand === "avis") return "image/avif";
+    return "video/mp4";
+  }
+  if (body.length >= 4 && body.subarray(0, 4).toString("hex") === "1a45dfa3") return "video/webm";
+  if (body.length >= 4 && body.subarray(0, 4).toString("ascii") === "OggS") return "video/ogg";
+  return undefined;
+}
+
 export type UploadCategory = "product-media" | "cms-assets" | "review-media";
 
 // Sprint 3.8 — File Storage: S3-compatible object storage integration.
