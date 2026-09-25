@@ -57,16 +57,37 @@ export class PaymentService {
         () => this.provider.initiatePayment({ orderId, amount, currency, idempotencyKey: providerIdempotencyKey }),
       );
 
-      await this.transactionsRepo.save(
-        this.transactionsRepo.create({
-          orderId,
-          provider: this.provider.name,
-          providerReference: result.providerReference,
-          amount: amount.toFixed(2),
-          currency,
-          status: result.status,
-        }),
-      );
+      // The provider idempotency key is stable per order, so a retry after an
+      // ambiguous network/database response can legitimately return the same
+      // provider reference. Reuse the existing local transaction instead of
+      // attempting a duplicate insert on the unique providerReference index.
+      let transaction = await this.transactionsRepo.findOne({
+        where: { providerReference: result.providerReference },
+      });
+
+      if (transaction) {
+        if (
+          transaction.orderId !== orderId ||
+          transaction.provider !== this.provider.name ||
+          Math.abs(Number(transaction.amount) - amount) > 0.01 ||
+          transaction.currency !== currency
+        ) {
+          throw new BadRequestException("Payment provider returned a conflicting transaction reference.");
+        }
+        transaction.status = result.status;
+        await this.transactionsRepo.save(transaction);
+      } else {
+        transaction = await this.transactionsRepo.save(
+          this.transactionsRepo.create({
+            orderId,
+            provider: this.provider.name,
+            providerReference: result.providerReference,
+            amount: amount.toFixed(2),
+            currency,
+            status: result.status,
+          }),
+        );
+      }
 
       if (result.status === "succeeded") {
         await this.orders.confirmOrder(orderId, result.providerReference);
