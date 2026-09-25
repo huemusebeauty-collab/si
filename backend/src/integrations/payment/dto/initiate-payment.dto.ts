@@ -11,7 +11,7 @@ export class InitiatePaymentDto {
   @IsPositive()
   amount!: number;
 
-  @ApiProperty({ default: "USD" })
+  @ApiProperty({ default: "INR" })
   @IsString()
   currency!: string;
 
