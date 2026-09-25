@@ -1,6 +1,6 @@
 import { BadGatewayException, BadRequestException, Injectable, InternalServerErrorException, Logger, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, ListObjectsV2Command, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { randomUUID } from "crypto";
 import { SettingsService } from "@/admin/settings/settings.service";
@@ -97,6 +97,61 @@ export class StorageService {
       originalName: file.originalname,
       contentType: file.mimetype,
     };
+  }
+
+  async listMedia(category: UploadCategory = "product-media"): Promise<Array<{
+    key: string;
+    urlKey: string;
+    type: "image" | "video";
+    contentType: string;
+    size: number;
+    lastModified: string | null;
+  }>> {
+    const prefix = `${category}/`;
+    const listed: Array<{ key: string; size: number; lastModified: Date | undefined }> = [];
+    let continuationToken: string | undefined;
+
+    do {
+      const result = await this.client.send(
+        new ListObjectsV2Command({
+          Bucket: this.bucket,
+          Prefix: prefix,
+          MaxKeys: 100,
+          ContinuationToken: continuationToken,
+        }),
+      );
+      for (const item of result.Contents ?? []) {
+        if (!item.Key || item.Key === prefix) continue;
+        listed.push({ key: item.Key, size: item.Size ?? 0, lastModified: item.LastModified });
+      }
+      continuationToken = result.IsTruncated ? result.NextContinuationToken : undefined;
+    } while (continuationToken);
+
+    const media = await Promise.all(
+      listed.map(async (item) => {
+        try {
+          const head = await this.client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: item.key }));
+          const contentType = head.ContentType ?? "application/octet-stream";
+          const type = contentType.startsWith("video/") ? "video" as const : "image" as const;
+          return {
+            key: item.key,
+            urlKey: item.key.slice(prefix.length),
+            type,
+            contentType,
+            size: head.ContentLength ?? item.size,
+            lastModified: (head.LastModified ?? item.lastModified)?.toISOString() ?? null,
+          };
+        } catch (error) {
+          const name = error instanceof Error ? error.name : "UnknownError";
+          this.logger.warn({ key: item.key, errorName: name }, "Unable to read media metadata");
+          return null;
+        }
+      }),
+    );
+
+    return media
+      .filter((item): item is NonNullable<typeof item> => item !== null)
+      .sort((a, b) => (b.lastModified ?? "").localeCompare(a.lastModified ?? ""));
   }
 
   async getObject(key: string, range?: string): Promise<{

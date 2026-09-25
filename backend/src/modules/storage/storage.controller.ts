@@ -39,6 +39,26 @@ export class StorageController {
     };
   }
 
+  @Roles("admin")
+  @Get("media/library")
+  async listMedia(@Query("category") category: string = "product-media", @Req() request: Request) {
+    if (!MEDIA_CATEGORIES.includes(category as UploadCategory)) {
+      throw new BadRequestException("Invalid media category.");
+    }
+
+    const items = await this.storage.listMedia(category as UploadCategory);
+    const protocol = String(request.headers["x-forwarded-proto"] ?? request.protocol).split(",")[0].trim();
+    const host = request.get("host");
+    if (!host) throw new BadRequestException("Unable to construct media URL.");
+
+    return {
+      items: items.map((item) => ({
+        ...item,
+        url: `${protocol}://${host}/v1/storage/media/${encodeURIComponent(category)}/${encodeURIComponent(item.urlKey)}?type=${item.type}`,
+      })),
+    };
+  }
+
   @Public()
   @Get("media/:category/:id")
   async readMedia(
