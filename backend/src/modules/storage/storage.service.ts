@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from "@nestjs/common";
+import { BadGatewayException, BadRequestException, Injectable, InternalServerErrorException, Logger, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -16,6 +16,7 @@ export type UploadCategory = "product-media" | "cms-assets" | "review-media";
 @Injectable()
 export class StorageService {
   private readonly client: S3Client;
+  private readonly logger = new Logger(StorageService.name);
   private readonly bucket: string;
   private readonly publicBaseUrl?: string;
 
@@ -84,22 +85,41 @@ export class StorageService {
     };
   }
 
-  async getObject(key: string): Promise<{
+  async getObject(key: string, range?: string): Promise<{
     body: Readable;
     contentType: string;
     contentLength?: number;
+    contentRange?: string;
+    statusCode: number;
   }> {
     try {
-      const result = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
+      const result = await this.client.send(
+        new GetObjectCommand({
+          Bucket: this.bucket,
+          Key: key,
+          ...(range ? { Range: range } : {}),
+        }),
+      );
       if (!result.Body) throw new NotFoundException("Media object not found.");
       return {
         body: result.Body as Readable,
         contentType: result.ContentType ?? "application/octet-stream",
         contentLength: result.ContentLength,
+        contentRange: result.ContentRange,
+        statusCode: range ? 206 : 200,
       };
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
-      throw new NotFoundException("Media object not found.");
+      const status = (error as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode;
+      const name = error instanceof Error ? error.name : "UnknownError";
+      this.logger.error({ key, range: Boolean(range), errorName: name, status }, "Storage media read failed");
+      if (status === 404 || name === "NoSuchKey" || name === "NotFound") {
+        throw new NotFoundException("Media object not found.");
+      }
+      if (status === 416) {
+        throw new BadRequestException("Requested media range is not satisfiable.");
+      }
+      throw new BadGatewayException("Media storage is unavailable.");
     }
   }
 

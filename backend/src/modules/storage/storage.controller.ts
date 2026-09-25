@@ -1,4 +1,4 @@
-import { BadRequestException, Controller, Get, Param, Post, Query, Req, Res, StreamableFile, UploadedFile, UseInterceptors } from "@nestjs/common";
+import { BadRequestException, Controller, Get, Headers, Param, Post, Query, Req, Res, StreamableFile, UploadedFile, UseInterceptors } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { ApiBearerAuth, ApiConsumes, ApiTags } from "@nestjs/swagger";
 import type { Request, Response } from "express";
@@ -8,8 +8,11 @@ import { Public } from "@/common/decorators/public.decorator";
 
 const MEDIA_CATEGORIES: UploadCategory[] = ["product-media", "cms-assets", "review-media"];
 
-function isUuid(value: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+function isMediaObjectId(value: string): boolean {
+  // Supports both current UUID-only keys and legacy UUID.extension keys.
+  // The extension is tightly bounded so this route cannot become an
+  // arbitrary S3 key/path traversal surface.
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}(?:\.[a-z0-9]{1,12})?$/i.test(value);
 }
 
 // Storage endpoints: uploads require admin auth; public media reads are
@@ -48,16 +51,19 @@ export class StorageController {
     @Param("category") category: string,
     @Param("id") id: string,
     @Query("type") type: string | undefined,
+    @Headers("range") range: string | undefined,
     @Res({ passthrough: true }) response: Response,
   ): Promise<StreamableFile> {
-    if (!MEDIA_CATEGORIES.includes(category as UploadCategory) || !isUuid(id)) {
+    if (!MEDIA_CATEGORIES.includes(category as UploadCategory) || !isMediaObjectId(id)) {
       throw new BadRequestException("Invalid media reference.");
     }
 
-    const object = await this.storage.getObject(`${category}/${id}`);
+    const object = await this.storage.getObject(`${category}/${id}`, range);
+    response.status(object.statusCode);
     response.setHeader("Cache-Control", "public, max-age=31536000, immutable");
     if (type === "video" && object.contentType.startsWith("video/")) {
       response.setHeader("Accept-Ranges", "bytes");
+      if (object.contentRange) response.setHeader("Content-Range", object.contentRange);
     }
 
     return new StreamableFile(object.body, {
