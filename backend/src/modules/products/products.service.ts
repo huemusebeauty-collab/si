@@ -299,12 +299,22 @@ export class ProductsService {
 
   async findVariantById(variantId: string, manager?: EntityManager): Promise<ProductVariantEntity> {
     const repo = manager ? manager.getRepository(ProductVariantEntity) : this.variants;
+
+    // PostgreSQL rejects FOR UPDATE when TypeORM builds a LEFT JOIN for the
+    // related product. During checkout we need the variant row locked, not a
+    // joined nullable relation. Load the locked variant first, then hydrate
+    // its product separately.
     const variant = await repo.findOne({
       where: { id: variantId },
-      relations: ["product"],
       ...(manager ? { lock: { mode: "pessimistic_write" as const } } : {}),
     });
     if (!variant) throw new NotFoundException("Variant not found.");
+
+    const productRepo = manager ? manager.getRepository(ProductEntity) : this.products;
+    const product = await productRepo.findOne({ where: { id: variant.productId } });
+    if (!product) throw new NotFoundException("Product not found.");
+    variant.product = product;
+
     return variant;
   }
 
