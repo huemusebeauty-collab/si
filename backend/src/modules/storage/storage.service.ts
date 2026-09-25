@@ -71,11 +71,6 @@ export class StorageService {
     category: UploadCategory = "product-media",
   ): Promise<{ key: string; url: string; originalName: string; contentType: string }> {
     await this.validate(file);
-
-    // Storage keys are independent of the original filename. This keeps
-    // spaces, capitals, brackets, Unicode and other filename characters
-    // completely out of the object key while preserving the original name
-    // in the API response for display/audit purposes.
     const key = `${category}/${randomUUID()}`;
 
     await this.client.send(
@@ -120,14 +115,16 @@ export class StorageService {
         }),
       );
       if (!result.Body) throw new NotFoundException("Media object not found.");
-      // Materialize the SDK response before handing it to Nest. This avoids
-      // late stream errors from the S3/R2 body escaping the controller after
-      // the HTTP response has already started.
       const bytes = await result.Body.transformToByteArray();
       const body = Buffer.from(bytes);
+      // Existing objects can have generic/incorrect storage MIME metadata.
+      // Prefer the media type proven by the bytes; provider metadata remains
+      // the fallback when a partial range cannot be identified.
+      const detectedContentType = sniffMediaContentType(body);
+      const contentType = detectedContentType ?? result.ContentType ?? "application/octet-stream";
       return {
         body,
-        contentType: result.ContentType ?? "application/octet-stream",
+        contentType,
         contentLength: body.length,
         contentRange: result.ContentRange,
         statusCode: range ? 206 : 200,

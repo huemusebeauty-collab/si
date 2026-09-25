@@ -9,15 +9,9 @@ import { Public } from "@/common/decorators/public.decorator";
 const MEDIA_CATEGORIES: UploadCategory[] = ["product-media", "cms-assets", "review-media"];
 
 function isMediaObjectId(value: string): boolean {
-  // Supports both current UUID-only keys and legacy UUID.extension keys.
-  // The extension is tightly bounded so this route cannot become an
-  // arbitrary S3 key/path traversal surface.
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}(?:\.[a-z0-9]{1,12})?$/i.test(value);
 }
 
-// Storage endpoints: uploads require admin auth; public media reads are
-// streamed through the backend using server-side S3 credentials. This avoids
-// exposing private bucket URLs and prevents saved product media from expiring.
 @ApiTags("storage")
 @ApiBearerAuth()
 @Controller({ path: "storage", version: "1" })
@@ -61,7 +55,9 @@ export class StorageController {
     const object = await this.storage.getObject(`${category}/${id}`, range);
     response.status(object.statusCode);
     response.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-    if (type === "video" && object.contentType.startsWith("video/")) {
+    if (type === "video") {
+      // Keep byte-range support independent of whether legacy objects have
+      // trustworthy Content-Type metadata.
       response.setHeader("Accept-Ranges", "bytes");
       if (object.contentRange) response.setHeader("Content-Range", object.contentRange);
     }
