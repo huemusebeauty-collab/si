@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { ProductsService } from "./products.service";
 import { ProductTaxService } from "./product-tax.service";
@@ -10,6 +10,11 @@ import { CreateVariantDto } from "./dto/create-variant.dto";
 import { CreateProductDto, SetInventoryStockDto, UpdateProductTaxDto } from "./dto/create-product.dto";
 import { RequirePermission } from "@/admin/common/require-permission.decorator";
 import { CategoriesService } from "@/modules/categories/categories.service";
+import type { Request } from "express";
+
+const MEDIA_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}(?:\.[a-z0-9]{1,12})?$/i;
+const VIDEO_EXTENSIONS = new Set(["mp4", "webm", "mov", "m4v", "ogv"]);
+const MEDIA_CATEGORIES = new Set(["product-media", "cms-assets", "review-media"]);
 
 @ApiTags("products")
 @Controller({ path: "products", version: "1" })
@@ -23,7 +28,9 @@ export class ProductsController {
   @Public()
   @Cacheable({ ttlSeconds: 60, keyPrefix: "products-v3" })
   @Get()
-  list(@Query() query: ListProductsQueryDto) { return this.products.listProducts(query); }
+  list(@Query() query: ListProductsQueryDto, @Req() request: Request) {
+    return this.normalizePaginatedMedia(this.products.listProducts(query), request);
+  }
 
   @Public()
   @Get("availability/:sku")
@@ -31,7 +38,9 @@ export class ProductsController {
 
   @RequirePermission("products", "view")
   @Get("admin")
-  listAdmin(@Query() query: ListProductsQueryDto) { return this.products.listAdminProducts(query); }
+  listAdmin(@Query() query: ListProductsQueryDto, @Req() request: Request) {
+    return this.normalizePaginatedMedia(this.products.listAdminProducts(query), request);
+  }
 
   @RequirePermission("products", "edit")
   @Post("admin")
@@ -52,8 +61,8 @@ export class ProductsController {
 
   @RequirePermission("products", "view")
   @Get("admin/:productId")
-  getAdminProduct(@Param("productId") productId: string) {
-    return this.products.getAdminProduct(productId);
+  async getAdminProduct(@Param("productId") productId: string, @Req() request: Request) {
+    return this.normalizeProduct(await this.products.getAdminProduct(productId), request);
   }
 
   @RequirePermission("products", "edit")
@@ -98,11 +107,49 @@ export class ProductsController {
   @Public()
   @Cacheable({ ttlSeconds: 60, keyPrefix: "products-v3" })
   @Get(":slug")
-  getBySlug(@Param("slug") slug: string) { return this.products.getProduct(slug); }
+  async getBySlug(@Param("slug") slug: string, @Req() request: Request) {
+    return this.normalizeProduct(await this.products.getProduct(slug), request);
+  }
 
   @Public()
   @Get(":productId/variants/:variantId")
   getVariant(@Param("productId") productId: string, @Param("variantId") variantId: string) {
     return this.products.getVariant(productId, variantId);
   }
+
+  private async normalizePaginatedMedia<T extends { mediaUrls?: string[] }>(
+    resultPromise: Promise<{ items: T[]; meta: unknown }>,
+    request: Request,
+  ) {
+    const result = await resultPromise;
+    return { ...result, items: result.items.map((item) => this.normalizeProduct(item, request)) };
+  }
+
+  private normalizeProduct<T extends { mediaUrls?: string[] }>(product: T, request: Request): T {
+    if (!Array.isArray(product.mediaUrls) || product.mediaUrls.length === 0) return product;
+    return { ...product, mediaUrls: product.mediaUrls.map((url) => this.normalizeMediaUrl(url, request)) };
+  }
+
+  private normalizeMediaUrl(url: string, request: Request): string {
+    try {
+      const parsed = new URL(url);
+      const parts = parsed.pathname.split("/").filter(Boolean);
+      const categoryIndex = parts.findIndex((part) => MEDIA_CATEGORIES.has(part));
+      if (categoryIndex < 0 || categoryIndex !== parts.length - 2) return url;
+      const category = parts[categoryIndex];
+      const id = parts[categoryIndex + 1];
+      if (!MEDIA_ID_RE.test(id)) return url;
+      if (parsed.pathname.includes("/v1/storage/media/")) return url;
+
+      const extension = id.includes(".") ? id.split(".").pop()!.toLowerCase() : "";
+      const type = VIDEO_EXTENSIONS.has(extension) ? "video" : "image";
+      const protocol = String(request.headers["x-forwarded-proto"] ?? request.protocol).split(",")[0].trim();
+      const host = request.get("host");
+      if (!protocol || !host) return url;
+      return `${protocol}://${host}/v1/storage/media/${encodeURIComponent(category)}/${encodeURIComponent(id)}?type=${type}`;
+    } catch {
+      return url;
+    }
+  }
+
 }
