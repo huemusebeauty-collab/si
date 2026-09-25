@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { RequireAdminAuth } from "@/admin/components/RequireAdminAuth";
 import { AdminShell } from "@/admin/components/AdminShell";
 import { RoleGate } from "@/admin/components/RoleGate";
@@ -12,6 +12,14 @@ function MediaContent() {
   const [uploaded, setUploaded] = useState<{ key: string; url: string; type: "image" | "video" }[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    void adminApi.listMedia()
+      .then(({ items }) => setUploaded(items.map(({ key, url, type }) => ({ key, url, type }))))
+      .catch((err) => setError(err instanceof AdminApiError ? err.message : "Unable to load media library."))
+      .finally(() => setLoading(false));
+  }, []);
 
   async function handleUpload() {
     const files = Array.from(fileInput.current?.files ?? []);
