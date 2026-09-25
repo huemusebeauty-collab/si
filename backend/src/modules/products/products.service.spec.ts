@@ -11,7 +11,7 @@ import { CategoriesService } from "@/modules/categories/categories.service";
 import { TransactionService } from "@/database/transaction.service";
 
 function createMockRepo() {
-  return { findOne: jest.fn(), findOneOrFail: jest.fn(), save: jest.fn((e: unknown) => Promise.resolve(e)), create: jest.fn((e: unknown) => e) };
+  return { find: jest.fn(), findOne: jest.fn(), findOneOrFail: jest.fn(), save: jest.fn((e: unknown) => Promise.resolve(e)), create: jest.fn((e: unknown) => e) };
 }
 
 describe("ProductsService — stock adjustment", () => {
