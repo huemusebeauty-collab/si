@@ -17,7 +17,7 @@ export class CacheInvalidationService {
   private async collectKeys(store: Cache["stores"][number], keyPrefix: string): Promise<string[]> {
     const keys: string[] = [];
     if (!store.iterator) return keys;
-    for await (const key of store.iterator()) {
+    for await (const key of store.iterator(undefined)) {
       if (typeof key === "string" && key.startsWith(keyPrefix + ":")) keys.push(key);
     }
     return keys;
