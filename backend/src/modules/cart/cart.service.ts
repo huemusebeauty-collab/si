@@ -153,9 +153,23 @@ export class CartService {
     if (!customerCart) customerCart = await this.createCart({ customerId });
 
     if (guestCart) {
+      // A merge can combine quantities that were each valid independently.
+      // Validate the combined active quantity before mutating either cart.
+      const activeQuantities = new Map<string, number>();
+      for (const item of customerCart.lineItems.filter((li) => !li.savedForLater)) {
+        activeQuantities.set(item.variantId, (activeQuantities.get(item.variantId) ?? 0) + item.quantity);
+      }
+      for (const item of guestCart.lineItems.filter((li) => !li.savedForLater)) {
+        activeQuantities.set(item.variantId, (activeQuantities.get(item.variantId) ?? 0) + item.quantity);
+      }
+
+      for (const [variantId, requestedQuantity] of activeQuantities) {
+        await this.assertStockAvailable(variantId, requestedQuantity);
+      }
+
       for (const item of guestCart.lineItems) {
         const existing = customerCart.lineItems.find((li) => li.variantId === item.variantId && !li.savedForLater);
-        if (existing) {
+        if (existing && !item.savedForLater) {
           existing.quantity += item.quantity;
           await this.lineItems.save(existing);
         } else {
