@@ -177,6 +177,17 @@ export class StorageService {
       // the fallback when a partial range cannot be identified.
       const detectedContentType = sniffMediaContentType(body);
       const contentType = detectedContentType ?? result.ContentType ?? "application/octet-stream";
+      this.logger.log(
+        {
+          key,
+          requestedRange: range ?? null,
+          responseContentType: contentType,
+          providerContentType: result.ContentType ?? null,
+          bodyLength: body.length,
+          contentRange: result.ContentRange ?? null,
+        },
+        "Storage media response prepared",
+      );
       return {
         body,
         contentType,
