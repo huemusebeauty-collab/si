@@ -8,15 +8,26 @@ const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL ?? "https://silku-backend.
 const SESSION_KEY = "silku_tracking_session";
 const ANONYMOUS_KEY = "silku_tracking_anonymous";
 
+function createClientId(): string {
+  try {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return crypto.randomUUID();
+    }
+  } catch {
+    // Fall through to the browser-safe fallback.
+  }
+  return `silku-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
 function getStableId(key: string): string {
   try {
     const existing = window.localStorage.getItem(key);
     if (existing) return existing;
-    const id = crypto.randomUUID();
+    const id = createClientId();
     window.localStorage.setItem(key, id);
     return id;
   } catch {
-    return crypto.randomUUID();
+    return createClientId();
   }
 }
 
