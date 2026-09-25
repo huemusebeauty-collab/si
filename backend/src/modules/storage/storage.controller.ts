@@ -1,4 +1,4 @@
-import { BadRequestException, Controller, Get, Param, Post, Query, Req, Res, UploadedFile, UseInterceptors } from "@nestjs/common";
+import { BadRequestException, Controller, Get, Param, Post, Query, Req, Res, StreamableFile, UploadedFile, UseInterceptors } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { ApiBearerAuth, ApiConsumes, ApiTags } from "@nestjs/swagger";
 import type { Request, Response } from "express";
@@ -49,22 +49,18 @@ export class StorageController {
     @Param("id") id: string,
     @Query("type") type: string | undefined,
     @Res({ passthrough: true }) response: Response,
-  ) {
+  ): Promise<StreamableFile> {
     if (!MEDIA_CATEGORIES.includes(category as UploadCategory) || !isUuid(id)) {
       throw new BadRequestException("Invalid media reference.");
     }
 
     const object = await this.storage.getObject(`${category}/${id}`);
     response.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-    response.setHeader("Content-Type", object.contentType);
-    if (object.contentLength !== undefined) {
-      response.setHeader("Content-Length", String(object.contentLength));
-    }
     if (type === "video" && object.contentType.startsWith("video/")) {
       response.setHeader("Accept-Ranges", "bytes");
     }
 
-    return new (require("@nestjs/common").StreamableFile)(object.body, {
+    return new StreamableFile(object.body, {
       type: object.contentType,
       length: object.contentLength,
     });
