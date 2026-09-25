@@ -142,7 +142,7 @@ export async function mergeGuestCart(customerId: string): Promise<ApiCart | null
   return cart;
 }
 
-export async function createOrder(shippingAddress: Record<string, string>): Promise<ApiOrder> {
+export async function createOrder(shippingAddress: Record<string, string>, idempotencyKey?: string): Promise<ApiOrder> {
   const cartId = getStoredCartId();
   const sessionId = getStoredSessionId();
   if (!cartId || !sessionId) throw new Error("Your cart session could not be found. Please return to cart and try again.");
