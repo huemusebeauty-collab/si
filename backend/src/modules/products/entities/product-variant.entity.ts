@@ -1,4 +1,4 @@
-import { Column, Entity, Index, ManyToOne, PrimaryGeneratedColumn, VersionColumn } from "typeorm";
+import { Column, Entity, Index, ManyToOne, PrimaryGeneratedColumn, RelationId, VersionColumn } from "typeorm";
 import { ProductEntity } from "./product.entity";
 
 export type StockState = "in-stock" | "low-stock" | "out-of-stock" | "coming-soon" | "pre-order";
@@ -10,6 +10,9 @@ export class ProductVariantEntity {
 
   @ManyToOne(() => ProductEntity, (product) => product.variants, { onDelete: "CASCADE" })
   product!: ProductEntity;
+
+  @RelationId((variant: ProductVariantEntity) => variant.product)
+  productId!: string;
 
   @Index({ unique: true })
   @Column()
