@@ -83,10 +83,21 @@ export async function getOrCreateGuestCart(): Promise<ApiCart> {
   return cart;
 }
 
+function createClientId(): string {
+  try {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return crypto.randomUUID();
+    }
+  } catch {
+    // Fall through to the browser-safe fallback.
+  }
+  return `silku-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
 function getOrCreateSessionId(): string {
   const current = window.localStorage.getItem(SESSION_STORAGE_KEY);
   if (current) return current;
-  const id = crypto.randomUUID();
+  const id = createClientId();
   window.localStorage.setItem(SESSION_STORAGE_KEY, id);
   return id;
 }
