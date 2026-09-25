@@ -43,9 +43,18 @@ export class PaymentService {
       const currency = order.currency;
       if (!Number.isFinite(amount) || amount <= 0) throw new Error("Invalid order payment amount.");
 
+      // The browser idempotency key protects the individual Silku request, but it
+      // changes when the customer retries after an ambiguous network outcome.
+      // Cashfree's provider idempotency must instead be stable for the logical
+      // payment operation. Order IDs are UUIDs, so the order ID itself is a
+      // valid stable Cashfree idempotency key for this one payment operation.
+      // This lets a retry safely recover the same provider order/session if
+      // Cashfree created it but the original response never reached Silku.
+      const providerIdempotencyKey = orderId;
+
       const result = await this.resilientCall.execute(
         { provider: this.provider.name, operation: "initiatePayment", timeoutMs: 10_000, retry: { maxAttempts: 3 } },
-        () => this.provider.initiatePayment({ orderId, amount, currency, idempotencyKey }),
+        () => this.provider.initiatePayment({ orderId, amount, currency, idempotencyKey: providerIdempotencyKey }),
       );
 
       await this.transactionsRepo.save(
