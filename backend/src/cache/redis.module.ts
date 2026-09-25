@@ -1,12 +1,11 @@
 import { Module } from "@nestjs/common";
 import { CacheModule } from "@nestjs/cache-manager";
 import { ConfigModule, ConfigService } from "@nestjs/config";
-import { redisStore } from "cache-manager-redis-yet";
+import { createKeyv } from "@keyv/redis";
 
 // Redis is optional for initial deployment. When REDIS_URL is missing or
-// malformed, Nest falls back to its default in-memory cache instead of
-// crashing the whole API during startup. A valid redis:// or rediss:// URL
-// enables the shared Redis cache.
+// malformed, Nest uses its default in-memory cache. A valid redis:// or
+// rediss:// URL enables the shared Redis cache through Keyv.
 @Module({
   imports: [
     CacheModule.registerAsync({
@@ -24,12 +23,11 @@ import { redisStore } from "cache-manager-redis-yet";
 
         try {
           return {
-            store: await redisStore({ url }),
+            stores: [createKeyv(url)],
             ttl: 60_000,
           };
         } catch {
-          // Keep the API bootable if Redis is temporarily unavailable or the
-          // configured URL is invalid. Redis can be enabled later via env.
+          // Keep the API bootable if Redis configuration is invalid.
           return {
             ttl: 60_000,
           };

@@ -107,7 +107,7 @@ export class AdminAuthService {
     await this.auditLog.record({ actorId: user.id, actorEmail: user.email, module: "auth", action: "login_success" });
     const sessionToken = await this.jwt.signAsync(
       { sub: user.id, email: user.email, role: user.role },
-      { secret: this.config.get<string>("jwt.secret"), expiresIn: this.config.get<string>("jwt.accessTokenTtl") },
+      { secret: this.config.get<string>("jwt.secret"), expiresIn: this.config.get<any>("jwt.accessTokenTtl") },
     );
     return { sessionToken, role: user.role, expiresAt: new Date(Date.now() + 15 * 60 * 1000) };
   }

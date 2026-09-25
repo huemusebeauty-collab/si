@@ -3,6 +3,10 @@ name: backend-security-audit
 on:
   push:
     branches: [main]
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-security-audit.yml"
   workflow_dispatch:
 
 jobs:

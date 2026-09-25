@@ -1,6 +1,6 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
-import { JwtModule } from "@nestjs/jwt";
+import { JwtModule, type JwtModuleOptions } from "@nestjs/jwt";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { AdminUserEntity } from "./entities/admin-user.entity";
 import { AdminAuthService } from "./admin-auth.service";
@@ -14,9 +14,11 @@ import { AuditModule } from "@/admin/audit/audit.module";
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
+      useFactory: (config: ConfigService): JwtModuleOptions => ({
         secret: config.get<string>("jwt.secret"),
-        signOptions: { expiresIn: config.get<string>("jwt.accessTokenTtl") },
+        signOptions: {
+          expiresIn: config.get<NonNullable<JwtModuleOptions["signOptions"]>["expiresIn"]>("jwt.accessTokenTtl"),
+        },
       }),
     }),
   ],

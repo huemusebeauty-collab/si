@@ -11,7 +11,7 @@ import { CategoriesService } from "@/modules/categories/categories.service";
 import { TransactionService } from "@/database/transaction.service";
 
 function createMockRepo() {
-  return { findOne: jest.fn(), findOneOrFail: jest.fn(), save: jest.fn((e: unknown) => Promise.resolve(e)), create: jest.fn((e: unknown) => e) };
+  return { find: jest.fn().mockResolvedValue([]), findOne: jest.fn(), findOneOrFail: jest.fn(), save: jest.fn((e: unknown) => Promise.resolve(e)), create: jest.fn((e: unknown) => e) };
 }
 
 describe("ProductsService — stock adjustment", () => {
@@ -154,6 +154,7 @@ describe("ProductsService — product upsert variant persistence", () => {
     productRepo.findOne.mockResolvedValue(lockedProduct);
     productRepo.save.mockImplementation((value: unknown) => Promise.resolve(value));
     variantRepo.findOne.mockResolvedValue(existingVariant);
+    variantRepo.find.mockResolvedValue([existingVariant]);
     variantRepo.save.mockImplementation((value: unknown) => Promise.resolve(value));
 
     const manager = {
@@ -255,6 +256,7 @@ describe("ProductsService — pricing invariants", () => {
     productRepo.findOne
       .mockResolvedValueOnce(lockedProduct)
       .mockResolvedValueOnce(lockedProduct);
+    variantRepo.find.mockResolvedValue([existingVariant]);
     const manager = {
       getRepository: jest.fn((entity: unknown) => entity === ProductEntity ? productRepo : variantRepo),
     };
