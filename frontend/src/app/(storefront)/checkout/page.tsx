@@ -316,13 +316,33 @@ export default function CheckoutPage() {
   if (order && paymentComplete) {
     return (
       <div className="py-10">
+        <style jsx global>{`
+          @media print {
+            body * { visibility: hidden !important; }
+            #silku-customer-bill, #silku-customer-bill * { visibility: visible !important; }
+            #silku-customer-bill {
+              position: absolute !important;
+              left: 0 !important;
+              top: 0 !important;
+              width: 100% !important;
+              max-width: none !important;
+              margin: 0 !important;
+              padding: 18mm !important;
+              border: 0 !important;
+              box-shadow: none !important;
+              background: #fff !important;
+            }
+            #silku-customer-bill button { display: none !important; }
+            @page { size: A4; margin: 0; }
+          }
+        `}</style>
         <Breadcrumb items={[{ label: "Home", href: "/" }, { label: "Cart", href: "/cart" }, { label: "Order confirmed" }]} />
         <div className="mt-8 max-w-2xl rounded-md bg-white p-8 shadow-rest">
           <p className="text-sm font-semibold uppercase tracking-[0.16em] text-stone">Payment confirmed</p>
           <h1 className="mt-2 font-display text-3xl font-semibold text-ink">Thank you for your order</h1>
           <p className="mt-3 text-stone">Your payment has been verified by the server and your order is confirmed.</p>
           {invoice && (
-            <div className="mt-6 rounded-md border border-fog bg-paper p-5 print:border-0 print:p-0">
+            <div id="silku-customer-bill" className="mt-6 rounded-md border border-fog bg-paper p-5 print:border-0 print:p-0">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone">Customer bill</p>
@@ -401,7 +421,7 @@ export default function CheckoutPage() {
           <h1 className="mt-2 font-display text-3xl font-semibold text-ink">Thank you for your order</h1>
           <p className="mt-3 text-stone">Your payment has been verified by the server and your order is confirmed.</p>
           {invoice && (
-            <div className="mt-6 rounded-md border border-fog bg-paper p-5 print:border-0 print:p-0">
+            <div id="silku-customer-bill" className="mt-6 rounded-md border border-fog bg-paper p-5 print:border-0 print:p-0">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone">Customer bill</p>
