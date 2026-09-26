@@ -1,4 +1,4 @@
-import { BadRequestException, Controller, Get, Headers, Param, Post, Query, Req, Res, StreamableFile, UploadedFile, UseInterceptors } from "@nestjs/common";
+import { BadRequestException, Controller, Delete, Get, Headers, Param, Post, Query, Req, Res, StreamableFile, UploadedFile, UseInterceptors } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { ApiBearerAuth, ApiConsumes, ApiTags } from "@nestjs/swagger";
 import type { Request, Response } from "express";
@@ -51,6 +51,24 @@ export class StorageController {
       throw new BadRequestException("Invalid media category.");
     }
     return this.storage.reoptimizeMedia(category as UploadCategory);
+  }
+
+  @Roles("admin")
+  @Get("media/:category/:id/references")
+  async mediaReferences(@Param("category") category: string, @Param("id") id: string) {
+    if (!MEDIA_CATEGORIES.includes(category as UploadCategory) || !isMediaObjectId(id)) {
+      throw new BadRequestException("Invalid media reference.");
+    }
+    return this.storage.getMediaReferences(`${category}/${id}`);
+  }
+
+  @Roles("admin")
+  @Delete("media/:category/:id")
+  async deleteMedia(@Param("category") category: string, @Param("id") id: string) {
+    if (!MEDIA_CATEGORIES.includes(category as UploadCategory) || !isMediaObjectId(id)) {
+      throw new BadRequestException("Invalid media reference.");
+    }
+    return this.storage.deleteMedia(`${category}/${id}`);
   }
 
   @Roles("admin")
