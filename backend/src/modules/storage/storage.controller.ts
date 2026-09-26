@@ -45,6 +45,15 @@ export class StorageController {
   }
 
   @Roles("admin")
+  @Post("media/reoptimize")
+  async reoptimizeMedia(@Query("category") category: string = "product-media") {
+    if (!MEDIA_CATEGORIES.includes(category as UploadCategory)) {
+      throw new BadRequestException("Invalid media category.");
+    }
+    return this.storage.reoptimizeMedia(category as UploadCategory);
+  }
+
+  @Roles("admin")
   @Get("media/library")
   async listMedia(@Query("category") category: string = "product-media", @Req() request: Request) {
     if (!MEDIA_CATEGORIES.includes(category as UploadCategory)) {
