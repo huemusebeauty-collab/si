@@ -52,25 +52,50 @@ export class OrdersService {
 
   async getAdminOrder(orderId: string): Promise<OrderEntity & { customer: { id: string; name: string; email: string; phone: string | null; addresses: Array<Record<string, unknown>> } }> {
     const order = await this.getOrder(orderId);
-    const customer = await this.customers.findById(order.customerId);
+    let customer: Awaited<ReturnType<CustomersService["findById"]>> | null = null;
+    try {
+      customer = await this.customers.findById(order.customerId);
+    } catch (error) {
+      // Orders are historical records. If a customer account was removed or
+      // migrated, the admin order page must still remain viewable from the
+      // customer/shipping snapshot stored on the order instead of failing with
+      // "Customer not found."
+      if (!(error instanceof NotFoundException)) throw error;
+    }
+
+    const shipping = order.shippingAddress ?? {};
+    const fallbackName = order.customerLegalName
+      ?? (typeof shipping.fullName === "string" ? shipping.fullName : undefined)
+      ?? "Guest Customer";
+    const fallbackEmail = typeof shipping.email === "string" ? shipping.email : "";
+    const fallbackPhone = typeof shipping.phone === "string" ? shipping.phone : null;
+
     return {
       ...order,
-      customer: {
-        id: customer.id,
-        name: [customer.firstName, customer.lastName].filter(Boolean).join(" "),
-        email: customer.email,
-        phone: customer.phone ?? null,
-        addresses: (customer.addresses ?? []).map((address) => ({
-          id: address.id,
-          line1: address.line1,
-          line2: address.line2,
-          city: address.city,
-          region: address.region,
-          postalCode: address.postalCode,
-          country: address.country,
-          isDefault: address.isDefault,
-        })),
-      },
+      customer: customer
+        ? {
+            id: customer.id,
+            name: [customer.firstName, customer.lastName].filter(Boolean).join(" "),
+            email: customer.email,
+            phone: customer.phone ?? null,
+            addresses: (customer.addresses ?? []).map((address) => ({
+              id: address.id,
+              line1: address.line1,
+              line2: address.line2,
+              city: address.city,
+              region: address.region,
+              postalCode: address.postalCode,
+              country: address.country,
+              isDefault: address.isDefault,
+            })),
+          }
+        : {
+            id: order.customerId,
+            name: fallbackName,
+            email: fallbackEmail,
+            phone: fallbackPhone,
+            addresses: [],
+          },
     };
   }
 
