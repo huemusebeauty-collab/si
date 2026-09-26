@@ -460,19 +460,8 @@ export class OrdersService {
     if (invoice) {
       return { ...invoice.snapshot, invoiceId: invoice.id, invoiceNumber: invoice.invoiceNumber, issuedAt: invoice.issuedAt.toISOString(), layout };
     }
-    return {
-      orderId: order.id,
-      lineItems: order.lineItems,
-      subtotal: order.subtotal,
-      discountAmount: order.discountAmount,
-      taxableAmount: order.taxableAmount,
-      taxAmount: order.taxAmount,
-      total: order.total,
-      currency: order.currency,
-      issuedAt: null,
-      invoiceNumber: null,
-      layout,
-    };
+    const issued = await this.issueInvoice(orderId);
+    return { ...issued, layout };
   }
 
   async issueInvoice(orderId: string) {
