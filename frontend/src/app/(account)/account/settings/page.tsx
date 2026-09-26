@@ -15,7 +15,11 @@ export default function AccountSettingsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!getAccessToken()) {\n      setLoading(false);\n      return;\n    }\n    authenticatedFetch("/customers/me")
+    if (!getAccessToken()) {
+      setLoading(false);
+      return;
+    }
+    authenticatedFetch("/customers/me")
       .then(async (response) => {
         if (!response.ok) throw new Error("Unable to load account.");
         const body = (await response.json()) as { data?: CustomerProfile } & CustomerProfile;
