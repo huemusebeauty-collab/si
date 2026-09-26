@@ -562,7 +562,7 @@ export default function CheckoutPage() {
                       type="tel"
                       inputMode="numeric"
                       value={form.phone}
-                      onChange={(event) => updateField("phone", event.target.value.replace(/\D/g, "").slice(0, 10))}
+                      onChange={(event) => updateShippingField("phone", event.target.value.replace(/\D/g, "").slice(0, 10))}
                       className="min-w-0 flex-1 rounded-md border border-fog bg-white px-3 py-3 text-sm text-ink outline-none focus:border-ink"
                       autoComplete="tel-national"
                       maxLength={10}
@@ -596,26 +596,26 @@ export default function CheckoutPage() {
                         onChange={(event) => {
                           const value = event.target.value;
                           const selected = resolveIndiaState(value);
-                          setForm((current) => ({
+                          setShippingForm((current) => ({
                             ...current,
                             state: selected?.name ?? value,
                             stateCode: selected?.code ?? "",
                           }));
                         }}
                         onBlur={() => {
-                          const selected = resolveIndiaState(form.state);
+                          const selected = resolveIndiaState(shippingForm.state);
                           if (selected) {
-                            setForm((current) => ({ ...current, state: selected.name, stateCode: selected.code }));
+                            setShippingForm((current) => ({ ...current, state: selected.name, stateCode: selected.code }));
                           }
                         }}
-                        list="india-state-options"
+                        list="india-state-options-shipping"
                         className="min-w-0 flex-1 rounded-md border border-fog bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-ink"
                         placeholder="Or type Rajasthan / RJ / 08"
                         autoComplete="address-level1"
                       />
                       <span className="shrink-0 text-xs text-stone">or type name / code</span>
                     </div>
-                    <datalist id="india-state-options">
+                    <datalist id="india-state-options-shipping">
                       {INDIA_STATES.map((item) => (
                         <option key={item.code} value={item.name}>{item.code}</option>
                       ))}
