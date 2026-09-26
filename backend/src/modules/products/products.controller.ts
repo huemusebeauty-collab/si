@@ -15,6 +15,7 @@ import type { Request } from "express";
 const MEDIA_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}(?:\.[a-z0-9]{1,12})?$/i;
 const VIDEO_EXTENSIONS = new Set(["mp4", "webm", "mov", "m4v", "ogv"]);
 const MEDIA_CATEGORIES = new Set(["product-media", "cms-assets", "review-media"]);
+const MEDIA_RESPONSE_VERSION = "2";
 
 @ApiTags("products")
 @Controller({ path: "products", version: "1" })
@@ -136,17 +137,24 @@ export class ProductsController {
       const parts = parsed.pathname.split("/").filter(Boolean);
       const categoryIndex = parts.findIndex((part) => MEDIA_CATEGORIES.has(part));
       if (categoryIndex < 0 || categoryIndex !== parts.length - 2) return url;
+
       const category = parts[categoryIndex];
       const id = parts[categoryIndex + 1];
       if (!MEDIA_ID_RE.test(id)) return url;
-      if (parsed.pathname.includes("/v1/storage/media/")) return url;
 
       const extension = id.includes(".") ? id.split(".").pop()!.toLowerCase() : "";
-      const type = VIDEO_EXTENSIONS.has(extension) ? "video" : "image";
+      const type = parsed.searchParams.get("type") === "video" || VIDEO_EXTENSIONS.has(extension) ? "video" : "image";
+
+      if (parsed.pathname.includes("/v1/storage/media/")) {
+        parsed.searchParams.set("type", type);
+        parsed.searchParams.set("v", MEDIA_RESPONSE_VERSION);
+        return parsed.toString();
+      }
+
       const protocol = String(request.headers["x-forwarded-proto"] ?? request.protocol).split(",")[0].trim();
       const host = request.get("host");
       if (!protocol || !host) return url;
-      return `${protocol}://${host}/v1/storage/media/${encodeURIComponent(category)}/${encodeURIComponent(id)}?type=${type}`;
+      return `${protocol}://${host}/v1/storage/media/${encodeURIComponent(category)}/${encodeURIComponent(id)}?type=${type}&v=${MEDIA_RESPONSE_VERSION}`;
     } catch {
       return url;
     }

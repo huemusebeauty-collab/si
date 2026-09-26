@@ -7,9 +7,14 @@ import { Roles } from "@/common/decorators/roles.decorator";
 import { Public } from "@/common/decorators/public.decorator";
 
 const MEDIA_CATEGORIES: UploadCategory[] = ["product-media", "cms-assets", "review-media"];
+const MEDIA_RESPONSE_VERSION = "2";
 
 function isMediaObjectId(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}(?:\.[a-z0-9]{1,12})?$/i.test(value);
+}
+
+function mediaUrl(protocol: string, host: string, category: string, id: string, type: "image" | "video"): string {
+  return `${protocol}://${host}/v1/storage/media/${encodeURIComponent(category)}/${encodeURIComponent(id)}?type=${type}&v=${MEDIA_RESPONSE_VERSION}`;
 }
 
 @ApiTags("storage")
@@ -35,7 +40,7 @@ export class StorageController {
 
     return {
       ...result,
-      url: `${protocol}://${host}/v1/storage/media/${encodeURIComponent(category)}/${encodeURIComponent(id)}?type=${type}`,
+      url: mediaUrl(protocol, host, category, id, type),
     };
   }
 
@@ -54,7 +59,7 @@ export class StorageController {
     return {
       items: items.map((item) => ({
         ...item,
-        url: `${protocol}://${host}/v1/storage/media/${encodeURIComponent(category)}/${encodeURIComponent(item.urlKey)}?type=${item.type}`,
+        url: mediaUrl(protocol, host, category, item.urlKey, item.type),
       })),
     };
   }
