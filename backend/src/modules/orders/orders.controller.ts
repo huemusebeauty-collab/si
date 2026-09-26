@@ -38,6 +38,8 @@ export class OrdersController {
     return this.orders.issueInvoice(orderId);
   }
 
+  // Static admin/search must be declared before admin/:orderId, otherwise
+  // /admin/search is captured as orderId="search" and returns 404.
   @RequirePermission("orders", "view")
   @Get("admin/search")
   adminSearch(
@@ -82,7 +84,6 @@ export class OrdersController {
 
   @Get(":orderId/tracking")
   async tracking(@Param("orderId") orderId: string, @CurrentUser() user: AuthenticatedUser) {
-    await this.requireOwner(orderId, user);
     return this.orders.getTrackingStatus(orderId);
   }
 
@@ -125,6 +126,12 @@ export class OrdersController {
     return this.orders.requestReturn(orderId, lineItemIds, reason);
   }
 
+  @Get(":orderId/refund-eligibility")
+  async refundEligibility(@Param("orderId") orderId: string, @CurrentUser() user: AuthenticatedUser) {
+    await this.requireOwner(orderId, user);
+    return this.orders.checkRefundEligibility(orderId);
+  }
+
   // Public only because guest checkout creates orders. Authenticated callers
   // are still protected by the customerId check below.
   @Public()
@@ -143,13 +150,4 @@ export class OrdersController {
     const order = await this.orders.createOrder(body.customerId, body.cartId, body.shippingAddress, idempotencyKey, body.customerGstin, body.customerLegalName);
     return user ? order : { ...order, guestCheckoutToken: createGuestCheckoutToken(order.id) };
   }
-
-  @Get(":orderId/refund-eligibility")
-  async refundEligibility(@Param("orderId") orderId: string, @CurrentUser() user: AuthenticatedUser) {
-    await this.requireOwner(orderId, user);
-    return this.orders.checkRefundEligibility(orderId);
-  }
-
-
-
 }
