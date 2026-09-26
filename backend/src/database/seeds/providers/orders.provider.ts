@@ -82,13 +82,14 @@ export class OrdersSeedProvider implements SeedProvider {
 
       const newCart = await this.cart.createCart({ customerId: customer.id });
       await this.cart.addItem(newCart.id, variant.id, 1);
-      const order = await this.orders.createOrder(customer.id, newCart.id, {
+      const seedAddress = {
         line1: customerSeed.address.line1,
         city: customerSeed.address.city,
         region: customerSeed.address.region,
         postalCode: customerSeed.address.postalCode,
         country: customerSeed.address.country,
-      });
+      };
+      const order = await this.orders.createOrder(customer.id, newCart.id, seedAddress, seedAddress);
 
       const targetStatus = STATUS_PLAN[i % STATUS_PLAN.length];
       await this.progressOrderTo(order.id, targetStatus);
