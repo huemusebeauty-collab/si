@@ -10,6 +10,9 @@ import { spawn } from "child_process";
 import ffmpegPath from "ffmpeg-static";
 import sharp from "sharp";
 import { SettingsService } from "@/admin/settings/settings.service";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { ProductEntity } from "@/modules/products/entities/product.entity";
 
 const SIGNED_URL_TTL_SECONDS = 15 * 60;
 const MAX_IMAGE_INPUT_BYTES = 20 * 1024 * 1024;
@@ -69,6 +72,7 @@ export class StorageService {
   constructor(
     private readonly config: ConfigService,
     private readonly settings: SettingsService,
+    @InjectRepository(ProductEntity) private readonly productRepository: Repository<ProductEntity>,
   ) {
     this.bucket = this.config.get<string>("storage.bucket")!;
     this.publicBaseUrl = this.config.get<string>("storage.publicBaseUrl");
