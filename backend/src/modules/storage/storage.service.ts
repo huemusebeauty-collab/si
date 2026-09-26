@@ -3,6 +3,11 @@ import { ConfigService } from "@nestjs/config";
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, ListObjectsV2Command, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { randomUUID } from "crypto";
+import { mkdtemp, readFile, rm, writeFile } from "fs/promises";
+import { tmpdir } from "os";
+import { join } from "path";
+import { spawn } from "child_process";
+import ffmpegPath from "ffmpeg-static";
 import sharp from "sharp";
 import { SettingsService } from "@/admin/settings/settings.service";
 
@@ -10,6 +15,40 @@ const SIGNED_URL_TTL_SECONDS = 15 * 60; // Sprint 5.6 — signed URLs expire in 
 const MAX_IMAGE_INPUT_BYTES = 20 * 1024 * 1024;
 const MAX_VIDEO_INPUT_BYTES = 25 * 1024 * 1024;
 const MAX_IMAGE_DIMENSION_PX = 2400;
+const MAX_VIDEO_OUTPUT_BYTES = 20 * 1024 * 1024;
+const MAX_VIDEO_WIDTH_PX = 1080;
+
+function runFfmpeg(input: string, output: string): Promise<void> {
+  if (!ffmpegPath) throw new Error("FFmpeg binary is unavailable.");
+
+  return new Promise((resolve, reject) => {
+    const child = spawn(ffmpegPath, [
+      "-hide_banner",
+      "-loglevel", "error",
+      "-y",
+      "-i", input,
+      "-map", "0:v:0",
+      "-map", "0:a:0?",
+      "-c:v", "libx264",
+      "-preset", "veryfast",
+      "-crf", "28",
+      "-vf", "scale='min(1080,iw)':-2",
+      "-c:a", "aac",
+      "-b:a", "128k",
+      "-movflags", "+faststart",
+      "-pix_fmt", "yuv420p",
+      output,
+    ], { stdio: ["ignore", "ignore", "pipe"] });
+
+    let stderr = "";
+    child.stderr?.on("data", (chunk) => { stderr += chunk.toString(); });
+    child.once("error", reject);
+    child.once("close", (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(stderr.trim() || "FFmpeg exited with code " + code));
+    });
+  });
+}
 
 function sniffMediaContentType(body: Buffer): string | undefined {
   if (body.length >= 3 && body[0] === 0xff && body[1] === 0xd8 && body[2] === 0xff) return "image/jpeg";
@@ -90,7 +129,32 @@ export class StorageService {
       contentType = "image/webp";
       originalName = file.originalname.replace(/\.(jpe?g|png|webp|gif|avif)$/i, "") + ".webp";
     } else if (file.mimetype === "video/mp4") {
-      if (file.buffer.length < 12 || file.buffer.subarray(4, 8).toString("ascii") !== "ftyp") throw new BadRequestException("Invalid MP4 file.");
+      if (file.buffer.length < 12 || file.buffer.subarray(4, 8).toString("ascii") !== "ftyp") {
+        throw new BadRequestException("Invalid MP4 file.");
+      }
+
+      const workDir = await mkdtemp(join(tmpdir(), "silku-media-"));
+      const inputPath = join(workDir, "input.mp4");
+      const outputPath = join(workDir, "optimized.mp4");
+      try {
+        await writeFile(inputPath, file.buffer);
+        await runFfmpeg(inputPath, outputPath);
+        body = await readFile(outputPath);
+        if (!body.length || body.length >= file.buffer.length) {
+          throw new BadRequestException("MP4 could not be optimized to a smaller file.");
+        }
+        if (body.length > MAX_VIDEO_OUTPUT_BYTES) {
+          throw new BadRequestException("Optimized MP4 still exceeds the 20MB delivery limit.");
+        }
+        contentType = "video/mp4";
+        originalName = file.originalname.replace(/\.mp4$/i, "") + ".mp4";
+      } catch (error) {
+        if (error instanceof BadRequestException) throw error;
+        this.logger.error({ error: error instanceof Error ? error.message : "UnknownError" }, "MP4 optimization failed");
+        throw new BadRequestException("MP4 optimization failed. Please upload a compatible MP4.");
+      } finally {
+        await rm(workDir, { recursive: true, force: true });
+      }
     }
 
     const key = category + "/" + randomUUID();
@@ -101,7 +165,7 @@ export class StorageService {
       Body: body,
       ContentType: contentType,
       ContentLength: body.length,
-      Metadata: { originalName: file.originalname.slice(0, 512), optimized: file.mimetype.startsWith("image/") ? "true" : "false" },
+      Metadata: { originalName: file.originalname.slice(0, 512), optimized: file.mimetype.startsWith("image/") || file.mimetype === "video/mp4" ? "true" : "false" },
     }));
 
     if (this.publicBaseUrl) {
