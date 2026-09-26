@@ -200,7 +200,7 @@ export class OrdersService {
     return { orderCount: orders.length, averageOrderValue: orders.length ? roundMoney(totalRevenue / orders.length) : 0, totalRevenue: roundMoney(totalRevenue), statusBreakdown };
   }
 
-  async createOrder(customerId: string, cartId: string, shippingAddress: Record<string, unknown>, idempotencyKey?: string, customerGstin?: string, customerLegalName?: string): Promise<OrderEntity> {
+  async createOrder(customerId: string, cartId: string, billingAddress: Record<string, unknown>, shippingAddress: Record<string, unknown>, idempotencyKey?: string, customerGstin?: string, customerLegalName?: string): Promise<OrderEntity> {
     const normalizedIdempotencyKey = idempotencyKey?.trim();
     const normalizedGstin = customerGstin?.trim().toUpperCase() || undefined;
     if (normalizedGstin && !/^\d{2}[A-Z0-9]{10}[A-Z]\d[A-Z]Z[A-Z0-9]$/.test(normalizedGstin)) {
@@ -308,7 +308,7 @@ export class OrdersService {
       const platformFee = 0;
       total = roundMoney(total + logisticsFee + platformFee);
       if (total < 0 || (subtotal > 0 && total > subtotal + 0.005 && discountAmount === 0)) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Invalid tax calculation.");
-      const order = manager.create(OrderEntity, { customerId, idempotencyKey: normalizedIdempotencyKey, customerGstin: normalizedGstin, customerLegalName: normalizedLegalName, placeOfSupplyState, placeOfSupplyStateCode, status: "pending_payment", subtotal: subtotal.toFixed(2), discountAmount: discountAmount.toFixed(2), taxableAmount: taxableAmount.toFixed(2), taxAmount: taxAmount.toFixed(2), logisticsFee: logisticsFee.toFixed(2), platformFee: platformFee.toFixed(2), total: total.toFixed(2), currency: "INR", shippingAddress });
+      const order = manager.create(OrderEntity, { customerId, idempotencyKey: normalizedIdempotencyKey, customerGstin: normalizedGstin, customerLegalName: normalizedLegalName, placeOfSupplyState, placeOfSupplyStateCode, status: "pending_payment", subtotal: subtotal.toFixed(2), discountAmount: discountAmount.toFixed(2), taxableAmount: taxableAmount.toFixed(2), taxAmount: taxAmount.toFixed(2), logisticsFee: logisticsFee.toFixed(2), platformFee: platformFee.toFixed(2), total: total.toFixed(2), currency: "INR", billingAddress, shippingAddress });
       const savedOrder = await manager.save(order);
       for (const snapshot of snapshotLines) await manager.save(manager.create(OrderLineItemEntity, { ...snapshot, order: savedOrder }));
       await manager.save(manager.create(OrderStatusHistoryEntity, { order: savedOrder, status: "pending_payment" }));
@@ -569,9 +569,11 @@ export class OrdersService {
         recipient: {
           legalName: order.customerLegalName ?? null,
           gstin: order.customerGstin ?? null,
+          billingAddress: order.billingAddress,
           deliveryAddress: order.shippingAddress,
         },
         placeOfSupply: { state: order.placeOfSupplyState ?? null, stateCode: order.placeOfSupplyStateCode ?? null },
+        billingAddress: order.billingAddress,
         shippingAddress: order.shippingAddress,
         lineItems: order.lineItems,
         subtotal: order.subtotal,
