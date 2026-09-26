@@ -207,7 +207,20 @@ export default function CheckoutPage() {
       }
 
       if (typeof syncResult === "object" && syncResult !== null && "status" in syncResult && syncResult.status === "succeeded") {
-        const issuedInvoice = await getOrderInvoice(order.id, order.guestCheckoutToken);
+        let issuedInvoice: InvoiceResponse | null = null;
+        let invoiceError: unknown = null;
+        for (let attempt = 0; attempt < 5; attempt += 1) {
+          try {
+            issuedInvoice = await getOrderInvoice(order.id, order.guestCheckoutToken);
+            break;
+          } catch (err) {
+            invoiceError = err;
+            await new Promise((resolve) => setTimeout(resolve, 500));
+          }
+        }
+        if (!issuedInvoice) {
+          throw new Error(invoiceError instanceof Error ? invoiceError.message : "Your payment was confirmed, but the customer bill could not be loaded yet.");
+        }
         setInvoice(issuedInvoice);
         trackWebsiteEvent("purchase", { orderId: order.id, metadata: { total: Number(order.total), itemCount: totals.itemCount } });
         setPaymentComplete(true);
@@ -252,6 +265,19 @@ export default function CheckoutPage() {
                 </div>
                 <button type="button" onClick={() => window.print()} className="rounded-md border border-fog bg-white px-4 py-2 text-sm font-semibold text-ink print:hidden">Print / Save Bill</button>
               </div>
+              <div className="mt-5 grid gap-4 border-y border-fog py-4 text-sm sm:grid-cols-2">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-stone">Bill to</p>
+                  <p className="mt-1 font-semibold text-ink">{String(invoice.recipient?.legalName ?? form.fullName)}</p>
+                  {invoice.recipient?.gstin && <p className="text-xs text-stone">GSTIN: {String(invoice.recipient.gstin)}</p>}
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-stone">Delivery address</p>
+                  <p className="mt-1 text-ink">{form.addressLine1}{form.addressLine2 ? `, ${form.addressLine2}` : ""}</p>
+                  <p className="text-ink">{form.city}, {form.state} - {form.postalCode}</p>
+                  <p className="text-xs text-stone">{form.country === "IN" ? "India" : form.country} · {form.phone}</p>
+                </div>
+              </div>
               <div className="mt-4 space-y-2 text-sm">
                 {invoice.lineItems.map((item, index) => (
                   <div key={index} className="flex justify-between gap-4">
@@ -259,6 +285,10 @@ export default function CheckoutPage() {
                     <span>{formatCurrency(Number(item.unitPrice) * item.quantity)}</span>
                   </div>
                 ))}
+                {Number(invoice.discountAmount) > 0 && (
+                  <div className="flex justify-between gap-4 text-stone"><span>Discount</span><span>-{formatCurrency(Number(invoice.discountAmount))}</span></div>
+                )}
+                <div className="flex justify-between gap-4 text-stone"><span>Tax</span><span>{formatCurrency(Number(invoice.taxAmount))}</span></div>
                 <div className="border-t border-fog pt-3 flex justify-between font-semibold text-ink">
                   <span>Total paid</span><span>{formatCurrency(Number(invoice.total))}</span>
                 </div>
