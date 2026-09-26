@@ -268,14 +268,14 @@ export default function CheckoutPage() {
               <div className="mt-5 grid gap-4 border-y border-fog py-4 text-sm sm:grid-cols-2">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.12em] text-stone">Bill to</p>
-                  <p className="mt-1 font-semibold text-ink">{String(invoice.recipient?.legalName ?? form.fullName)}</p>
+                  <p className="mt-1 font-semibold text-ink">{String(invoice.recipient?.legalName ?? invoice.shippingAddress?.fullName ?? form.fullName)}</p>
                   {invoice.recipient?.gstin && <p className="text-xs text-stone">GSTIN: {String(invoice.recipient.gstin)}</p>}
                 </div>
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.12em] text-stone">Delivery address</p>
-                  <p className="mt-1 text-ink">{form.addressLine1}{form.addressLine2 ? `, ${form.addressLine2}` : ""}</p>
-                  <p className="text-ink">{form.city}, {form.state} - {form.postalCode}</p>
-                  <p className="text-xs text-stone">{form.country === "IN" ? "India" : form.country} · {form.phone}</p>
+                  <p className="mt-1 text-ink">{String(invoice.shippingAddress?.line1 ?? form.addressLine1)}{invoice.shippingAddress?.line2 ? `, ${String(invoice.shippingAddress.line2)}` : form.addressLine2 ? `, ${form.addressLine2}` : ""}</p>
+                  <p className="text-ink">{String(invoice.shippingAddress?.city ?? form.city)}, {String(invoice.shippingAddress?.region ?? form.state)} - {String(invoice.shippingAddress?.postalCode ?? form.postalCode)}</p>
+                  <p className="text-xs text-stone">{String(invoice.shippingAddress?.country ?? form.country) === "IN" ? "India" : String(invoice.shippingAddress?.country ?? form.country)} · {String(invoice.shippingAddress?.phone ?? `${phoneCountryCode}${form.phone}`)}</p>
                 </div>
               </div>
               <div className="mt-4 space-y-2 text-sm">
