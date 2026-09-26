@@ -88,6 +88,7 @@ export const adminApi = {
   exportProductsCsvUrl: () => `${API_BASE}/admin/products/export`,
   importProductsCsv: (csv: string) => request<{ succeeded: number; failed: { row: number; reason: string }[] }>("/admin/products/import", { method: "POST", body: JSON.stringify({ csv }) }),
   listMedia: () => request<{ items: AdminMediaItem[] }>("/storage/media/library", { cache: "no-store" }),
+  reoptimizeMedia: () => request<{ category: string; scanned: number; optimized: number; unchanged: number; failed: number; savedBytes: number; results: { key: string; action: string; beforeBytes: number; afterBytes: number; savedBytes: number; savedPercent: number }[] }>("/storage/media/reoptimize?category=product-media", { method: "POST" }),
   uploadMedia: async (file: File): Promise<{ key: string; url: string; originalSize: number; storedSize: number; savedBytes: number; savedPercent: number; contentType: string }> => {
     const token = getToken(); const form = new FormData(); form.append("file", file);
     const response = await fetch(`${API_BASE}/storage/upload`, { method: "POST", headers: token ? { Authorization: `Bearer ${token}` } : {}, body: form });
