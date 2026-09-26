@@ -405,6 +405,34 @@ export class StorageService {
     return { url, expiresAt: new Date(Date.now() + SIGNED_URL_TTL_SECONDS * 1000).toISOString() };
   }
 
+  async getMediaReferences(key: string): Promise<{ used: boolean; products: Array<{ id: string; name: string; slug: string }> }> {
+    const objectId = key.split("/").pop() ?? key;
+    const normalizedId = objectId.replace(/\.[a-z0-9]{1,12}$/i, "");
+    const rows = await this.productRepository
+      .createQueryBuilder("product")
+      .select(["product.id", "product.name", "product.slug", "product.mediaUrls"])
+      .where("product.mediaUrls::text ILIKE :needle", { needle: `%${normalizedId}%` })
+      .getMany();
+
+    const products = rows
+      .filter((product) => Array.isArray(product.mediaUrls) && product.mediaUrls.some((value) => String(value).includes(normalizedId)))
+      .map((product) => ({ id: product.id, name: product.name, slug: product.slug }));
+
+    return { used: products.length > 0, products };
+  }
+
+  async deleteMedia(key: string): Promise<{ deleted: true; key: string }> {
+    if (!/^product-media\/[0-9a-f-]{36}(?:\.[a-z0-9]{1,12})?$/i.test(key)) {
+      throw new BadRequestException("Invalid media reference.");
+    }
+    const references = await this.getMediaReferences(key);
+    if (references.used) {
+      throw new BadRequestException("Media is still used by a product and cannot be deleted.");
+    }
+    await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+    return { deleted: true, key };
+  }
+
   async deleteObject(key: string): Promise<void> {
     await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
   }
