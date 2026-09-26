@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Breadcrumb } from "@/components/patterns/Breadcrumb";
-import { authenticatedFetch } from "@/services/api/auth";
+import { authenticatedFetch, getAccessToken } from "@/services/api/auth";
 
 type CustomerProfile = {
   firstName?: string;
@@ -15,7 +15,7 @@ export default function AccountSettingsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    authenticatedFetch("/customers/me")
+    if (!getAccessToken()) {\n      setLoading(false);\n      return;\n    }\n    authenticatedFetch("/customers/me")
       .then(async (response) => {
         if (!response.ok) throw new Error("Unable to load account.");
         const body = (await response.json()) as { data?: CustomerProfile } & CustomerProfile;
