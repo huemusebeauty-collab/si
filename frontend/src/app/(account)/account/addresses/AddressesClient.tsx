@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { authenticatedFetch } from "@/services/api/auth";
 
 type Address = {
@@ -63,7 +63,7 @@ export default function AddressesClient() {
     setForm((current) => ({ ...current, [key]: value }));
   }
 
-  async function saveAddress(event: React.FormEvent<HTMLFormElement>) {
+  async function saveAddress(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
     setError("");
