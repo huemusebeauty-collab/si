@@ -9,7 +9,7 @@ import { Alert } from "@/components/composite/Alert";
 
 function MediaContent() {
   const fileInput = useRef<HTMLInputElement>(null);
-  const [uploaded, setUploaded] = useState<{ key: string; url: string; type: "image" | "video" }[]>([]);
+  const [uploaded, setUploaded] = useState<{ key: string; url: string; type: "image" | "video"; contentType: string; size: number; originalSize: number | null; savedBytes: number | null; savedPercent: number | null }[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -18,7 +18,7 @@ function MediaContent() {
 
   useEffect(() => {
     void adminApi.listMedia()
-      .then(({ items }) => setUploaded(items.map(({ key, url, type }) => ({ key, url, type }))))
+      .then(({ items }) => setUploaded(items.map(({ key, url, type, contentType, size, originalSize, savedBytes, savedPercent }) => ({ key, url, type, contentType, size, originalSize, savedBytes, savedPercent }))))
       .catch((err) => setError(err instanceof AdminApiError ? err.message : "Unable to load media library."))
       .finally(() => setLoading(false));
   }, []);
