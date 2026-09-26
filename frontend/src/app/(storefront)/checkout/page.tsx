@@ -9,6 +9,7 @@ import {
   createOrder,
   getCartTotals,
   getOrderInvoice,
+  clearActiveCart,
   type InvoiceResponse,
   getOrCreateGuestCart,
   initiatePayment,
@@ -145,6 +146,7 @@ export default function CheckoutPage() {
             const returnedInvoice = await getOrderInvoice(orderId, guestCheckoutToken);
             if (cancelled) return;
             setInvoice(returnedInvoice);
+            await clearActiveCart();
             setOrder({
               id: orderId,
               customerId: "",
@@ -282,6 +284,7 @@ export default function CheckoutPage() {
           throw new Error(invoiceError instanceof Error ? invoiceError.message : "Your payment was confirmed, but the customer bill could not be loaded yet.");
         }
         setInvoice(issuedInvoice);
+        await clearActiveCart();
         trackWebsiteEvent("purchase", { orderId: order.id, metadata: { total: Number(order.total), itemCount: totals.itemCount } });
         setPaymentComplete(true);
       } else {
