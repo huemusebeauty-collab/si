@@ -39,6 +39,8 @@ export interface InvoiceResponse {
   discountAmount: string;
   taxableAmount: string;
   taxAmount: string;
+  logisticsFee: string;
+  platformFee: string;
   total: string;
   currency: string;
   orderId: string;
