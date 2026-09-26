@@ -119,9 +119,50 @@ table{width:100%;border-collapse:collapse;margin-top:24px}th,td{border-bottom:1p
         <Badge tone="information">{order.status}</Badge>
       </div>
       <div className="rounded-md bg-white p-6 shadow-rest">
-        <p><strong>Customer:</strong> {order.customerId}</p>
-        <p><strong>Total:</strong> ₹{order.total} {order.currency}</p>
-        <p><strong>Placed:</strong> {new Date(order.createdAt).toLocaleString()}</p>
+        <h2 className="mb-3 font-semibold text-ink">Customer Details</h2>
+        <div className="grid gap-2 text-sm md:grid-cols-2">
+          <p><strong>Name:</strong> {order.customer?.name || order.customerLegalName || "—"}</p>
+          <p><strong>Customer ID:</strong> {order.customerId}</p>
+          <p><strong>Email:</strong> {order.customer?.email || "—"}</p>
+          <p><strong>Phone:</strong> {order.customer?.phone || (typeof order.shippingAddress?.phone === "string" ? order.shippingAddress.phone : "—")}</p>
+          <p><strong>GSTIN:</strong> {order.customerGstin || "—"}</p>
+          <p><strong>Total:</strong> ₹{order.total} {order.currency}</p>
+          <p><strong>Placed:</strong> {new Date(order.createdAt).toLocaleString()}</p>
+        </div>
+        {order.shippingAddress && (
+          <div className="mt-4 rounded border border-line p-3 text-sm">
+            <strong>Delivery Address</strong>
+            <div className="mt-1">
+              {[
+                order.shippingAddress.fullName,
+                order.shippingAddress.line1,
+                order.shippingAddress.line2,
+                [order.shippingAddress.city, order.shippingAddress.region, order.shippingAddress.postalCode].filter(Boolean).join(", "),
+                order.shippingAddress.country,
+              ].filter(Boolean).map(String).join(" · ")}
+            </div>
+          </div>
+        )}
+        {order.customer?.addresses?.length ? (
+          <div className="mt-4 rounded border border-line p-3 text-sm">
+            <strong>Saved Customer Addresses</strong>
+            <div className="mt-2 grid gap-2">
+              {order.customer.addresses.map((address) => (
+                <div key={String(address.id)} className="rounded bg-paper p-2">
+                  {[
+                    address.fullName,
+                    address.line1,
+                    address.line2,
+                    [address.city, address.region, address.postalCode].filter(Boolean).join(", "),
+                    address.country,
+                  ].filter(Boolean).map(String).join(" · ")}
+                  {address.phone ? ` · ${String(address.phone)}` : ""}
+                  {address.isDefault ? " · Default" : ""}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </div>
       <div className="rounded-md bg-white p-6 shadow-rest">
         <div className="flex items-center justify-between gap-4">
