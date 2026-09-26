@@ -28,6 +28,22 @@ export interface ApiOrder {
   guestCheckoutToken?: string;
 }
 
+export interface InvoiceResponse {
+  invoiceId: string;
+  invoiceNumber: string;
+  issuedAt: string;
+  supplier?: Record<string, unknown>;
+  recipient?: Record<string, unknown>;
+  lineItems: Array<{ productName: string; quantity: number; unitPrice: string; discountAmount?: string; taxAmount?: string }>;
+  subtotal: string;
+  discountAmount: string;
+  taxableAmount: string;
+  taxAmount: string;
+  total: string;
+  currency: string;
+  orderId: string;
+}
+
 export interface PaymentIntentResponse {
   providerReference: string;
   status: string;
@@ -195,6 +211,13 @@ export async function initiatePayment(order: ApiOrder, idempotencyKey: string): 
 
 export async function syncPayment(providerReference: string, guestCheckoutToken?: string): Promise<unknown> {
   return request(`/payments/${encodeURIComponent(providerReference)}/sync`, {
+    headers: guestCheckoutToken ? { "x-guest-checkout-token": guestCheckoutToken } : undefined,
+  });
+}
+
+
+export async function getOrderInvoice(orderId: string, guestCheckoutToken?: string): Promise<InvoiceResponse> {
+  return request<InvoiceResponse>(`/orders/${encodeURIComponent(orderId)}/invoice`, {
     headers: guestCheckoutToken ? { "x-guest-checkout-token": guestCheckoutToken } : undefined,
   });
 }
