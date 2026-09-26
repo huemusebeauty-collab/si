@@ -1,4 +1,4 @@
-import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from "@nestjs/common";
+import { CallHandler, ExecutionContext, Injectable, NestInterceptor, StreamableFile } from "@nestjs/common";
 import { Observable } from "rxjs";
 import { map } from "rxjs/operators";
 
@@ -14,10 +14,19 @@ export interface ResponseEnvelope<T> {
 export class ResponseEnvelopeInterceptor<T> implements NestInterceptor<T, ResponseEnvelope<T>> {
   intercept(context: ExecutionContext, next: CallHandler): Observable<ResponseEnvelope<T>> {
     return next.handle().pipe(
-      map((data) => ({
-        data,
-        meta: { timestamp: new Date().toISOString() },
-      })),
+      map((data) => {
+        // StreamableFile must reach Nest's response adapter directly.
+        // Wrapping it in the JSON envelope converts binary media into an
+        // object response and causes browser image/video rendering failures.
+        if (data instanceof StreamableFile) {
+          return data as unknown as ResponseEnvelope<T>;
+        }
+
+        return {
+          data,
+          meta: { timestamp: new Date().toISOString() },
+        };
+      }),
     );
   }
 }
