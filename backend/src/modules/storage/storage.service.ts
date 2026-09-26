@@ -123,13 +123,23 @@ export class StorageService {
       try {
         await writeFile(inputPath, file.buffer);
         await runFfmpeg(inputPath, outputPath);
-        body = await readFile(outputPath);
-        if (!body.length || body.length >= file.buffer.length) {
-          throw new BadRequestException("MP4 could not be optimized to a smaller file.");
+        const optimizedBody = await readFile(outputPath);
+
+        if (!optimizedBody.length) {
+          throw new BadRequestException("MP4 optimization produced an empty file.");
         }
-        if (body.length > MAX_VIDEO_OUTPUT_BYTES) {
-          throw new BadRequestException("Optimized MP4 still exceeds the 20MB delivery limit.");
+
+        // Prefer the optimized delivery file when it fits the limit.
+        // If the source is already within the delivery limit and transcoding
+        // makes it larger, keep the valid original instead of rejecting it.
+        if (optimizedBody.length <= MAX_VIDEO_OUTPUT_BYTES) {
+          body = optimizedBody.length < file.buffer.length ? optimizedBody : file.buffer;
+        } else if (file.buffer.length <= MAX_VIDEO_OUTPUT_BYTES) {
+          body = file.buffer;
+        } else {
+          throw new BadRequestException("MP4 exceeds the 20MB delivery limit after optimization.");
         }
+
         contentType = "video/mp4";
         originalName = file.originalname.replace(/\.mp4$/i, "") + ".mp4";
       } catch (error) {
