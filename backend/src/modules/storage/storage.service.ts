@@ -98,7 +98,7 @@ export class StorageService {
   async upload(
     file: { buffer: Buffer; mimetype: string; size: number; originalname: string },
     category: UploadCategory = "product-media",
-  ): Promise<{ key: string; url: string; originalName: string; contentType: string }> {
+  ): Promise<{ key: string; url: string; originalName: string; contentType: string; originalSize: number; storedSize: number; savedBytes: number; savedPercent: number }> {
     await this.validate(file);
 
     let body = file.buffer;
@@ -158,6 +158,10 @@ export class StorageService {
     }
 
     const key = category + "/" + randomUUID();
+    const originalSize = file.buffer.length;
+    const storedSize = body.length;
+    const savedBytes = Math.max(0, originalSize - storedSize);
+    const savedPercent = originalSize > 0 ? Math.round((savedBytes / originalSize) * 1000) / 10 : 0;
 
     await this.client.send(new PutObjectCommand({
       Bucket: this.bucket,
@@ -165,12 +169,12 @@ export class StorageService {
       Body: body,
       ContentType: contentType,
       ContentLength: body.length,
-      Metadata: { originalName: file.originalname.slice(0, 512), optimized: file.mimetype.startsWith("image/") || file.mimetype === "video/mp4" ? "true" : "false" },
+      Metadata: { originalName: file.originalname.slice(0, 512), originalSize: String(originalSize), optimized: file.mimetype.startsWith("image/") || file.mimetype === "video/mp4" ? "true" : "false" },
     }));
 
     if (this.publicBaseUrl) {
       const baseUrl = this.publicBaseUrl.replace(/\/+$/, "");
-      return { key, url: baseUrl + "/" + key, originalName, contentType };
+      return { key, url: baseUrl + "/" + key, originalName, contentType, originalSize, storedSize, savedBytes, savedPercent };
     }
 
     if (this.config.get<string>("env") === "production") {
@@ -182,6 +186,10 @@ export class StorageService {
       url: this.config.get<string>("storage.endpoint") + "/" + this.bucket + "/" + key,
       originalName,
       contentType,
+      originalSize,
+      storedSize,
+      savedBytes,
+      savedPercent,
     };
   }
 
@@ -192,6 +200,9 @@ export class StorageService {
     contentType: string;
     size: number;
     lastModified: string | null;
+    originalSize: number | null;
+    savedBytes: number | null;
+    savedPercent: number | null;
   }>> {
     const prefix = `${category}/`;
     const listed: Array<{ key: string; size: number; lastModified: Date | undefined }> = [];
@@ -216,13 +227,21 @@ export class StorageService {
         const head = await this.client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: item.key }));
         const contentType = head.ContentType ?? "application/octet-stream";
         const type = contentType.startsWith("video/") ? "video" as const : "image" as const;
+        const originalSizeValue = Number(head.Metadata?.originalsize ?? NaN);
+        const originalSize = Number.isFinite(originalSizeValue) && originalSizeValue >= 0 ? originalSizeValue : null;
+        const storedSize = head.ContentLength ?? item.size;
+        const savedBytes = originalSize === null ? null : Math.max(0, originalSize - storedSize);
+        const savedPercent = originalSize === null || originalSize === 0 ? (originalSize === 0 ? 0 : null) : Math.round((savedBytes! / originalSize) * 1000) / 10;
         return {
           key: item.key,
           urlKey: item.key.slice(prefix.length),
           type,
           contentType,
-          size: head.ContentLength ?? item.size,
+          size: storedSize,
           lastModified: (head.LastModified ?? item.lastModified)?.toISOString() ?? null,
+          originalSize,
+          savedBytes,
+          savedPercent,
         };
       } catch (error) {
         const name = error instanceof Error ? error.name : "UnknownError";
