@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Avatar } from "@/components/basic/Avatar";
 import { ROUTES } from "@/constants/routes";
 import { authenticatedFetch, logoutSession } from "@/services/api/auth";
-import { useRouter } from "next/navigation";
 
 type CustomerProfile = {
   firstName?: string;
@@ -15,7 +15,9 @@ type CustomerProfile = {
 
 export function AccountDashboard() {
   const [customer, setCustomer] = useState<CustomerProfile | null>(null);
-  const [loading, setLoading] = useState(true);\n  const [loggingOut, setLoggingOut] = useState(false);\n  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     let active = true;
@@ -34,7 +36,9 @@ export function AccountDashboard() {
       .finally(() => {
         if (active) setLoading(false);
       });
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, []);
 
   const customerName = customer
@@ -43,7 +47,16 @@ export function AccountDashboard() {
   const displayName = customerName || "My Account";
   const firstName = customer?.firstName || "there";
 
-  async function handleLogout() {\n    setLoggingOut(true);\n    await logoutSession();\n    router.replace("/account/login");\n  }\n\n  const links = [
+  async function handleLogout() {
+    setLoggingOut(true);
+    try {
+      await logoutSession();
+    } finally {
+      router.replace("/account/login");
+    }
+  }
+
+  const links = [
     { label: "Order Tracking", href: ROUTES.accountOrders },
     { label: "Wishlist", href: ROUTES.wishlist },
     { label: "Account Settings", href: "/account/settings" },
@@ -61,6 +74,14 @@ export function AccountDashboard() {
               {l.label}
             </Link>
           ))}
+          <button
+            type="button"
+            onClick={() => void handleLogout()}
+            disabled={loggingOut}
+            className="rounded-sm px-2 py-2 text-left text-base text-charcoal hover:bg-paper disabled:opacity-50"
+          >
+            {loggingOut ? "Logging out…" : "Log out"}
+          </button>
         </nav>
       </aside>
       <div className="sm:col-span-2">
