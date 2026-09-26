@@ -753,7 +753,7 @@ export default function CheckoutPage() {
                     onChange={(event) => updateShippingField(field as keyof typeof shippingForm, event.target.value)}
                     className="mt-1 w-full rounded-md border border-fog bg-white px-3 py-3 text-sm text-ink outline-none focus:border-ink"
                     autoComplete={field === "postalCode" ? "postal-code" : field === "fullName" ? "name" : undefined}
-                    maxLength={field === "customerGstin" ? 15 : undefined}
+                    maxLength={undefined}
                   />
                 )}
               </label>
