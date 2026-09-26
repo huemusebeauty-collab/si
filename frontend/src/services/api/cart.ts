@@ -170,7 +170,16 @@ export async function clearActiveCart(): Promise<void> {
 export async function getCartTotals(): Promise<{ subtotal: number; discountAmount: number; total: number; itemCount: number }> {
   const cartId = getStoredCartId();
   if (!cartId) return { subtotal: 0, discountAmount: 0, total: 0, itemCount: 0 };
-  return request(`/carts/${cartId}/totals`);
+  try {
+    return await request(`/carts/${cartId}/totals`);
+  } catch {
+    // A stale cart id can survive a previous browser session/account. Recover
+    // by creating a fresh cart instead of leaving the header in a 403 loop.
+    if (typeof window !== "undefined") window.localStorage.removeItem(CART_STORAGE_KEY);
+    const freshCart = await getOrCreateGuestCart();
+    const freshId = freshCart.id;
+    return request(`/carts/${freshId}/totals`);
+  }
 }
 
 export async function mergeGuestCart(customerId: string): Promise<ApiCart | null> {
