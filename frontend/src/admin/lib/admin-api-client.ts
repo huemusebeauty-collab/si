@@ -133,11 +133,18 @@ export interface AdminCollection { id: string; slug: string; name: string; activ
 export interface AdminOrder { id: string; customerId: string; status: string; total: string; currency: string; createdAt: string; lineItems?: unknown[] }
 export interface AdminInvoice {
   orderId: string;
+  customerId?: string;
+  supplier?: Record<string, unknown>;
+  recipient?: Record<string, unknown>;
+  shippingAddress?: Record<string, unknown>;
+  placeOfSupply?: Record<string, unknown>;
   lineItems: unknown[];
   subtotal: string;
   discountAmount: string;
   taxableAmount: string;
   taxAmount: string;
+  logisticsFee?: string;
+  platformFee?: string;
   total: string;
   currency: string;
   issuedAt: string | null;
