@@ -297,6 +297,98 @@ export class StorageService {
     }
   }
 
+  async reoptimizeMedia(category: UploadCategory = "product-media"): Promise<{
+    category: UploadCategory;
+    scanned: number;
+    optimized: number;
+    unchanged: number;
+    failed: number;
+    savedBytes: number;
+    results: Array<{ key: string; type: "image" | "video"; beforeBytes: number; afterBytes: number; savedBytes: number; savedPercent: number; action: "optimized" | "unchanged" | "failed"; error?: string }>;
+  }> {
+    const prefix = category + "/";
+    const listed: Array<{ key: string; size: number }> = [];
+    let continuationToken: string | undefined;
+
+    do {
+      const result = await this.client.send(new ListObjectsV2Command({ Bucket: this.bucket, Prefix: prefix, MaxKeys: 100, ContinuationToken: continuationToken }));
+      for (const item of result.Contents ?? []) {
+        if (item.Key && item.Key !== prefix) listed.push({ key: item.Key, size: item.Size ?? 0 });
+      }
+      continuationToken = result.IsTruncated ? result.NextContinuationToken : undefined;
+    } while (continuationToken);
+
+    const results: Array<{ key: string; type: "image" | "video"; beforeBytes: number; afterBytes: number; savedBytes: number; savedPercent: number; action: "optimized" | "unchanged" | "failed"; error?: string }> = [];
+
+    for (const item of listed) {
+      try {
+        const head = await this.client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: item.key }));
+        const contentType = head.ContentType ?? "application/octet-stream";
+        const type = contentType.startsWith("video/") ? "video" as const : "image" as const;
+        if (!contentType.startsWith("image/") && contentType !== "video/mp4") {
+          results.push({ key: item.key, type, beforeBytes: item.size, afterBytes: item.size, savedBytes: 0, savedPercent: 0, action: "unchanged" });
+          continue;
+        }
+        const object = await this.getObject(item.key);
+        const beforeBytes = object.body.length;
+        let optimizedBody = object.body;
+        let optimizedType = contentType;
+
+        if (contentType.startsWith("image/")) {
+          const metadata = await sharp(object.body, { failOn: "error" }).metadata();
+          if (!metadata.width || !metadata.height || metadata.width < 400 || metadata.height < 400) {
+            results.push({ key: item.key, type, beforeBytes, afterBytes: beforeBytes, savedBytes: 0, savedPercent: 0, action: "unchanged" });
+            continue;
+          }
+          optimizedBody = await sharp(object.body, { failOn: "error" }).rotate().resize({ width: MAX_IMAGE_DIMENSION_PX, height: MAX_IMAGE_DIMENSION_PX, fit: "inside", withoutEnlargement: true }).webp({ quality: 82, effort: 4 }).toBuffer();
+          optimizedType = "image/webp";
+        } else {
+          if (beforeBytes <= 2 * 1024 * 1024) {
+            results.push({ key: item.key, type, beforeBytes, afterBytes: beforeBytes, savedBytes: 0, savedPercent: 0, action: "unchanged" });
+            continue;
+          }
+          const workDir = await mkdtemp(join(tmpdir(), "silku-media-reopt-"));
+          const inputPath = join(workDir, "input.mp4");
+          const outputPath = join(workDir, "optimized.mp4");
+          try {
+            await writeFile(inputPath, object.body);
+            await runFfmpeg(inputPath, outputPath);
+            optimizedBody = await readFile(outputPath);
+          } finally {
+            await rm(workDir, { recursive: true, force: true });
+          }
+          if (!optimizedBody.length || optimizedBody.length >= beforeBytes || optimizedBody.length > MAX_VIDEO_OUTPUT_BYTES) {
+            results.push({ key: item.key, type, beforeBytes, afterBytes: beforeBytes, savedBytes: 0, savedPercent: 0, action: "unchanged" });
+            continue;
+          }
+          optimizedType = "video/mp4";
+        }
+
+        if (optimizedBody.length >= beforeBytes) {
+          results.push({ key: item.key, type, beforeBytes, afterBytes: beforeBytes, savedBytes: 0, savedPercent: 0, action: "unchanged" });
+          continue;
+        }
+        const savedBytes = beforeBytes - optimizedBody.length;
+        const savedPercent = Math.round((savedBytes / beforeBytes) * 1000) / 10;
+        const previousOriginalSize = Number(head.Metadata?.originalsize ?? NaN);
+        const originalSize = Number.isFinite(previousOriginalSize) && previousOriginalSize >= beforeBytes ? previousOriginalSize : beforeBytes;
+        await this.client.send(new PutObjectCommand({
+          Bucket: this.bucket, Key: item.key, Body: optimizedBody, ContentType: optimizedType, ContentLength: optimizedBody.length,
+          Metadata: { ...(head.Metadata?.originalname ? { originalName: head.Metadata.originalname } : {}), originalSize: String(originalSize), optimized: "true" },
+        }));
+        results.push({ key: item.key, type, beforeBytes, afterBytes: optimizedBody.length, savedBytes, savedPercent, action: "optimized" });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown error";
+        this.logger.error({ key: item.key, error: message }, "Media re-optimization failed");
+        results.push({ key: item.key, type: "image", beforeBytes: item.size, afterBytes: item.size, savedBytes: 0, savedPercent: 0, action: "failed", error: "Optimization failed." });
+      }
+    }
+
+    const optimized = results.filter((item) => item.action === "optimized");
+    const unchanged = results.filter((item) => item.action === "unchanged");
+    const failed = results.filter((item) => item.action === "failed");
+    return { category, scanned: results.length, optimized: optimized.length, unchanged: unchanged.length, failed: failed.length, savedBytes: optimized.reduce((total, item) => total + item.savedBytes, 0), results };
+  }
   async getSignedReadUrl(key: string): Promise<{ url: string; expiresAt: string }> {
     const command = new GetObjectCommand({ Bucket: this.bucket, Key: key });
     const url = await getSignedUrl(this.client, command, { expiresIn: SIGNED_URL_TTL_SECONDS });
