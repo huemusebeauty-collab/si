@@ -17,6 +17,14 @@ type Address = {
 
 type AddressForm = Omit<Address, "id" | "isDefault"> & { isDefault: boolean };
 
+const INDIA_STATES = [
+  ["Andaman and Nicobar Islands","35"],["Andhra Pradesh","37"],["Arunachal Pradesh","12"],["Assam","18"],["Bihar","10"],["Chandigarh","04"],["Chhattisgarh","22"],
+  ["Dadra and Nagar Haveli and Daman and Diu","26"],["Delhi","07"],["Goa","30"],["Gujarat","24"],["Haryana","06"],["Himachal Pradesh","02"],["Jammu and Kashmir","01"],
+  ["Jharkhand","20"],["Karnataka","29"],["Kerala","32"],["Ladakh","38"],["Lakshadweep","31"],["Madhya Pradesh","23"],["Maharashtra","27"],["Manipur","14"],
+  ["Meghalaya","17"],["Mizoram","15"],["Nagaland","13"],["Odisha","21"],["Puducherry","34"],["Punjab","03"],["Rajasthan","08"],["Sikkim","11"],
+  ["Tamil Nadu","33"],["Telangana","36"],["Tripura","16"],["Uttar Pradesh","09"],["Uttarakhand","05"],["West Bengal","19"],
+] as const;
+
 const emptyForm: AddressForm = {
   line1: "",
   line2: "",
@@ -162,8 +170,8 @@ export default function AddressesClient() {
           <label className="md:col-span-2 text-sm text-ink">Address Line 1<input required value={form.line1} onChange={(e) => updateField("line1", e.target.value)} className="mt-1 w-full rounded border border-fog px-3 py-2" /></label>
           <label className="md:col-span-2 text-sm text-ink">Address Line 2<input value={form.line2 ?? ""} onChange={(e) => updateField("line2", e.target.value)} className="mt-1 w-full rounded border border-fog px-3 py-2" /></label>
           <label className="text-sm text-ink">City<input required value={form.city} onChange={(e) => updateField("city", e.target.value)} className="mt-1 w-full rounded border border-fog px-3 py-2" /></label>
-          <label className="text-sm text-ink">State<input required value={form.region} onChange={(e) => updateField("region", e.target.value)} className="mt-1 w-full rounded border border-fog px-3 py-2" /></label>
-          <label className="text-sm text-ink">State Code<input maxLength={2} value={form.stateCode ?? ""} onChange={(e) => updateField("stateCode", e.target.value.toUpperCase())} className="mt-1 w-full rounded border border-fog px-3 py-2" /></label>
+          <label className="text-sm text-ink">State / UT<select required value={form.stateCode ?? ""} onChange={(e) => { const code = e.target.value; const selected = INDIA_STATES.find(([, stateCode]) => stateCode === code); updateField("region", selected?.[0] ?? ""); updateField("stateCode", code); }} className="mt-1 w-full rounded border border-fog px-3 py-2"><option value="">Select State / UT</option>{INDIA_STATES.map(([name, code]) => <option key={code} value={code}>{name}</option>)}</select></label>
+          <label className="text-sm text-ink">State Code<input readOnly value={form.stateCode ?? ""} className="mt-1 w-full rounded border border-fog bg-gray-50 px-3 py-2" /></label>
           <label className="text-sm text-ink">PIN Code<input required value={form.postalCode} onChange={(e) => updateField("postalCode", e.target.value)} className="mt-1 w-full rounded border border-fog px-3 py-2" /></label>
           <label className="text-sm text-ink">Country<input required maxLength={2} value={form.country} onChange={(e) => updateField("country", e.target.value.toUpperCase())} className="mt-1 w-full rounded border border-fog px-3 py-2" /></label>
         </div>
