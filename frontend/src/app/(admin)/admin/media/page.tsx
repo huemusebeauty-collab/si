@@ -14,6 +14,7 @@ function MediaContent() {
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selectedFiles, setSelectedFiles] = useState(0);
+  const formatBytes = (bytes: number) => bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`;
 
   useEffect(() => {
     void adminApi.listMedia()
