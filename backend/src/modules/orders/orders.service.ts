@@ -15,6 +15,7 @@ import { DomainErrorCode, DomainException } from "@/common/exceptions/domain.exc
 import { resolveInvoiceLayout, type InvoiceFormat, type InvoiceSize } from "./invoice.types";
 import { calculateGstWithinMrp, roundMoney } from "./tax.utils";
 import { SettingsService } from "@/admin/settings/settings.service";
+import { CustomersService } from "@/modules/customers/customers.service";
 
 const CANCELLABLE_BEFORE: OrderStatus[] = ["pending_payment", "confirmed", "processing"];
 const RETURNABLE_AFTER: OrderStatus[] = ["delivered"];
@@ -46,7 +47,35 @@ export class OrdersService {
     private readonly products: ProductsService,
     private readonly transactions: TransactionService,
     private readonly settings: SettingsService,
+    private readonly customers: CustomersService,
   ) {}
+
+  async getAdminOrder(orderId: string): Promise<OrderEntity & { customer: { id: string; name: string; email: string; phone: string | null; addresses: Array<Record<string, unknown>> } }> {
+    const order = await this.getOrder(orderId);
+    const customer = await this.customers.findById(order.customerId);
+    return {
+      ...order,
+      customer: {
+        id: customer.id,
+        name: [customer.firstName, customer.lastName].filter(Boolean).join(" "),
+        email: customer.email,
+        phone: customer.phone ?? null,
+        addresses: (customer.addresses ?? []).map((address) => ({
+          id: address.id,
+          label: address.label,
+          fullName: address.fullName,
+          phone: address.phone,
+          line1: address.line1,
+          line2: address.line2,
+          city: address.city,
+          region: address.region,
+          postalCode: address.postalCode,
+          country: address.country,
+          isDefault: address.isDefault,
+        })),
+      },
+    };
+  }
 
   async getOrder(orderId: string): Promise<OrderEntity> {
     const order = await this.orders.findOne({ where: { id: orderId }, relations: ["lineItems", "statusHistory"] });
