@@ -59,9 +59,9 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
       const issued = invoice?.invoiceNumber ? invoice : await adminApi.issueAdminInvoice(order.id);
       setInvoice(issued);
 
-      const supplier = issued.supplier ?? {};
-      const recipient = issued.recipient ?? {};
-      const address = issued.shippingAddress ?? recipient.deliveryAddress ?? {};
+      const supplier: Record<string, unknown> = issued.supplier ?? {};
+      const recipient: Record<string, unknown> = issued.recipient ?? {};
+      const address: Record<string, unknown> = issued.shippingAddress ?? (recipient.deliveryAddress as Record<string, unknown> | undefined) ?? {};
       const get = (source: Record<string, unknown>, key: string) => source[key] == null ? "" : String(source[key]);
       const fullAddress = [
         get(address, "line1"),
