@@ -24,6 +24,7 @@ export interface ApiOrder {
   status: string;
   total: string;
   currency: string;
+  billingAddress: Record<string, unknown>;
   shippingAddress: Record<string, unknown>;
   guestCheckoutToken?: string;
 }
@@ -44,6 +45,7 @@ export interface InvoiceResponse {
   total: string;
   currency: string;
   orderId: string;
+  billingAddress?: Record<string, unknown>;
   shippingAddress?: Record<string, unknown>;
 }
 
@@ -183,29 +185,36 @@ export async function mergeGuestCart(customerId: string): Promise<ApiCart | null
   return cart;
 }
 
-export async function createOrder(shippingAddress: Record<string, string>, idempotencyKey?: string): Promise<ApiOrder> {
+export async function createOrder(
+  billingAddress: Record<string, string>,
+  shippingAddress: Record<string, string>,
+  customerDetails: { customerGstin?: string; customerLegalName?: string },
+  idempotencyKey?: string,
+): Promise<ApiOrder> {
   const cartId = getStoredCartId();
   const sessionId = getStoredSessionId();
   if (!cartId || !sessionId) throw new Error("Your cart session could not be found. Please return to cart and try again.");
+  const mapAddress = (address: Record<string, string>) => ({
+    line1: address.addressLine1,
+    line2: address.addressLine2,
+    city: address.city,
+    region: address.state,
+    stateCode: address.stateCode,
+    postalCode: address.postalCode,
+    country: address.country,
+    fullName: address.fullName,
+    phone: address.phone,
+  });
   return request<ApiOrder>("/orders", {
     method: "POST",
     headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
     body: JSON.stringify({
       customerId: sessionId,
       cartId,
-      shippingAddress: {
-        line1: shippingAddress.addressLine1,
-        line2: shippingAddress.addressLine2,
-        city: shippingAddress.city,
-        region: shippingAddress.state,
-        stateCode: shippingAddress.stateCode,
-        postalCode: shippingAddress.postalCode,
-        country: shippingAddress.country,
-        fullName: shippingAddress.fullName,
-        phone: shippingAddress.phone,
-      },
-      customerGstin: shippingAddress.customerGstin || undefined,
-      customerLegalName: shippingAddress.customerLegalName || undefined,
+      billingAddress: mapAddress(billingAddress),
+      shippingAddress: mapAddress(shippingAddress),
+      customerGstin: customerDetails.customerGstin || undefined,
+      customerLegalName: customerDetails.customerLegalName || undefined,
     }),
   });
 }
