@@ -44,6 +44,12 @@ export class OrderEntity {
   @Column({ type: "decimal", precision: 10, scale: 2, default: 0 })
   taxAmount!: string;
 
+  @Column({ type: "decimal", precision: 10, scale: 2, default: 0 })
+  logisticsFee!: string;
+
+  @Column({ type: "decimal", precision: 10, scale: 2, default: 0 })
+  platformFee!: string;
+
   @Column({ type: "decimal", precision: 10, scale: 2 })
   total!: string;
 
