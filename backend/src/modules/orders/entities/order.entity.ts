@@ -57,6 +57,9 @@ export class OrderEntity {
   currency!: string;
 
   @Column({ type: "jsonb" })
+  billingAddress!: Record<string, unknown>;
+
+  @Column({ type: "jsonb" })
   shippingAddress!: Record<string, unknown>;
 
   @OneToMany(() => OrderLineItemEntity, (item) => item.order, { cascade: true })
