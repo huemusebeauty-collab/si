@@ -36,7 +36,7 @@ export function CartPanel({
         {lines.map((line) => (
           <li key={line.productId} className="flex gap-4 py-4">
             <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-md bg-paper">
-              <Image src={line.imageUrl} alt={line.productName} fill sizes="96px" className="object-contain p-1" />
+              <Image src={line.imageUrl} alt={line.productName} fill sizes="96px" className="object-contain p-1" unoptimized />
             </div>
             <div className="flex flex-1 flex-col justify-between">
               <div>
