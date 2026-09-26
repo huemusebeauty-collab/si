@@ -86,14 +86,19 @@ export class OrdersController {
     return this.orders.getTrackingStatus(orderId);
   }
 
+  @Public()
   @Get(":orderId/invoice")
   async invoice(
     @Param("orderId") orderId: string,
-    @CurrentUser() user: AuthenticatedUser,
+    @CurrentUser() user: AuthenticatedUser | undefined,
+    @Headers("x-guest-checkout-token") guestCheckoutToken?: string,
     @Query("size") size?: string,
     @Query("format") format?: string,
   ) {
-    await this.requireOwner(orderId, user);
+    const order = await this.orders.getOrder(orderId);
+    if (user?.id !== order.customerId && !(guestCheckoutToken && createGuestCheckoutToken(order.id) === guestCheckoutToken)) {
+      throw new DomainException(DomainErrorCode.REAUTHENTICATION_REQUIRED, "You do not have access to this invoice.");
+    }
     return this.orders.generateInvoice(orderId, size, format);
   }
 
