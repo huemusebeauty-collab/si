@@ -61,7 +61,8 @@
     "@nestjs/schedule": "^6.1.1",
     "tsconfig-paths": "^4.2.0",
     "ts-node": "^10.9.0",
-    "sharp": "^0.34.3"
+    "sharp": "^0.34.3",
+    "ffmpeg-static": "^5.2.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.14",
