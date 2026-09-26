@@ -8,6 +8,8 @@ import { formatCurrency } from "@/utils/formatCurrency";
 import {
   createOrder,
   getCartTotals,
+  getOrderInvoice,
+  type InvoiceResponse,
   getOrCreateGuestCart,
   initiatePayment,
   syncPayment,
@@ -86,6 +88,7 @@ export default function CheckoutPage() {
   const [order, setOrder] = useState<ApiOrder | null>(null);
   const [payment, setPayment] = useState<PaymentIntentResponse | null>(null);
   const [paymentComplete, setPaymentComplete] = useState(false);
+  const [invoice, setInvoice] = useState<InvoiceResponse | null>(null);
 
   const [form, setForm] = useState({
     fullName: "",
@@ -204,6 +207,8 @@ export default function CheckoutPage() {
       }
 
       if (typeof syncResult === "object" && syncResult !== null && "status" in syncResult && syncResult.status === "succeeded") {
+        const issuedInvoice = await getOrderInvoice(order.id, order.guestCheckoutToken);
+        setInvoice(issuedInvoice);
         trackWebsiteEvent("purchase", { orderId: order.id, metadata: { total: Number(order.total), itemCount: totals.itemCount } });
         setPaymentComplete(true);
       } else {
@@ -237,6 +242,30 @@ export default function CheckoutPage() {
           <p className="text-sm font-semibold uppercase tracking-[0.16em] text-stone">Payment confirmed</p>
           <h1 className="mt-2 font-display text-3xl font-semibold text-ink">Thank you for your order</h1>
           <p className="mt-3 text-stone">Your payment has been verified by the server and your order is confirmed.</p>
+          {invoice && (
+            <div className="mt-6 rounded-md border border-fog bg-paper p-5 print:border-0 print:p-0">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone">Customer bill</p>
+                  <h2 className="mt-1 font-display text-xl font-semibold text-ink">Invoice {invoice.invoiceNumber}</h2>
+                  <p className="mt-1 text-xs text-stone">{new Date(invoice.issuedAt).toLocaleString("en-IN")}</p>
+                </div>
+                <button type="button" onClick={() => window.print()} className="rounded-md border border-fog bg-white px-4 py-2 text-sm font-semibold text-ink print:hidden">Print / Save Bill</button>
+              </div>
+              <div className="mt-4 space-y-2 text-sm">
+                {invoice.lineItems.map((item, index) => (
+                  <div key={index} className="flex justify-between gap-4">
+                    <span>{item.productName} × {item.quantity}</span>
+                    <span>{formatCurrency(Number(item.unitPrice) * item.quantity)}</span>
+                  </div>
+                ))}
+                <div className="border-t border-fog pt-3 flex justify-between font-semibold text-ink">
+                  <span>Total paid</span><span>{formatCurrency(Number(invoice.total))}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           <dl className="mt-6 space-y-3 border-y border-fog py-5 text-sm">
             <div className="flex justify-between gap-4"><dt className="text-stone">Order ID</dt><dd className="font-medium text-ink break-all">{order.id}</dd></div>
             <div className="flex justify-between gap-4"><dt className="text-stone">Total</dt><dd className="font-medium text-ink">{formatCurrency(Number(order.total))}</dd></div>
