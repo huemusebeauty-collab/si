@@ -249,8 +249,15 @@ export class OrdersService {
         await this.products.adjustStock(line.variantId, -line.quantity, manager, { reason: "order_reservation", referenceType: "cart_checkout", referenceId: cartId });
       }
 
+      // Fee components are persisted separately so the customer bill can show them
+      // independently. Shipping/logistics and platform fee calculation is not yet
+      // configured, so the current production value is explicitly zero rather than
+      // inventing a charge. Future fee rules must feed these values before total.
+      const logisticsFee = 0;
+      const platformFee = 0;
+      total = roundMoney(total + logisticsFee + platformFee);
       if (total < 0 || (subtotal > 0 && total > subtotal + 0.005 && discountAmount === 0)) throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Invalid tax calculation.");
-      const order = manager.create(OrderEntity, { customerId, idempotencyKey: normalizedIdempotencyKey, customerGstin: normalizedGstin, customerLegalName: normalizedLegalName, placeOfSupplyState, placeOfSupplyStateCode, status: "pending_payment", subtotal: subtotal.toFixed(2), discountAmount: discountAmount.toFixed(2), taxableAmount: taxableAmount.toFixed(2), taxAmount: taxAmount.toFixed(2), total: total.toFixed(2), currency: "INR", shippingAddress });
+      const order = manager.create(OrderEntity, { customerId, idempotencyKey: normalizedIdempotencyKey, customerGstin: normalizedGstin, customerLegalName: normalizedLegalName, placeOfSupplyState, placeOfSupplyStateCode, status: "pending_payment", subtotal: subtotal.toFixed(2), discountAmount: discountAmount.toFixed(2), taxableAmount: taxableAmount.toFixed(2), taxAmount: taxAmount.toFixed(2), logisticsFee: logisticsFee.toFixed(2), platformFee: platformFee.toFixed(2), total: total.toFixed(2), currency: "INR", shippingAddress });
       const savedOrder = await manager.save(order);
       for (const snapshot of snapshotLines) await manager.save(manager.create(OrderLineItemEntity, { ...snapshot, order: savedOrder }));
       await manager.save(manager.create(OrderStatusHistoryEntity, { order: savedOrder, status: "pending_payment" }));
@@ -520,6 +527,8 @@ export class OrdersService {
         discountAmount: order.discountAmount,
         taxableAmount: order.taxableAmount,
         taxAmount: order.taxAmount,
+        logisticsFee: order.logisticsFee,
+        platformFee: order.platformFee,
         total: order.total,
         currency: order.currency,
         orderCreatedAt: order.createdAt.toISOString(),
