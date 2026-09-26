@@ -89,6 +89,7 @@ export default function CheckoutPage() {
   const [payment, setPayment] = useState<PaymentIntentResponse | null>(null);
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [invoice, setInvoice] = useState<InvoiceResponse | null>(null);
+  const [returningPayment, setReturningPayment] = useState(false);
 
   const [form, setForm] = useState({
     fullName: "",
@@ -124,6 +125,61 @@ export default function CheckoutPage() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function restoreReturnedPayment() {
+      if (typeof window === "undefined") return;
+      const orderId = new URLSearchParams(window.location.search).get("order_id");
+      if (!orderId) return;
+
+      const storedOrderId = window.localStorage.getItem("silku-last-order-id");
+      const guestCheckoutToken = window.localStorage.getItem("silku-last-guest-checkout-token");
+      if (!guestCheckoutToken || storedOrderId !== orderId) return;
+
+      setReturningPayment(true);
+      setError(null);
+      let lastError: unknown = null;
+      try {
+        for (let attempt = 0; attempt < 15 && !cancelled; attempt += 1) {
+          try {
+            const returnedInvoice = await getOrderInvoice(orderId, guestCheckoutToken);
+            if (cancelled) return;
+            setInvoice(returnedInvoice);
+            setOrder({
+              id: orderId,
+              customerId: "",
+              status: "processing",
+              total: returnedInvoice.total,
+              currency: returnedInvoice.currency,
+              shippingAddress: returnedInvoice.shippingAddress ?? {},
+              guestCheckoutToken,
+            });
+            setPaymentComplete(true);
+            trackWebsiteEvent("purchase", {
+              orderId,
+              metadata: { total: Number(returnedInvoice.total), itemCount: returnedInvoice.lineItems.length },
+            });
+            return;
+          } catch (err) {
+            lastError = err;
+            if (attempt < 14) await new Promise((resolve) => setTimeout(resolve, 1000));
+          }
+        }
+        if (!cancelled) {
+          setError(lastError instanceof Error
+            ? lastError.message
+            : "Payment was completed, but your customer bill is still being prepared. Please refresh this page in a moment.");
+        }
+      } finally {
+        if (!cancelled) setReturningPayment(false);
+      }
+    }
+
+    void restoreReturnedPayment();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
     if (!payment?.clientSecret || paymentComplete || window.Cashfree) return;
     const script = document.createElement("script");
     script.src = "https://sdk.cashfree.com/js/v3/cashfree.js";
@@ -152,6 +208,10 @@ export default function CheckoutPage() {
       const nextPayment = await initiatePayment(createdOrder, idempotencyKey);
       if (!nextPayment.clientSecret) throw new Error("Payment gateway did not return a secure payment session.");
       setOrder(createdOrder);
+      if (createdOrder.guestCheckoutToken) {
+        window.localStorage.setItem("silku-last-order-id", createdOrder.id);
+        window.localStorage.setItem("silku-last-guest-checkout-token", createdOrder.guestCheckoutToken);
+      }
       setPayment(nextPayment);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not start secure payment.");
@@ -234,7 +294,21 @@ export default function CheckoutPage() {
     }
   }
 
-  if (loading) return <div className="py-10 text-stone">Loading checkout…</div>;
+  if (loading && !returningPayment) return <div className="py-10 text-stone">Loading checkout…</div>;
+
+  if (returningPayment && !paymentComplete) {
+    return (
+      <div className="py-10">
+        <Breadcrumb items={[{ label: "Home", href: "/" }, { label: "Cart", href: "/cart" }, { label: "Payment confirmation" }]} />
+        <div className="mt-8 max-w-2xl rounded-md bg-white p-8 shadow-rest">
+          <p className="text-sm font-semibold uppercase tracking-[0.16em] text-stone">Payment received</p>
+          <h1 className="mt-2 font-display text-3xl font-semibold text-ink">Confirming your order…</h1>
+          <p className="mt-3 text-stone">We are verifying the payment and preparing your customer bill. Please keep this page open.</p>
+          {error && <p role="alert" className="mt-4 rounded-md bg-paper p-3 text-[13px] leading-[18px] text-error">{error}</p>}
+        </div>
+      </div>
+    );
+  }
 
   if (!cart || cart.lineItems.filter((item) => !item.savedForLater).length === 0) {
     return (
