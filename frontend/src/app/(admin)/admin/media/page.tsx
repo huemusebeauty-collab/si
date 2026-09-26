@@ -30,7 +30,7 @@ function MediaContent() {
     try {
       const results = await Promise.all(files.map(async (file) => {
         const result = await adminApi.uploadMedia(file);
-        return { ...result, type: file.type.startsWith("video/") ? "video" as const : "image" as const };
+        return { key: result.key, url: result.url, contentType: result.contentType, size: result.storedSize, originalSize: result.originalSize, savedBytes: result.savedBytes, savedPercent: result.savedPercent, type: file.type.startsWith("video/") ? "video" as const : "image" as const };
       }));
       setUploaded((prev) => [...results, ...prev]);
       if (fileInput.current) fileInput.current.value = "";
