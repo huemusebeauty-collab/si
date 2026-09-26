@@ -414,9 +414,12 @@ export class StorageService {
     const normalizedId = objectId.replace(/\.[a-z0-9]{1,12}$/i, "");
     const rows = await this.productRepository
       .createQueryBuilder("product")
-      .select(["product.id", "product.name", "product.slug", "product.mediaUrls"])
-      .where("product.mediaUrls::text ILIKE :needle", { needle: `%${normalizedId}%` })
-      .getMany();
+      .select("product.id", "id")
+      .addSelect("product.name", "name")
+      .addSelect("product.slug", "slug")
+      .addSelect('product."mediaUrls"', "mediaUrls")
+      .where('product."mediaUrls"::text ILIKE :needle', { needle: `%${normalizedId}%` })
+      .getRawMany<{ id: string; name: string; slug: string; mediaUrls: unknown }>();
 
     const products = rows
       .filter((product) => Array.isArray(product.mediaUrls) && product.mediaUrls.some((value) => String(value).includes(normalizedId)))
