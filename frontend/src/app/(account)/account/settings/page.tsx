@@ -1,6 +1,5 @@
 "use client";
 
-import type { Metadata } from "next";
 import { useEffect, useState } from "react";
 import { Breadcrumb } from "@/components/patterns/Breadcrumb";
 import { authenticatedFetch } from "@/services/api/auth";
