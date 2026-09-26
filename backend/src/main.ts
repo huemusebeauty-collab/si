@@ -23,7 +23,7 @@ async function bootstrap() {
   app.useLogger(app.get(Logger)); // Sprint 3.2 — structured logging (pino)
 
   // Sprint 3.7 — Security headers (Phase 8 §7: CSP, X-Content-Type-Options, X-Frame-Options, HSTS)
-  app.use(helmet());
+  // Media is served from the API origin and embedded by the storefront/admin frontend.\n  // Helmet defaults to Cross-Origin-Resource-Policy: same-origin, which blocks\n  // cross-origin <img>/<video> requests with ERR_BLOCKED_BY_RESPONSE.NotSameOrigin.\n  app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
   // Sprint 3.11 — Performance: response compression
   app.use(compression());
   // Sprint 3.7 — Security: explicit CORS allowlist, never a wildcard
