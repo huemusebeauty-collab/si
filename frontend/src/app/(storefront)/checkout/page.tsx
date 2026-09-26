@@ -644,13 +644,13 @@ export default function CheckoutPage() {
             ))}
           </div>
           <div className="mt-5 rounded-md border border-fog bg-paper p-4">
-            <label className="flex cursor-pointer items-start gap-3">
-              <input type="checkbox" checked={shippingSameAsBilling} onChange={(event) => setShippingSameAsBilling(event.target.checked)} className="mt-1 h-4 w-4" />
-              <span>
+            <div className="flex items-start gap-3">
+              <input id="shipping-same-as-billing" type="checkbox" checked={shippingSameAsBilling} onChange={(event) => setShippingSameAsBilling(event.target.checked)} className="mt-1 h-4 w-4" />
+              <label htmlFor="shipping-same-as-billing" className="cursor-pointer">
                 <span className="block text-sm font-semibold text-ink">Shipping address is same as billing address</span>
                 <span className="mt-1 block text-xs text-stone">Uncheck this if the order should be delivered to a different address.</span>
-              </span>
-            </label>
+              </label>
+            </div>
           </div>
           {!shippingSameAsBilling && (
             <div className="mt-6 border-t border-fog pt-6">
