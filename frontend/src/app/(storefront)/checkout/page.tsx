@@ -324,7 +324,7 @@ export default function CheckoutPage() {
     );
   }
 
-  if (order && payment && paymentComplete) {
+  if (order && paymentComplete) {
     return (
       <div className="py-10">
         <Breadcrumb items={[{ label: "Home", href: "/" }, { label: "Cart", href: "/cart" }, { label: "Order confirmed" }]} />
