@@ -121,23 +121,29 @@ export class StorageService {
       const inputPath = join(workDir, "input.mp4");
       const outputPath = join(workDir, "optimized.mp4");
       try {
-        await writeFile(inputPath, file.buffer);
-        await runFfmpeg(inputPath, outputPath);
-        const optimizedBody = await readFile(outputPath);
-
-        if (!optimizedBody.length) {
-          throw new BadRequestException("MP4 optimization produced an empty file.");
-        }
-
-        // Prefer the optimized delivery file when it fits the limit.
-        // If the source is already within the delivery limit and transcoding
-        // makes it larger, keep the valid original instead of rejecting it.
-        if (optimizedBody.length <= MAX_VIDEO_OUTPUT_BYTES) {
-          body = optimizedBody.length < file.buffer.length ? optimizedBody : file.buffer;
-        } else if (file.buffer.length <= MAX_VIDEO_OUTPUT_BYTES) {
+        // Small/already-compressed MP4s do not need a lossy transcode.
+        // Keeping them byte-for-byte avoids unnecessary enlargement and
+        // preserves the original quality when there is little to gain.
+        if (file.buffer.length <= 2 * 1024 * 1024) {
           body = file.buffer;
         } else {
-          throw new BadRequestException("MP4 exceeds the 20MB delivery limit after optimization.");
+          await writeFile(inputPath, file.buffer);
+          await runFfmpeg(inputPath, outputPath);
+          const optimizedBody = await readFile(outputPath);
+
+          if (!optimizedBody.length) {
+            throw new BadRequestException("MP4 optimization produced an empty file.");
+          }
+
+          // Only replace the source when the optimized delivery file is
+          // strictly smaller. Otherwise retain the valid original.
+          if (optimizedBody.length <= MAX_VIDEO_OUTPUT_BYTES && optimizedBody.length < file.buffer.length) {
+            body = optimizedBody;
+          } else if (file.buffer.length <= MAX_VIDEO_OUTPUT_BYTES) {
+            body = file.buffer;
+          } else {
+            throw new BadRequestException("MP4 exceeds the 20MB delivery limit after optimization.");
+          }
         }
 
         contentType = "video/mp4";
