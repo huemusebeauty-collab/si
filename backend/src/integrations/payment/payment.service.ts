@@ -200,7 +200,8 @@ export class PaymentService {
     if (!payload || typeof payload !== "object") return { received: true, processed: false };
     const body = payload as Record<string, unknown>;
     const data = typeof body.data === "object" && body.data ? body.data as Record<string, unknown> : body;
-    const orderId = [body.order_id, body.orderId, data.order_id, data.orderId]
+    const nestedOrder = typeof data.order === "object" && data.order ? data.order as Record<string, unknown> : undefined;
+    const orderId = [body.order_id, body.orderId, data.order_id, data.orderId, nestedOrder?.order_id, nestedOrder?.orderId]
       .find((v): v is string => typeof v === "string" && v.length > 0);
     if (!orderId) return { received: true, processed: false };
     const transaction = await this.transactionsRepo.findOne({ where: { orderId }, order: { createdAt: "DESC" } });
