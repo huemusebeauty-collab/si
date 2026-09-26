@@ -11,7 +11,7 @@ import ffmpegPath from "ffmpeg-static";
 import sharp from "sharp";
 import { SettingsService } from "@/admin/settings/settings.service";
 
-const SIGNED_URL_TTL_SECONDS = 15 * 60; // Sprint 5.6 — signed URLs expire in 15 minutes
+const SIGNED_URL_TTL_SECONDS = 15 * 60;
 const MAX_IMAGE_INPUT_BYTES = 20 * 1024 * 1024;
 const MAX_VIDEO_INPUT_BYTES = 25 * 1024 * 1024;
 const MAX_IMAGE_DIMENSION_PX = 2400;
@@ -19,290 +19,112 @@ const MAX_VIDEO_OUTPUT_BYTES = 20 * 1024 * 1024;
 const MAX_VIDEO_WIDTH_PX = 1080;
 
 function runFfmpeg(input: string, output: string): Promise<void> {
-  if (!ffmpegPath) throw new Error("FFmpeg binary is unavailable.");
+  const executable = ffmpegPath;
+  if (!executable) throw new Error("FFmpeg binary is unavailable.");
 
   return new Promise((resolve, reject) => {
-    const child = spawn(ffmpegPath, [
-      "-hide_banner",
-      "-loglevel", "error",
-      "-y",
-      "-i", input,
-      "-map", "0:v:0",
-      "-map", "0:a:0?",
-      "-c:v", "libx264",
-      "-preset", "veryfast",
-      "-crf", "28",
-      "-vf", "scale='min(1080,iw)':-2",
-      "-c:a", "aac",
-      "-b:a", "128k",
-      "-movflags", "+faststart",
-      "-pix_fmt", "yuv420p",
-      output,
+    const child = spawn(executable, [
+      "-hide_banner", "-loglevel", "error", "-y", "-i", input,
+      "-map", "0:v:0", "-map", "0:a:0?", "-c:v", "libx264",
+      "-preset", "veryfast", "-crf", "28", "-vf", "scale='min(1080,iw)':-2",
+      "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart",
+      "-pix_fmt", "yuv420p", output,
     ], { stdio: ["ignore", "ignore", "pipe"] });
 
     let stderr = "";
-    child.stderr?.on("data", (chunk) => { stderr += chunk.toString(); });
-    child.once("error", reject);
-    child.once("close", (code) => {
+    child.stderr.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
+    child.once("error", (error: Error) => reject(error));
+    child.once("close", (code: number | null) => {
       if (code === 0) resolve();
-      else reject(new Error(stderr.trim() || "FFmpeg exited with code " + code));
+      else reject(new Error(stderr.trim() || `FFmpeg exited with code ${code ?? "unknown"}`));
     });
   });
 }
 
 function sniffMediaContentType(body: Buffer): string | undefined {
   if (body.length >= 3 && body[0] === 0xff && body[1] === 0xd8 && body[2] === 0xff) return "image/jpeg";
-  if (
-    body.length >= 8 &&
-    body[0] === 0x89 && body[1] === 0x50 && body[2] === 0x4e && body[3] === 0x47 &&
-    body[4] === 0x0d && body[5] === 0x0a && body[6] === 0x1a && body[7] === 0x0a
-  ) return "image/png";
-  if (body.length >= 6 && body.subarray(0, 6).toString("ascii") === "GIF89a") return "image/gif";
-  if (body.length >= 6 && body.subarray(0, 6).toString("ascii") === "GIF87a") return "image/gif";
+  if (body.length >= 8 && body[0] === 0x89 && body[1] === 0x50 && body[2] === 0x4e && body[3] === 0x47 && body[4] === 0x0d && body[5] === 0x0a && body[6] === 0x1a && body[7] === 0x0a) return "image/png";
+  if (body.length >= 6 && (body.subarray(0, 6).toString("ascii") === "GIF89a" || body.subarray(0, 6).toString("ascii") === "GIF87a")) return "image/gif";
   if (body.length >= 12 && body.subarray(0, 4).toString("ascii") === "RIFF" && body.subarray(8, 12).toString("ascii") === "WEBP") return "image/webp";
   if (body.length >= 12 && body.subarray(4, 8).toString("ascii") === "ftyp") {
     const brand = body.subarray(8, 12).toString("ascii");
     if (brand === "avif" || brand === "avis") return "image/avif";
     return "video/mp4";
   }
-  if (body.length >= 4 && body.subarray(0, 4).toString("hex") === "1a45dfa3") return "video/webm";
-  if (body.length >= 4 && body.subarray(0, 4).toString("ascii") === "OggS") return "video/ogg";
+  if (body.length >= 4 && body.subarray(0, 4).toString("ascii") === "OggS") return "audio/ogg";
   return undefined;
 }
 
-export type UploadCategory = "product-media" | "cms-assets" | "review-media";
-
-// Sprint 3.8 — File Storage: S3-compatible object storage integration.
-// Product media is served through the application storage proxy so the
-// browser never depends on bucket-public configuration or expiring URLs.
 @Injectable()
 export class StorageService {
-  private readonly client: S3Client;
   private readonly logger = new Logger(StorageService.name);
+  private readonly s3: S3Client;
   private readonly bucket: string;
-  private readonly publicBaseUrl?: string;
+  private readonly publicBaseUrl: string;
 
-  constructor(
-    private readonly config: ConfigService,
-    private readonly settings: SettingsService,
-  ) {
-    this.bucket = this.config.get<string>("storage.bucket")!;
-    this.publicBaseUrl = this.config.get<string>("storage.publicBaseUrl");
-    this.client = new S3Client({
-      endpoint: this.config.get<string>("storage.endpoint"),
-      region: "us-east-1",
-      forcePathStyle: true,
-      credentials: {
-        accessKeyId: this.config.get<string>("storage.accessKey")!,
-        secretAccessKey: this.config.get<string>("storage.secretKey")!,
-      },
-    });
+  constructor(private readonly config: ConfigService, private readonly settings: SettingsService) {
+    this.bucket = this.config.getOrThrow<string>("STORAGE_BUCKET");
+    this.publicBaseUrl = this.config.getOrThrow<string>("STORAGE_PUBLIC_BASE_URL");
+    this.s3 = new S3Client({ region: this.config.get<string>("STORAGE_REGION") || "auto", endpoint: this.config.getOrThrow<string>("STORAGE_ENDPOINT"), credentials: { accessKeyId: this.config.getOrThrow<string>("STORAGE_ACCESS_KEY"), secretAccessKey: this.config.getOrThrow<string>("STORAGE_SECRET_KEY") } });
   }
 
-  async validate(file: { mimetype: string; size: number }): Promise<void> {
-    const { allowedMimeTypes, maxUploadSizeBytes } = await this.settings.getMediaSettings();
-    if (!allowedMimeTypes.includes(file.mimetype)) {
-      throw new BadRequestException(`Unsupported file type: ${file.mimetype}. Allowed: ${allowedMimeTypes.join(", ")}`);
-    }
-    const isVideo = file.mimetype.startsWith("video/");
-    const effectiveLimit = isVideo ? Math.min(maxUploadSizeBytes, MAX_VIDEO_INPUT_BYTES) : Math.min(maxUploadSizeBytes, MAX_IMAGE_INPUT_BYTES);
-    if (file.size > effectiveLimit) {
-      throw new BadRequestException(`${isVideo ? "Video" : "Image"} exceeds the ${Math.round(effectiveLimit / 1024 / 1024)}MB upload limit.`);
-    }
-  }
+  async uploadFile(file: Express.Multer.File, category: string) {
+    if (!file?.buffer?.length) throw new BadRequestException("Empty media file.");
+    if (!["product-media", "cms-assets", "review-media"].includes(category)) throw new BadRequestException("Invalid media category.");
 
-  async upload(
-    file: { buffer: Buffer; mimetype: string; size: number; originalname: string },
-    category: UploadCategory = "product-media",
-  ): Promise<{ key: string; url: string; originalName: string; contentType: string }> {
-    await this.validate(file);
+    const isVideo = file.mimetype === "video/mp4";
+    const maxInput = isVideo ? Math.min(await this.settings.getStorageMaxUploadBytes(), MAX_VIDEO_INPUT_BYTES) : Math.min(await this.settings.getStorageMaxUploadBytes(), MAX_IMAGE_INPUT_BYTES);
+    if (file.size > maxInput) throw new BadRequestException(`File exceeds the ${Math.floor(maxInput / 1024 / 1024)}MB upload limit.`);
 
     let body = file.buffer;
     let contentType = file.mimetype;
-    let originalName = file.originalname;
+    let extension = file.originalname.includes(".") ? file.originalname.split(".").pop()!.toLowerCase() : "bin";
+    let optimized = false;
 
-    if (file.mimetype.startsWith("image/")) {
-      const metadata = await sharp(file.buffer, { failOn: "error" }).metadata();
-      if (!metadata.width || !metadata.height) throw new BadRequestException("Image dimensions could not be detected.");
-      if (metadata.width < 400 || metadata.height < 400) throw new BadRequestException("Image must be at least 400x400 pixels.");
-      body = await sharp(file.buffer, { failOn: "error" }).rotate().resize({ width: MAX_IMAGE_DIMENSION_PX, height: MAX_IMAGE_DIMENSION_PX, fit: "inside", withoutEnlargement: true }).webp({ quality: 82, effort: 4 }).toBuffer();
-      contentType = "image/webp";
-      originalName = file.originalname.replace(/\.(jpe?g|png|webp|gif|avif)$/i, "") + ".webp";
-    } else if (file.mimetype === "video/mp4") {
-      if (file.buffer.length < 12 || file.buffer.subarray(4, 8).toString("ascii") !== "ftyp") {
-        throw new BadRequestException("Invalid MP4 file.");
-      }
-
+    if (isVideo) {
+      if (file.buffer.length < 12 || file.buffer.subarray(4, 8).toString("ascii") !== "ftyp") throw new BadRequestException("Invalid MP4 file.");
       const workDir = await mkdtemp(join(tmpdir(), "silku-media-"));
       const inputPath = join(workDir, "input.mp4");
       const outputPath = join(workDir, "optimized.mp4");
       try {
         await writeFile(inputPath, file.buffer);
         await runFfmpeg(inputPath, outputPath);
-        body = await readFile(outputPath);
-        if (!body.length || body.length >= file.buffer.length) {
-          throw new BadRequestException("MP4 could not be optimized to a smaller file.");
-        }
-        if (body.length > MAX_VIDEO_OUTPUT_BYTES) {
-          throw new BadRequestException("Optimized MP4 still exceeds the 20MB delivery limit.");
-        }
+        const optimizedBody = await readFile(outputPath);
+        if (!optimizedBody.length) throw new Error("FFmpeg produced an empty output.");
+        if (optimizedBody.length >= file.buffer.length) throw new Error("Optimized MP4 is not smaller than the original.");
+        if (optimizedBody.length > MAX_VIDEO_OUTPUT_BYTES) throw new Error("Optimized MP4 exceeds the 20MB delivery limit.");
+        body = optimizedBody;
         contentType = "video/mp4";
-        originalName = file.originalname.replace(/\.mp4$/i, "") + ".mp4";
+        extension = "mp4";
+        optimized = true;
       } catch (error) {
-        if (error instanceof BadRequestException) throw error;
-        this.logger.error({ error: error instanceof Error ? error.message : "UnknownError" }, "MP4 optimization failed");
-        throw new BadRequestException("MP4 optimization failed. Please upload a compatible MP4.");
+        this.logger.error(`MP4 optimization failed: ${error instanceof Error ? error.message : String(error)}`);
+        throw new BadRequestException("MP4 optimization failed. Please upload a compatible MP4 file.");
       } finally {
         await rm(workDir, { recursive: true, force: true });
       }
+    } else if (file.mimetype.startsWith("image/")) {
+      const metadata = await sharp(file.buffer).metadata();
+      if (!metadata.width || !metadata.height) throw new BadRequestException("Image dimensions could not be detected.");
+      if (metadata.width < 400 || metadata.height < 400) throw new BadRequestException("Image must be at least 400x400px.");
+      body = await sharp(file.buffer).rotate().resize(MAX_IMAGE_DIMENSION_PX, MAX_IMAGE_DIMENSION_PX, { fit: "inside", withoutEnlargement: true }).webp({ quality: 82, effort: 4 }).toBuffer();
+      contentType = "image/webp";
+      extension = "webp";
+      optimized = true;
     }
 
-    const key = category + "/" + randomUUID();
+    const key = `${category}/${randomUUID()}.${extension}`;
+    await this.s3.send(new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: body, ContentLength: body.length, ContentType: contentType, Metadata: { originalName: file.originalname, optimized: String(optimized) } }));
+    return { key, url: `${this.publicBaseUrl}/v1/storage/media/${category}/${key.split("/").pop()}` , size: body.length, contentType, optimized };
+  }
 
-    await this.client.send(new PutObjectCommand({
-      Bucket: this.bucket,
-      Key: key,
-      Body: body,
-      ContentType: contentType,
-      ContentLength: body.length,
-      Metadata: { originalName: file.originalname.slice(0, 512), optimized: file.mimetype.startsWith("image/") || file.mimetype === "video/mp4" ? "true" : "false" },
+  async listMedia(category: string) {
+    if (!["product-media", "cms-assets", "review-media"].includes(category)) throw new BadRequestException("Invalid media category.");
+    const listed = await this.s3.send(new ListObjectsV2Command({ Bucket: this.bucket, Prefix: `${category}/` }));
+    return Promise.all((listed.Contents || []).filter((item) => item.Key).map(async (item) => {
+      const key = item.Key!;
+      const head = await this.s3.send(new HeadObjectCommand({ Bucket: this.bucket, Key: key }));
+      return { key, size: head.ContentLength || item.Size || 0, contentType: head.ContentType || "application/octet-stream", lastModified: head.LastModified || item.LastModified || null };
     }));
-
-    if (this.publicBaseUrl) {
-      const baseUrl = this.publicBaseUrl.replace(/\/+$/, "");
-      return { key, url: baseUrl + "/" + key, originalName, contentType };
-    }
-
-    if (this.config.get<string>("env") === "production") {
-      throw new InternalServerErrorException("Storage public base URL is not configured.");
-    }
-
-    return {
-      key,
-      url: this.config.get<string>("storage.endpoint") + "/" + this.bucket + "/" + key,
-      originalName,
-      contentType,
-    };
-  }
-
-  async listMedia(category: UploadCategory = "product-media"): Promise<Array<{
-    key: string;
-    urlKey: string;
-    type: "image" | "video";
-    contentType: string;
-    size: number;
-    lastModified: string | null;
-  }>> {
-    const prefix = `${category}/`;
-    const listed: Array<{ key: string; size: number; lastModified: Date | undefined }> = [];
-    let continuationToken: string | undefined;
-
-    do {
-      const result = await this.client.send(
-        new ListObjectsV2Command({
-          Bucket: this.bucket,
-          Prefix: prefix,
-          MaxKeys: 100,
-          ContinuationToken: continuationToken,
-        }),
-      );
-      for (const item of result.Contents ?? []) {
-        if (!item.Key || item.Key === prefix) continue;
-        listed.push({ key: item.Key, size: item.Size ?? 0, lastModified: item.LastModified });
-      }
-      continuationToken = result.IsTruncated ? result.NextContinuationToken : undefined;
-    } while (continuationToken);
-
-    const media = await Promise.all(
-      listed.map(async (item) => {
-        try {
-          const head = await this.client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: item.key }));
-          const contentType = head.ContentType ?? "application/octet-stream";
-          const type = contentType.startsWith("video/") ? "video" as const : "image" as const;
-          return {
-            key: item.key,
-            urlKey: item.key.slice(prefix.length),
-            type,
-            contentType,
-            size: head.ContentLength ?? item.size,
-            lastModified: (head.LastModified ?? item.lastModified)?.toISOString() ?? null,
-          };
-        } catch (error) {
-          const name = error instanceof Error ? error.name : "UnknownError";
-          this.logger.warn({ key: item.key, errorName: name }, "Unable to read media metadata");
-          return null;
-        }
-      }),
-    );
-
-    return media
-      .filter((item): item is NonNullable<typeof item> => item !== null)
-      .sort((a, b) => (b.lastModified ?? "").localeCompare(a.lastModified ?? ""));
-  }
-
-  async getObject(key: string, range?: string): Promise<{
-    body: Buffer;
-    contentType: string;
-    contentLength?: number;
-    contentRange?: string;
-    statusCode: number;
-  }> {
-    try {
-      const result = await this.client.send(
-        new GetObjectCommand({
-          Bucket: this.bucket,
-          Key: key,
-          ...(range ? { Range: range } : {}),
-        }),
-      );
-      if (!result.Body) throw new NotFoundException("Media object not found.");
-      const bytes = await result.Body.transformToByteArray();
-      const body = Buffer.from(bytes);
-      // Existing objects can have generic/incorrect storage MIME metadata.
-      // Prefer the media type proven by the bytes; provider metadata remains
-      // the fallback when a partial range cannot be identified.
-      const detectedContentType = sniffMediaContentType(body);
-      const contentType = detectedContentType ?? result.ContentType ?? "application/octet-stream";
-      this.logger.log(
-        {
-          key,
-          requestedRange: range ?? null,
-          responseContentType: contentType,
-          providerContentType: result.ContentType ?? null,
-          bodyLength: body.length,
-          contentRange: result.ContentRange ?? null,
-        },
-        "Storage media response prepared",
-      );
-      return {
-        body,
-        contentType,
-        contentLength: body.length,
-        contentRange: result.ContentRange,
-        statusCode: range ? 206 : 200,
-      };
-    } catch (error) {
-      if (error instanceof NotFoundException) throw error;
-      const status = (error as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode;
-      const name = error instanceof Error ? error.name : "UnknownError";
-      this.logger.error({ key, range: Boolean(range), errorName: name, status }, "Storage media read failed");
-      if (status === 404 || name === "NoSuchKey" || name === "NotFound") {
-        throw new NotFoundException("Media object not found.");
-      }
-      if (status === 416) {
-        throw new BadRequestException("Requested media range is not satisfiable.");
-      }
-      throw new BadGatewayException("Media storage is unavailable.");
-    }
-  }
-
-  async getSignedReadUrl(key: string): Promise<{ url: string; expiresAt: string }> {
-    const command = new GetObjectCommand({ Bucket: this.bucket, Key: key });
-    const url = await getSignedUrl(this.client, command, { expiresIn: SIGNED_URL_TTL_SECONDS });
-    return { url, expiresAt: new Date(Date.now() + SIGNED_URL_TTL_SECONDS * 1000).toISOString() };
-  }
-
-  async deleteObject(key: string): Promise<void> {
-    await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
   }
 }
