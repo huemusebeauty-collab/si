@@ -62,9 +62,6 @@ export class OrdersService {
         phone: customer.phone ?? null,
         addresses: (customer.addresses ?? []).map((address) => ({
           id: address.id,
-          label: address.label,
-          fullName: address.fullName,
-          phone: address.phone,
           line1: address.line1,
           line2: address.line2,
           city: address.city,
