@@ -11,6 +11,7 @@ import { PaymentController } from "./payment.controller";
 import { OrdersModule } from "@/modules/orders/orders.module";
 import { ProductsModule } from "@/modules/products/products.module";
 import { DatabaseModule } from "@/database/database.module";
+import { LogisticsModule } from "@/modules/logistics/logistics.module";
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { DatabaseModule } from "@/database/database.module";
     OrdersModule,
     ProductsModule,
     DatabaseModule,
+    LogisticsModule,
   ],
   controllers: [PaymentController],
   providers: [
