@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Avatar } from "@/components/basic/Avatar";
 import { ROUTES } from "@/constants/routes";
-import { authenticatedFetch, logoutSession } from "@/services/api/auth";
+import { authenticatedFetch, getAccessToken, logoutSession } from "@/services/api/auth";
 
 type CustomerProfile = {
   firstName?: string;
@@ -21,7 +21,7 @@ export function AccountDashboard() {
 
   useEffect(() => {
     let active = true;
-    authenticatedFetch("/customers/me")
+    if (!getAccessToken()) {\n      setLoading(false);\n      return;\n    }\n    authenticatedFetch("/customers/me")
       .then(async (response) => {
         if (!response.ok) throw new Error("Unable to load account.");
         const body = (await response.json()) as { data?: CustomerProfile } & CustomerProfile;
