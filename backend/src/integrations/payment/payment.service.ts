@@ -265,6 +265,10 @@ export class PaymentService {
     }
     const confirmedOrder = await this.orders.getOrder(orderId);
     if (confirmedOrder.status === "confirmed" || confirmedOrder.status === "processing") {
+      // Issue the legal invoice as part of the verified-payment workflow so
+      // the customer bill is available even if the browser closes or the
+      // confirmation page fails after payment.
+      await this.orders.issueInvoice(orderId);
       await this.logistics.createShipment({ orderId });
     }
   }
