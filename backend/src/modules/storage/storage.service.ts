@@ -109,9 +109,19 @@ export class StorageService {
       const metadata = await sharp(file.buffer, { failOn: "error" }).metadata();
       if (!metadata.width || !metadata.height) throw new BadRequestException("Image dimensions could not be detected.");
       if (metadata.width < 400 || metadata.height < 400) throw new BadRequestException("Image must be at least 400x400 pixels.");
-      body = await sharp(file.buffer, { failOn: "error" }).rotate().resize({ width: MAX_IMAGE_DIMENSION_PX, height: MAX_IMAGE_DIMENSION_PX, fit: "inside", withoutEnlargement: true }).webp({ quality: 82, effort: 4 }).toBuffer();
-      contentType = "image/webp";
-      originalName = file.originalname.replace(/\.(jpe?g|png|webp|gif|avif)$/i, "") + ".webp";
+      const optimizedImage = await sharp(file.buffer, { failOn: "error" })
+        .rotate()
+        .resize({ width: MAX_IMAGE_DIMENSION_PX, height: MAX_IMAGE_DIMENSION_PX, fit: "inside", withoutEnlargement: true })
+        .webp({ quality: 82, effort: 4 })
+        .toBuffer();
+
+      // Never make an upload larger just because it was converted to WebP.
+      // If WebP is not smaller, preserve the original bytes and MIME type.
+      if (optimizedImage.length < file.buffer.length) {
+        body = optimizedImage;
+        contentType = "image/webp";
+        originalName = file.originalname.replace(/\.(jpe?g|png|webp|gif|avif)$/i, "") + ".webp";
+      }
     } else if (file.mimetype === "video/mp4") {
       if (file.buffer.length < 12 || file.buffer.subarray(4, 8).toString("ascii") !== "ftyp") {
         throw new BadRequestException("Invalid MP4 file.");
