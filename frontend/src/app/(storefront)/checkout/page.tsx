@@ -289,6 +289,8 @@ export default function CheckoutPage() {
                   <div className="flex justify-between gap-4 text-stone"><span>Discount</span><span>-{formatCurrency(Number(invoice.discountAmount))}</span></div>
                 )}
                 <div className="flex justify-between gap-4 text-stone"><span>Tax</span><span>{formatCurrency(Number(invoice.taxAmount))}</span></div>
+                <div className="flex justify-between gap-4 text-stone"><span>Logistics / Shipping Fee</span><span>{formatCurrency(Number(invoice.logisticsFee))}</span></div>
+                <div className="flex justify-between gap-4 text-stone"><span>Platform Fee</span><span>{formatCurrency(Number(invoice.platformFee))}</span></div>
                 <div className="border-t border-fog pt-3 flex justify-between font-semibold text-ink">
                   <span>Total paid</span><span>{formatCurrency(Number(invoice.total))}</span>
                 </div>
