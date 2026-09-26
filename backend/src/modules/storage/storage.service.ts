@@ -3,9 +3,13 @@ import { ConfigService } from "@nestjs/config";
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, ListObjectsV2Command, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { randomUUID } from "crypto";
+import sharp from "sharp";
 import { SettingsService } from "@/admin/settings/settings.service";
 
 const SIGNED_URL_TTL_SECONDS = 15 * 60; // Sprint 5.6 — signed URLs expire in 15 minutes
+const MAX_IMAGE_INPUT_BYTES = 20 * 1024 * 1024;
+const MAX_VIDEO_INPUT_BYTES = 25 * 1024 * 1024;
+const MAX_IMAGE_DIMENSION_PX = 2400;
 
 function sniffMediaContentType(body: Buffer): string | undefined {
   if (body.length >= 3 && body[0] === 0xff && body[1] === 0xd8 && body[2] === 0xff) return "image/jpeg";
@@ -61,8 +65,10 @@ export class StorageService {
     if (!allowedMimeTypes.includes(file.mimetype)) {
       throw new BadRequestException(`Unsupported file type: ${file.mimetype}. Allowed: ${allowedMimeTypes.join(", ")}`);
     }
-    if (file.size > maxUploadSizeBytes) {
-      throw new BadRequestException(`File exceeds the ${Math.round(maxUploadSizeBytes / 1024 / 1024)}MB limit.`);
+    const isVideo = file.mimetype.startsWith("video/");
+    const effectiveLimit = isVideo ? Math.min(maxUploadSizeBytes, MAX_VIDEO_INPUT_BYTES) : Math.min(maxUploadSizeBytes, MAX_IMAGE_INPUT_BYTES);
+    if (file.size > effectiveLimit) {
+      throw new BadRequestException(`${isVideo ? "Video" : "Image"} exceeds the ${Math.round(effectiveLimit / 1024 / 1024)}MB upload limit.`);
     }
   }
 
@@ -71,20 +77,36 @@ export class StorageService {
     category: UploadCategory = "product-media",
   ): Promise<{ key: string; url: string; originalName: string; contentType: string }> {
     await this.validate(file);
-    const key = `${category}/${randomUUID()}`;
 
-    await this.client.send(
-      new PutObjectCommand({
-        Bucket: this.bucket,
-        Key: key,
-        Body: file.buffer,
-        ContentType: file.mimetype,
-      }),
-    );
+    let body = file.buffer;
+    let contentType = file.mimetype;
+    let originalName = file.originalname;
+
+    if (file.mimetype.startsWith("image/")) {
+      const metadata = await sharp(file.buffer, { failOn: "error" }).metadata();
+      if (!metadata.width || !metadata.height) throw new BadRequestException("Image dimensions could not be detected.");
+      if (metadata.width < 400 || metadata.height < 400) throw new BadRequestException("Image must be at least 400x400 pixels.");
+      body = await sharp(file.buffer, { failOn: "error" }).rotate().resize({ width: MAX_IMAGE_DIMENSION_PX, height: MAX_IMAGE_DIMENSION_PX, fit: "inside", withoutEnlargement: true }).webp({ quality: 82, effort: 4 }).toBuffer();
+      contentType = "image/webp";
+      originalName = file.originalname.replace(/\.(jpe?g|png|webp|gif|avif)$/i, "") + ".webp";
+    } else if (file.mimetype === "video/mp4") {
+      if (file.buffer.length < 12 || file.buffer.subarray(4, 8).toString("ascii") !== "ftyp") throw new BadRequestException("Invalid MP4 file.");
+    }
+
+    const key = category + "/" + randomUUID();
+
+    await this.client.send(new PutObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+      Body: body,
+      ContentType: contentType,
+      ContentLength: body.length,
+      Metadata: { originalName: file.originalname.slice(0, 512), optimized: file.mimetype.startsWith("image/") ? "true" : "false" },
+    }));
 
     if (this.publicBaseUrl) {
       const baseUrl = this.publicBaseUrl.replace(/\/+$/, "");
-      return { key, url: baseUrl + "/" + key, originalName: file.originalname, contentType: file.mimetype };
+      return { key, url: baseUrl + "/" + key, originalName, contentType };
     }
 
     if (this.config.get<string>("env") === "production") {
@@ -94,8 +116,8 @@ export class StorageService {
     return {
       key,
       url: this.config.get<string>("storage.endpoint") + "/" + this.bucket + "/" + key,
-      originalName: file.originalname,
-      contentType: file.mimetype,
+      originalName,
+      contentType,
     };
   }
 
