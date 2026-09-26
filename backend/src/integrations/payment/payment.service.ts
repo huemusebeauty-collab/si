@@ -16,6 +16,7 @@ import { OrderStatusHistoryEntity } from "@/modules/orders/entities/order-status
 import { ForbiddenException, UnauthorizedException } from "@nestjs/common";
 import type { AuthenticatedUser } from "@/common/decorators/current-user.decorator";
 import { verifyGuestCheckoutToken } from "@/common/security/guest-checkout-token";
+import { LogisticsService } from "@/modules/logistics/logistics.service";
 
 @Injectable()
 export class PaymentService {
@@ -27,6 +28,7 @@ export class PaymentService {
     private readonly orders: OrdersService,
     private readonly products: ProductsService,
     private readonly transactionService: TransactionService,
+    private readonly logistics: LogisticsService,
   ) {}
 
   async initiatePayment(orderId: string, _amount: number, _currency: string, idempotencyKey: string, guestCheckoutToken?: string, user?: AuthenticatedUser) {
@@ -90,7 +92,7 @@ export class PaymentService {
       }
 
       if (result.status === "succeeded") {
-        await this.orders.confirmOrder(orderId, result.providerReference);
+        await this.confirmPaymentAndEnsureShipment(orderId, result.providerReference);
       } else if (result.status === "failed") {
         await this.failPaymentAndReleaseStock(orderId, "Payment initiation failed.");
       }
@@ -220,7 +222,7 @@ export class PaymentService {
     }
     const order = await this.orders.getOrder(transaction.orderId);
     if (verification.status === "succeeded" && order.status === "pending_payment") {
-      await this.orders.confirmOrder(transaction.orderId, transaction.providerReference);
+      await this.confirmPaymentAndEnsureShipment(transaction.orderId, transaction.providerReference);
     } else if (verification.status === "failed") {
       await this.failPaymentAndReleaseStock(transaction.orderId, "Payment failed at the provider.");
     }
@@ -247,12 +249,24 @@ export class PaymentService {
     }
 
     if (verification.status === "succeeded") {
-      if (order.status === "pending_payment") await this.orders.confirmOrder(transaction.orderId, providerReference);
+      if (order.status === "pending_payment") await this.confirmPaymentAndEnsureShipment(transaction.orderId, providerReference);
+      else if (order.status === "confirmed" || order.status === "processing") await this.logistics.createShipment({ orderId: transaction.orderId });
     } else if (verification.status === "failed") {
       await this.failPaymentAndReleaseStock(transaction.orderId, "Payment failed at the provider.");
     }
 
     return transaction;
+  }
+
+  private async confirmPaymentAndEnsureShipment(orderId: string, paymentReference: string): Promise<void> {
+    const order = await this.orders.getOrder(orderId);
+    if (order.status === "pending_payment") {
+      await this.orders.confirmOrder(orderId, paymentReference);
+    }
+    const confirmedOrder = await this.orders.getOrder(orderId);
+    if (confirmedOrder.status === "confirmed" || confirmedOrder.status === "processing") {
+      await this.logistics.createShipment({ orderId });
+    }
   }
 
   private authorizeOrderAccess(order: OrderEntity, user?: AuthenticatedUser, guestCheckoutToken?: string): void {
