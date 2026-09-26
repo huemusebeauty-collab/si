@@ -313,6 +313,74 @@ export default function CheckoutPage() {
     );
   }
 
+  if (order && paymentComplete) {
+    return (
+      <div className="py-10">
+        <Breadcrumb items={[{ label: "Home", href: "/" }, { label: "Cart", href: "/cart" }, { label: "Order confirmed" }]} />
+        <div className="mt-8 max-w-2xl rounded-md bg-white p-8 shadow-rest">
+          <p className="text-sm font-semibold uppercase tracking-[0.16em] text-stone">Payment confirmed</p>
+          <h1 className="mt-2 font-display text-3xl font-semibold text-ink">Thank you for your order</h1>
+          <p className="mt-3 text-stone">Your payment has been verified by the server and your order is confirmed.</p>
+          {invoice && (
+            <div className="mt-6 rounded-md border border-fog bg-paper p-5 print:border-0 print:p-0">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone">Customer bill</p>
+                  <h2 className="mt-1 font-display text-xl font-semibold text-ink">Invoice {invoice.invoiceNumber}</h2>
+                  <p className="mt-1 text-xs text-stone">{new Date(invoice.issuedAt).toLocaleString("en-IN")}</p>
+                </div>
+                <button type="button" onClick={() => window.print()} className="rounded-md border border-fog bg-white px-4 py-2 text-sm font-semibold text-ink print:hidden">Print / Save Bill</button>
+              </div>
+              <div className="mt-5 grid gap-4 border-y border-fog py-4 text-sm sm:grid-cols-2">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-stone">Billing details</p>
+                  <p className="mt-1 font-semibold text-ink">{String(invoice.recipient?.legalName ?? invoice.shippingAddress?.fullName ?? form.fullName)}</p>
+                  <p className="mt-1 text-ink">{String(invoice.shippingAddress?.line1 ?? form.addressLine1)}{invoice.shippingAddress?.line2 ? `, ${String(invoice.shippingAddress.line2)}` : form.addressLine2 ? `, ${form.addressLine2}` : ""}</p>
+                  <p className="text-ink">{String(invoice.shippingAddress?.city ?? form.city)}, {String(invoice.shippingAddress?.region ?? form.state)} - {String(invoice.shippingAddress?.postalCode ?? form.postalCode)}</p>
+                  <p className="text-xs text-stone">{String(invoice.shippingAddress?.country ?? form.country) === "IN" ? "India" : String(invoice.shippingAddress?.country ?? form.country)} · {String(invoice.shippingAddress?.phone ?? `${phoneCountryCode}${form.phone}`)}</p>
+                  {invoice.recipient?.gstin && <p className="mt-1 text-xs text-stone">GSTIN: {String(invoice.recipient.gstin)}</p>}
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-stone">Delivery address</p>
+                  <p className="mt-1 text-ink">{String(invoice.shippingAddress?.line1 ?? form.addressLine1)}{invoice.shippingAddress?.line2 ? `, ${String(invoice.shippingAddress.line2)}` : form.addressLine2 ? `, ${form.addressLine2}` : ""}</p>
+                  <p className="text-ink">{String(invoice.shippingAddress?.city ?? form.city)}, {String(invoice.shippingAddress?.region ?? form.state)} - {String(invoice.shippingAddress?.postalCode ?? form.postalCode)}</p>
+                  <p className="text-xs text-stone">{String(invoice.shippingAddress?.country ?? form.country) === "IN" ? "India" : String(invoice.shippingAddress?.country ?? form.country)} · {String(invoice.shippingAddress?.phone ?? `${phoneCountryCode}${form.phone}`)}</p>
+                </div>
+              </div>
+              <div className="mt-4 space-y-2 text-sm">
+                {invoice.lineItems.map((item, index) => (
+                  <div key={index} className="flex justify-between gap-4">
+                    <span>{item.productName} × {item.quantity}</span>
+                    <span>{formatCurrency(Number(item.unitPrice) * item.quantity)}</span>
+                  </div>
+                ))}
+                {Number(invoice.discountAmount) > 0 && (
+                  <div className="flex justify-between gap-4 text-stone"><span>Discount</span><span>-{formatCurrency(Number(invoice.discountAmount))}</span></div>
+                )}
+                <div className="flex justify-between gap-4 text-stone"><span>Tax</span><span>{formatCurrency(Number(invoice.taxAmount))}</span></div>
+                <div className="flex justify-between gap-4 text-stone"><span>Logistics / Shipping Fee</span><span>{formatCurrency(Number(invoice.logisticsFee))}</span></div>
+                <div className="flex justify-between gap-4 text-stone"><span>Platform Fee</span><span>{formatCurrency(Number(invoice.platformFee))}</span></div>
+                <div className="border-t border-fog pt-3 flex justify-between font-semibold text-ink">
+                  <span>Total paid</span><span>{formatCurrency(Number(invoice.total))}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <dl className="mt-6 space-y-3 border-y border-fog py-5 text-sm">
+            <div className="flex justify-between gap-4"><dt className="text-stone">Order ID</dt><dd className="font-medium text-ink break-all">{order.id}</dd></div>
+            <div className="flex justify-between gap-4"><dt className="text-stone">Total</dt><dd className="font-medium text-ink">{formatCurrency(Number(order.total))}</dd></div>
+            <div className="flex justify-between gap-4"><dt className="text-stone">Status</dt><dd className="font-medium text-ink">Confirmed</dd></div>
+          </dl>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <Link href="/shop" className="inline-flex items-center justify-center rounded-md bg-ink px-5 py-3 text-sm font-semibold text-white">Continue shopping</Link>
+            <Link href="/" className="inline-flex items-center justify-center rounded-md border border-fog px-5 py-3 text-sm font-semibold text-ink">Back to home</Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!cart || cart.lineItems.filter((item) => !item.savedForLater).length === 0) {
     return (
       <div className="py-10">
