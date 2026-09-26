@@ -32,6 +32,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
   const [invoice, setInvoice] = useState<AdminInvoice | null>(null);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [printing, setPrinting] = useState(false);
+  const [pdfMode, setPdfMode] = useState(false);
   const [shipment, setShipment] = useState<AdminShipment | null>(null);
   const [shipmentLoading, setShipmentLoading] = useState(false);
   const [shipmentUpdating, setShipmentUpdating] = useState(false);
@@ -51,27 +52,62 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
   if (isLoading) return <SkeletonLoader className="h-64 w-full" />;
   if (error || !order) return <ErrorRecovery body={error ?? "Order not found."} onRetry={refetch} />;
 
-  const printInvoice = async () => {
+  const openInvoicePrint = async (mode: "print" | "pdf") => {
     setPrinting(true);
+    setPdfMode(mode === "pdf");
     try {
       const issued = invoice?.invoiceNumber ? invoice : await adminApi.issueAdminInvoice(order.id);
       setInvoice(issued);
+
+      const supplier = issued.supplier ?? {};
+      const recipient = issued.recipient ?? {};
+      const address = issued.shippingAddress ?? recipient.deliveryAddress ?? {};
+      const get = (source: Record<string, unknown>, key: string) => source[key] == null ? "" : String(source[key]);
+      const fullAddress = [
+        get(address, "line1"),
+        get(address, "line2"),
+        [get(address, "city"), get(address, "region"), get(address, "postalCode")].filter(Boolean).join(", "),
+        get(address, "country"),
+      ].filter(Boolean).join("<br>");
       const lines = Array.isArray(issued.lineItems)
         ? issued.lineItems.map((item, index) => {
             const row = item as Record<string, unknown>;
             const name = String(row.productName ?? row.name ?? `Item ${index + 1}`);
             const quantity = Number(row.quantity ?? 1);
             const unitPrice = String(row.unitPrice ?? "0.00");
-            return `<tr><td>${escapeHtml(name)}</td><td style="text-align:center">${quantity}</td><td style="text-align:right">₹${escapeHtml(unitPrice)}</td></tr>`;
+            const lineTotal = Number(row.taxableAmount ?? Number(unitPrice) * quantity);
+            const tax = String(row.taxAmount ?? "0.00");
+            return `<tr><td>${escapeHtml(name)}</td><td style="text-align:center">${quantity}</td><td style="text-align:right">₹${escapeHtml(unitPrice)}</td><td style="text-align:right">₹${lineTotal.toFixed(2)}</td><td style="text-align:right">₹${escapeHtml(tax)}</td></tr>`;
           }).join("")
         : "";
-      const html = `<!doctype html><html><head><title>Invoice ${escapeHtml(issued.invoiceNumber ?? order.id)}</title><style>body{font-family:Arial,sans-serif;margin:32px;color:#222}h1{margin:0 0 4px}table{width:100%;border-collapse:collapse;margin-top:24px}th,td{border-bottom:1px solid #ddd;padding:9px;text-align:left}.total{margin-top:18px;text-align:right;font-size:18px;font-weight:700}@media print{button{display:none}}</style></head><body><h1>SILKU</h1><div>Tax Invoice</div><p>Invoice: <strong>${escapeHtml(issued.invoiceNumber ?? "")}</strong><br>Order: ${escapeHtml(order.id)}<br>Issued: ${escapeHtml(issued.issuedAt ? new Date(issued.issuedAt).toLocaleString() : "")}</p><table><thead><tr><th>Item</th><th>Qty</th><th style="text-align:right">Price</th></tr></thead><tbody>${lines}</tbody></table><div class="total">Total: ₹${escapeHtml(issued.total)} ${escapeHtml(issued.currency)}</div><script>window.onload=()=>window.print()</script></body></html>`;
-      const popup = window.open("", "silku-invoice-print", "width=900,height=700");
-      if (!popup) throw new Error("Please allow pop-ups to print the invoice.");
+
+      const html = `<!doctype html><html><head><title>Silku Invoice ${escapeHtml(issued.invoiceNumber ?? order.id)}</title>
+<style>
+body{font-family:Arial,sans-serif;margin:0;padding:32px;color:#222;font-size:13px}
+.wrap{max-width:900px;margin:auto}.header{display:flex;justify-content:space-between;border-bottom:2px solid #222;padding-bottom:16px}
+h1{margin:0 0 4px;font-size:28px}.muted{color:#666}.grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:22px}
+.box{border:1px solid #ddd;padding:14px;border-radius:6px}h2{font-size:14px;margin:0 0 8px}
+table{width:100%;border-collapse:collapse;margin-top:24px}th,td{border-bottom:1px solid #ddd;padding:9px;text-align:left}th{background:#f5f5f5}
+.summary{margin:20px 0 0 auto;width:330px}.row{display:flex;justify-content:space-between;padding:5px 0}.grand{border-top:2px solid #222;margin-top:7px;padding-top:9px;font-size:17px;font-weight:700}
+.footer{margin-top:28px;padding-top:12px;border-top:1px solid #ddd;font-size:11px;color:#666}
+@media print{body{padding:0}.no-print{display:none!important}.wrap{max-width:none}}
+</style></head><body><div class="wrap">
+<div class="header"><div><h1>SILKU</h1><div>Tax Invoice</div></div><div style="text-align:right"><strong>Invoice:</strong> ${escapeHtml(issued.invoiceNumber ?? "")}<br><strong>Order:</strong> ${escapeHtml(order.id)}<br><strong>Issued:</strong> ${escapeHtml(issued.issuedAt ? new Date(issued.issuedAt).toLocaleString() : "")}</div></div>
+<div class="grid"><div class="box"><h2>Bill From</h2><strong>${escapeHtml(get(supplier, "legalEntityName"))}</strong><br>${escapeHtml(get(supplier, "address"))}<br>${escapeHtml(get(supplier, "state"))} ${escapeHtml(get(supplier, "stateCode"))}<br>${get(supplier, "gstin") ? `GSTIN: ${escapeHtml(get(supplier, "gstin"))}` : ""}</div>
+<div class="box"><h2>Bill To / Delivery Address</h2><strong>${escapeHtml(get(recipient, "legalName") || get(address, "fullName"))}</strong><br>${fullAddress}<br>${get(address, "phone") ? `Phone: ${escapeHtml(get(address, "phone"))}<br>` : ""}${get(recipient, "gstin") ? `GSTIN: ${escapeHtml(get(recipient, "gstin"))}` : ""}</div></div>
+<table><thead><tr><th>Product</th><th>Qty</th><th style="text-align:right">Unit Price</th><th style="text-align:right">Taxable</th><th style="text-align:right">GST</th></tr></thead><tbody>${lines}</tbody></table>
+<div class="summary"><div class="row"><span>Subtotal</span><strong>₹${escapeHtml(issued.subtotal)}</strong></div><div class="row"><span>Discount</span><strong>- ₹${escapeHtml(issued.discountAmount)}</strong></div><div class="row"><span>Taxable Amount</span><strong>₹${escapeHtml(issued.taxableAmount)}</strong></div><div class="row"><span>GST</span><strong>₹${escapeHtml(issued.taxAmount)}</strong></div><div class="row"><span>Logistics / Shipping Fee</span><strong>₹${escapeHtml(issued.logisticsFee ?? "0.00")}</strong></div><div class="row"><span>Platform Fee</span><strong>₹${escapeHtml(issued.platformFee ?? "0.00")}</strong></div><div class="row grand"><span>Total Paid</span><strong>₹${escapeHtml(issued.total)} ${escapeHtml(issued.currency)}</strong></div></div>
+<div class="footer">This invoice is generated from the recorded order and invoice snapshot. Invoice layout: ${escapeHtml(issued.layout.size)} / ${escapeHtml(issued.layout.format)}.</div>
+</div><script>window.onload=()=>window.print()</script></body></html>`;
+      const popup = window.open("", "silku-invoice-print", "width=1000,height=800");
+      if (!popup) throw new Error("Please allow pop-ups to print or save the invoice as PDF.");
       popup.document.open(); popup.document.write(html); popup.document.close();
     } catch (error) {
-      setToast(error instanceof Error ? error.message : "Unable to print invoice.");
-    } finally { setPrinting(false); }
+      setToast(error instanceof Error ? error.message : "Unable to open invoice.");
+    } finally {
+      setPrinting(false);
+      setPdfMode(false);
+    }
   };
 
 
@@ -106,7 +142,17 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
                   setInvoiceLoading(false);
                 }
               }}
-            >{invoiceLoading ? "Loading..." : "Load Invoice"}</Button>
+            >{invoiceLoading ? "Loading..." : "Load Bill"}</Button>
+            <Button
+              variant="outline"
+              disabled={printing || !invoice?.invoiceNumber}
+              onClick={() => void openInvoicePrint("pdf")}
+            >{printing && pdfMode ? "Opening PDF..." : "Save PDF"}</Button>
+            <Button
+              variant="outline"
+              disabled={printing || !invoice?.invoiceNumber}
+              onClick={() => void openInvoicePrint("print")}
+            >{printing && !pdfMode ? "Opening..." : "Print Bill"}</Button>
             <RoleGate module="orders" level="edit">
               <Button
                 variant="primary"
@@ -132,7 +178,9 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
             <div className="flex justify-between"><span>Discount</span><strong>₹{invoice.discountAmount}</strong></div>
             <div className="flex justify-between"><span>Taxable</span><strong>₹{invoice.taxableAmount}</strong></div>
             <div className="flex justify-between"><span>GST</span><strong>₹{invoice.taxAmount}</strong></div>
-            <div className="flex justify-between border-t border-line pt-2"><span>Total</span><strong>₹{invoice.total} {invoice.currency}</strong></div>
+            <div className="flex justify-between"><span>Logistics / Shipping Fee</span><strong>₹{invoice.logisticsFee ?? "0.00"}</strong></div>
+            <div className="flex justify-between"><span>Platform Fee</span><strong>₹{invoice.platformFee ?? "0.00"}</strong></div>
+            <div className="flex justify-between border-t border-line pt-2"><span>Total Paid</span><strong>₹{invoice.total} {invoice.currency}</strong></div>
             <div className="text-xs text-muted">Layout: {invoice.layout.size} / {invoice.layout.format} · Generated {invoice.issuedAt ? new Date(invoice.issuedAt).toLocaleString() : "Not issued"}</div>
           </div>
         )}
