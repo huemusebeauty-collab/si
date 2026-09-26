@@ -63,7 +63,7 @@ export class OrdersController {
   @RequirePermission("orders", "view")
   @Get("admin/:orderId")
   adminGet(@Param("orderId") orderId: string) {
-    return this.orders.getOrder(orderId);
+    return this.orders.getAdminOrder(orderId);
   }
 
   @RequirePermission("orders", "view")
