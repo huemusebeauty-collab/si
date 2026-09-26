@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Avatar } from "@/components/basic/Avatar";
 import { ROUTES } from "@/constants/routes";
-import { authenticatedFetch } from "@/services/api/auth";
+import { authenticatedFetch, logoutSession } from "@/services/api/auth";
+import { useRouter } from "next/navigation";
 
 type CustomerProfile = {
   firstName?: string;
@@ -14,7 +15,7 @@ type CustomerProfile = {
 
 export function AccountDashboard() {
   const [customer, setCustomer] = useState<CustomerProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);\n  const [loggingOut, setLoggingOut] = useState(false);\n  const router = useRouter();
 
   useEffect(() => {
     let active = true;
@@ -42,7 +43,7 @@ export function AccountDashboard() {
   const displayName = customerName || "My Account";
   const firstName = customer?.firstName || "there";
 
-  const links = [
+  async function handleLogout() {\n    setLoggingOut(true);\n    await logoutSession();\n    router.replace("/account/login");\n  }\n\n  const links = [
     { label: "Order Tracking", href: ROUTES.accountOrders },
     { label: "Wishlist", href: ROUTES.wishlist },
     { label: "Account Settings", href: "/account/settings" },
