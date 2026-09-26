@@ -45,6 +45,10 @@ export default function AddressesClient() {
   const [error, setError] = useState("");
 
   async function loadAddresses() {
+    if (!getAccessToken()) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError("");
     try {
