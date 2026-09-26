@@ -76,11 +76,12 @@ export function Header({ categories }: { categories: Category[] }) {
           </div>
 
           <div className="flex items-center gap-4">
-            <Link href={ROUTES.account} aria-label="Account">
+            <Link href={ROUTES.account} aria-label="Account" className="flex items-center gap-1.5 text-[14px] font-semibold text-ink hover:text-primary-rose">
               <Icon size={24} label="">
                 <circle cx="12" cy="8" r="4" />
                 <path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8" />
               </Icon>
+              <span className="hidden lg:inline">Login</span>
             </Link>
             <Link href={ROUTES.wishlist} aria-label="Wishlist">
               <Icon size={24} label="">
