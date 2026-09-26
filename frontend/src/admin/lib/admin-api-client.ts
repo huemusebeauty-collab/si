@@ -83,11 +83,11 @@ export const adminApi = {
   getOrdersReport: (params: URLSearchParams) => request<OrdersReport>(`/admin/reports/orders?${params}`),
   getCustomersReport: (params: URLSearchParams) => request<CustomersReport>(`/admin/reports/customers?${params}`),
   getProductsReport: () => request<ProductsReport>("/admin/reports/products"),
-  getCouponsReport: () => request<AdminCoupon[]>("/admin/reports/coupons"),
+  getCouponsReport: () => request<AdminCoupon[]>(`/admin/reports/coupons`),
   listAuditLogs: (params: URLSearchParams) => request<Paginated<AuditLogEntry>>(`/admin/audit-logs?${params}`),
   exportProductsCsvUrl: () => `${API_BASE}/admin/products/export`,
-  importProductsCsv: (csv: string) => request<{ succeeded: number; failed: { row: number; reason: string }[] }>("/admin/products/import", { method: "POST", body: JSON.stringify({ csv }) }),
-  listMedia: () => request<{ items: AdminMediaItem[] }>("/storage/media/library"),
+  importProductsCsv: (csv: string) => request<{ succeeded: number; failed: { row: number; reason: string } }>("/admin/products/import", { method: "POST", body: JSON.stringify({ csv }) }),
+  listMedia: () => request<{ items: AdminMediaItem[] }>("/storage/media/library", { cache: "no-store" }),
   uploadMedia: async (file: File): Promise<{ key: string; url: string }> => {
     const token = getToken(); const form = new FormData(); form.append("file", file);
     const response = await fetch(`${API_BASE}/storage/upload`, { method: "POST", headers: token ? { Authorization: `Bearer ${token}` } : {}, body: form });
@@ -122,7 +122,7 @@ export interface SimpleList<T> { items: T[]; totalItems: number }
 export interface DashboardOverview { kpis: { todaysOrders: number; todaysRevenue: number; lowStockCount: number; pendingReviews: number }; pendingTasks: { type: string; count: number; label: string }[]; recentActivity: AuditLogEntry[] }
 export interface AdminProduct { id: string; slug: string; name: string; price: string; status: string; visibility: string; category?: { id?: string; slug?: string; name: string } }
 export interface AdminProductDetail extends AdminProduct { salePrice?: string; description?: string; metaTitle?: string; metaDescription?: string; mediaUrls: string[]; content?: CreateProductInput["content"]; hsnCode?: string; gstRate?: string; taxInclusiveMrp: boolean; variants: { id: string; sku: string; name: string; hexColor?: string; stockQuantity: number; mrp?: string }[] }
-export interface AdminInventoryItem { id: string; sku: string; name: string; stockQuantity: number; stockState: "in-stock" | "low-stock" | "out-of-stock" | "coming-soon" | "pre-order"; version: number; product: { id: string; name: string; slug: string; category: string } }
+export interface AdminInventoryItem { id: string; sku: string; name: string; stockQuantity: number; stockState: "in-stock" | "low-stock" | "out-of-stock" | "coming-soon" | "pre-order"; version: number; product: { id: string; sku: string; name: string; stockQuantity: number; stockState: "in-stock" | "low-stock" | "out-of-stock" | "coming-soon" | "pre-order"; version: number; product: { id: string; name: string; slug: string; category: string } } }
 export interface CreateCategoryInput { name: string; slug: string; parentId?: string | null; displayOrder?: number; visible?: boolean; metaTitle?: string; metaDescription?: string }
 export interface UpdateCategoryInput { name?: string; slug?: string; parentId?: string | null; displayOrder?: number; visible?: boolean; metaTitle?: string; metaDescription?: string }
 export interface AdminCategory { id: string; slug: string; name: string; visible: boolean; displayOrder: number; parentId?: string | null; children?: AdminCategory[] }
@@ -154,7 +154,7 @@ export interface ProductsReport { lowestStock: { id: string; sku: string; name: 
 export interface AuditLogEntry { id: string; actorEmail: string; module: string; action: string; entityId?: string; createdAt: string }
 export interface CreateShipmentInput { orderId: string; carrier?: string; serviceLevel?: string; weightGrams?: number; lengthCm?: number; widthCm?: number; heightCm?: number; estimatedDeliveryAt?: string }
 export interface UpdateShipmentStatusInput { status: string; description?: string; location?: string; awbNumber?: string; trackingUrl?: string; failureReason?: string }
-export interface AdminShipment { id: string; orderId: string; status: string; carrier?: string; serviceLevel?: string; awbNumber?: string; trackingUrl?: string; weightGrams?: number; shippingAddress: Record<string, unknown>; estimatedDeliveryAt?: string; shippedAt?: string; deliveredAt?: string; failureReason?: string; createdAt: string; updatedAt: string }
+export interface AdminShipment { id: string; orderId: string; status: string; carrier?: string; serviceLevel?: string; awbNumber?: string; trackingUrl?: string; weightGrams?: number; lengthCm?: number; widthCm?: number; heightCm?: number; estimatedDeliveryAt?: string; shippedAt?: string; deliveredAt?: string; failureReason?: string; createdAt: string; updatedAt: string }
 export interface ShipmentEvent { id: string; shipmentId: string; status: string; description?: string; location?: string; eventAt: string }
 export interface LogisticsDashboard { total: number; counts: Record<string, number>; exceptions: number; terminal: number }
 export interface IntegrationsStatus { providers: { provider: string; circuitState: string; lastSuccessAt: string | null; lastFailureAt: string | null; lastError: string | null }[]; queues: { name: string; waiting: number; active: number; completed: number; failed: number; delayed: number }[] }
