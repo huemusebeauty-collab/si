@@ -139,7 +139,7 @@ export class OrdersController {
   async create(
     @CurrentUser() user: AuthenticatedUser | undefined,
     @Headers("idempotency-key") idempotencyKey: string | undefined,
-    @Body() body: { customerId: string; cartId: string; shippingAddress: Record<string, unknown>; customerGstin?: string; customerLegalName?: string },
+    @Body() body: { customerId: string; cartId: string; billingAddress: Record<string, unknown>; shippingAddress: Record<string, unknown>; customerGstin?: string; customerLegalName?: string },
   ) {
     if (user && user.id !== body.customerId) {
       throw new DomainException(
@@ -147,7 +147,7 @@ export class OrdersController {
         "The order's customerId must match the authenticated customer.",
       );
     }
-    const order = await this.orders.createOrder(body.customerId, body.cartId, body.shippingAddress, idempotencyKey, body.customerGstin, body.customerLegalName);
+    const order = await this.orders.createOrder(body.customerId, body.cartId, body.billingAddress, body.shippingAddress, idempotencyKey, body.customerGstin, body.customerLegalName);
     return user ? order : { ...order, guestCheckoutToken: createGuestCheckoutToken(order.id) };
   }
 }
