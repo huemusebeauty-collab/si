@@ -44,6 +44,7 @@ export interface InvoiceResponse {
   total: string;
   currency: string;
   orderId: string;
+  shippingAddress?: Record<string, unknown>;
 }
 
 export interface PaymentIntentResponse {
