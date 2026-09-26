@@ -154,6 +154,17 @@ export async function removeCartItem(lineItemId: string): Promise<ApiCart> {
   return updated;
 }
 
+export async function clearActiveCart(): Promise<void> {
+  const cartId = getStoredCartId();
+  if (!cartId) return;
+  const cart = await request<ApiCart>(`/carts/${cartId}`);
+  const activeItems = cart.lineItems.filter((item) => !item.savedForLater);
+  for (const item of activeItems) {
+    await request<ApiCart>(`/carts/${cartId}/items/${item.id}`, { method: "DELETE" });
+  }
+  notifyCartUpdated();
+}
+
 export async function getCartTotals(): Promise<{ subtotal: number; discountAmount: number; total: number; itemCount: number }> {
   const cartId = getStoredCartId();
   if (!cartId) return { subtotal: 0, discountAmount: 0, total: 0, itemCount: 0 };
