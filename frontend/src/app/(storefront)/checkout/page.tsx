@@ -106,6 +106,18 @@ export default function CheckoutPage() {
     customerLegalName: "",
   });
   const [phoneCountryCode, setPhoneCountryCode] = useState("+91");
+  const [shippingSameAsBilling, setShippingSameAsBilling] = useState(true);
+  const [shippingForm, setShippingForm] = useState({
+    fullName: "",
+    phone: "",
+    addressLine1: "",
+    addressLine2: "",
+    city: "",
+    state: "",
+    stateCode: "",
+    postalCode: "",
+    country: "IN",
+  });
 
   useEffect(() => {
     async function load() {
@@ -153,7 +165,8 @@ export default function CheckoutPage() {
               status: "processing",
               total: returnedInvoice.total,
               currency: returnedInvoice.currency,
-              shippingAddress: returnedInvoice.shippingAddress ?? {},
+              billingAddress: returnedInvoice.billingAddress ?? returnedInvoice.shippingAddress ?? {},
+              shippingAddress: returnedInvoice.shippingAddress ?? returnedInvoice.billingAddress ?? {},
               guestCheckoutToken,
             });
             setPaymentComplete(true);
@@ -196,16 +209,29 @@ export default function CheckoutPage() {
     setForm((current) => ({ ...current, [field]: value }));
   }
 
+  function updateShippingField(field: keyof typeof shippingForm, value: string) {
+    setShippingForm((current) => ({ ...current, [field]: value }));
+  }
+
   async function createPaymentOrder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setSubmitting(true);
     try {
       const orderIdempotencyKey = crypto.randomUUID();
-      if (form.country === "IN" && !form.stateCode) throw new Error("Please select the delivery state.");
-      if (form.country === "IN" && !/^\d{2}$/.test(form.stateCode)) throw new Error("Please select a valid delivery state.");
-      if (!/^\d{10}$/.test(form.phone)) throw new Error("Please enter a valid 10-digit mobile number.");
-      const createdOrder = await createOrder({ ...form, phone: `${phoneCountryCode}${form.phone}` }, orderIdempotencyKey);
+      const deliveryForm = shippingSameAsBilling ? form : shippingForm;
+      if (form.country === "IN" && !form.stateCode) throw new Error("Please select the billing state.");
+      if (form.country === "IN" && !/^\d{2}$/.test(form.stateCode)) throw new Error("Please select a valid billing state.");
+      if (!/^\d{10}$/.test(form.phone)) throw new Error("Please enter a valid billing 10-digit mobile number.");
+      if (deliveryForm.country === "IN" && !deliveryForm.stateCode) throw new Error("Please select the shipping state.");
+      if (deliveryForm.country === "IN" && !/^\d{2}$/.test(deliveryForm.stateCode)) throw new Error("Please select a valid shipping state.");
+      if (!/^\d{10}$/.test(deliveryForm.phone)) throw new Error("Please enter a valid shipping 10-digit mobile number.");
+      const createdOrder = await createOrder(
+        { ...form, phone: `${phoneCountryCode}${form.phone}` },
+        { ...deliveryForm, phone: `${phoneCountryCode}${deliveryForm.phone}` },
+        { customerGstin: form.customerGstin, customerLegalName: form.customerLegalName },
+        orderIdempotencyKey,
+      );
       const idempotencyKey = crypto.randomUUID();
       const nextPayment = await initiatePayment(createdOrder, idempotencyKey);
       if (!nextPayment.clientSecret) throw new Error("Payment gateway did not return a secure payment session.");
@@ -354,17 +380,18 @@ export default function CheckoutPage() {
               <div className="mt-5 grid gap-4 border-y border-fog py-4 text-sm sm:grid-cols-2">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.12em] text-stone">Billing details</p>
-                  <p className="mt-1 font-semibold text-ink">{String(invoice.recipient?.legalName ?? invoice.shippingAddress?.fullName ?? form.fullName)}</p>
-                  <p className="mt-1 text-ink">{String(invoice.shippingAddress?.line1 ?? form.addressLine1)}{invoice.shippingAddress?.line2 ? `, ${String(invoice.shippingAddress.line2)}` : form.addressLine2 ? `, ${form.addressLine2}` : ""}</p>
-                  <p className="text-ink">{String(invoice.shippingAddress?.city ?? form.city)}, {String(invoice.shippingAddress?.region ?? form.state)} - {String(invoice.shippingAddress?.postalCode ?? form.postalCode)}</p>
-                  <p className="text-xs text-stone">{String(invoice.shippingAddress?.country ?? form.country) === "IN" ? "India" : String(invoice.shippingAddress?.country ?? form.country)} · {String(invoice.shippingAddress?.phone ?? `${phoneCountryCode}${form.phone}`)}</p>
+                  <p className="mt-1 font-semibold text-ink">{String(invoice.recipient?.legalName ?? invoice.billingAddress?.fullName ?? invoice.shippingAddress?.fullName ?? form.fullName)}</p>
+                  <p className="mt-1 text-ink">{String(invoice.billingAddress?.line1 ?? invoice.shippingAddress?.line1 ?? form.addressLine1)}{invoice.shippingAddress?.line2 ? `, ${String(invoice.shippingAddress.line2)}` : form.addressLine2 ? `, ${form.addressLine2}` : ""}</p>
+                  <p className="text-ink">{String(invoice.billingAddress?.city ?? invoice.shippingAddress?.city ?? form.city)}, {String(invoice.billingAddress?.region ?? invoice.shippingAddress?.region ?? form.state)} - {String(invoice.billingAddress?.postalCode ?? invoice.shippingAddress?.postalCode ?? form.postalCode)}</p>
+                  <p className="text-xs text-stone">{String(invoice.billingAddress?.country ?? invoice.shippingAddress?.country ?? form.country) === "IN" ? "India" : String(invoice.billingAddress?.country ?? invoice.shippingAddress?.country ?? form.country)} · {String(invoice.billingAddress?.phone ?? invoice.shippingAddress?.phone ?? `${phoneCountryCode}${form.phone}`)}</p>
                   {invoice.recipient?.gstin && <p className="mt-1 text-xs text-stone">GSTIN: {String(invoice.recipient.gstin)}</p>}
                 </div>
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.12em] text-stone">Delivery address</p>
-                  <p className="mt-1 text-ink">{String(invoice.shippingAddress?.line1 ?? form.addressLine1)}{invoice.shippingAddress?.line2 ? `, ${String(invoice.shippingAddress.line2)}` : form.addressLine2 ? `, ${form.addressLine2}` : ""}</p>
-                  <p className="text-ink">{String(invoice.shippingAddress?.city ?? form.city)}, {String(invoice.shippingAddress?.region ?? form.state)} - {String(invoice.shippingAddress?.postalCode ?? form.postalCode)}</p>
-                  <p className="text-xs text-stone">{String(invoice.shippingAddress?.country ?? form.country) === "IN" ? "India" : String(invoice.shippingAddress?.country ?? form.country)} · {String(invoice.shippingAddress?.phone ?? `${phoneCountryCode}${form.phone}`)}</p>
+                  <p className="mt-1 font-semibold text-ink">{String(invoice.shippingAddress?.fullName ?? form.fullName)}</p>
+                  <p className="mt-1 text-ink">{String(invoice.billingAddress?.line1 ?? invoice.shippingAddress?.line1 ?? form.addressLine1)}{invoice.shippingAddress?.line2 ? `, ${String(invoice.shippingAddress.line2)}` : form.addressLine2 ? `, ${form.addressLine2}` : ""}</p>
+                  <p className="text-ink">{String(invoice.billingAddress?.city ?? invoice.shippingAddress?.city ?? form.city)}, {String(invoice.billingAddress?.region ?? invoice.shippingAddress?.region ?? form.state)} - {String(invoice.billingAddress?.postalCode ?? invoice.shippingAddress?.postalCode ?? form.postalCode)}</p>
+                  <p className="text-xs text-stone">{String(invoice.billingAddress?.country ?? invoice.shippingAddress?.country ?? form.country) === "IN" ? "India" : String(invoice.billingAddress?.country ?? invoice.shippingAddress?.country ?? form.country)} · {String(invoice.billingAddress?.phone ?? invoice.shippingAddress?.phone ?? `${phoneCountryCode}${form.phone}`)}</p>
                 </div>
               </div>
               <div className="mt-4 space-y-2 text-sm">
@@ -433,17 +460,18 @@ export default function CheckoutPage() {
               <div className="mt-5 grid gap-4 border-y border-fog py-4 text-sm sm:grid-cols-2">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.12em] text-stone">Billing details</p>
-                  <p className="mt-1 font-semibold text-ink">{String(invoice.recipient?.legalName ?? invoice.shippingAddress?.fullName ?? form.fullName)}</p>
-                  <p className="mt-1 text-ink">{String(invoice.shippingAddress?.line1 ?? form.addressLine1)}{invoice.shippingAddress?.line2 ? `, ${String(invoice.shippingAddress.line2)}` : form.addressLine2 ? `, ${form.addressLine2}` : ""}</p>
-                  <p className="text-ink">{String(invoice.shippingAddress?.city ?? form.city)}, {String(invoice.shippingAddress?.region ?? form.state)} - {String(invoice.shippingAddress?.postalCode ?? form.postalCode)}</p>
-                  <p className="text-xs text-stone">{String(invoice.shippingAddress?.country ?? form.country) === "IN" ? "India" : String(invoice.shippingAddress?.country ?? form.country)} · {String(invoice.shippingAddress?.phone ?? `${phoneCountryCode}${form.phone}`)}</p>
+                  <p className="mt-1 font-semibold text-ink">{String(invoice.recipient?.legalName ?? invoice.billingAddress?.fullName ?? invoice.shippingAddress?.fullName ?? form.fullName)}</p>
+                  <p className="mt-1 text-ink">{String(invoice.billingAddress?.line1 ?? invoice.shippingAddress?.line1 ?? form.addressLine1)}{invoice.shippingAddress?.line2 ? `, ${String(invoice.shippingAddress.line2)}` : form.addressLine2 ? `, ${form.addressLine2}` : ""}</p>
+                  <p className="text-ink">{String(invoice.billingAddress?.city ?? invoice.shippingAddress?.city ?? form.city)}, {String(invoice.billingAddress?.region ?? invoice.shippingAddress?.region ?? form.state)} - {String(invoice.billingAddress?.postalCode ?? invoice.shippingAddress?.postalCode ?? form.postalCode)}</p>
+                  <p className="text-xs text-stone">{String(invoice.billingAddress?.country ?? invoice.shippingAddress?.country ?? form.country) === "IN" ? "India" : String(invoice.billingAddress?.country ?? invoice.shippingAddress?.country ?? form.country)} · {String(invoice.billingAddress?.phone ?? invoice.shippingAddress?.phone ?? `${phoneCountryCode}${form.phone}`)}</p>
                   {invoice.recipient?.gstin && <p className="mt-1 text-xs text-stone">GSTIN: {String(invoice.recipient.gstin)}</p>}
                 </div>
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.12em] text-stone">Delivery address</p>
-                  <p className="mt-1 text-ink">{String(invoice.shippingAddress?.line1 ?? form.addressLine1)}{invoice.shippingAddress?.line2 ? `, ${String(invoice.shippingAddress.line2)}` : form.addressLine2 ? `, ${form.addressLine2}` : ""}</p>
-                  <p className="text-ink">{String(invoice.shippingAddress?.city ?? form.city)}, {String(invoice.shippingAddress?.region ?? form.state)} - {String(invoice.shippingAddress?.postalCode ?? form.postalCode)}</p>
-                  <p className="text-xs text-stone">{String(invoice.shippingAddress?.country ?? form.country) === "IN" ? "India" : String(invoice.shippingAddress?.country ?? form.country)} · {String(invoice.shippingAddress?.phone ?? `${phoneCountryCode}${form.phone}`)}</p>
+                  <p className="mt-1 font-semibold text-ink">{String(invoice.shippingAddress?.fullName ?? form.fullName)}</p>
+                  <p className="mt-1 text-ink">{String(invoice.billingAddress?.line1 ?? invoice.shippingAddress?.line1 ?? form.addressLine1)}{invoice.shippingAddress?.line2 ? `, ${String(invoice.shippingAddress.line2)}` : form.addressLine2 ? `, ${form.addressLine2}` : ""}</p>
+                  <p className="text-ink">{String(invoice.billingAddress?.city ?? invoice.shippingAddress?.city ?? form.city)}, {String(invoice.billingAddress?.region ?? invoice.shippingAddress?.region ?? form.state)} - {String(invoice.billingAddress?.postalCode ?? invoice.shippingAddress?.postalCode ?? form.postalCode)}</p>
+                  <p className="text-xs text-stone">{String(invoice.billingAddress?.country ?? invoice.shippingAddress?.country ?? form.country) === "IN" ? "India" : String(invoice.billingAddress?.country ?? invoice.shippingAddress?.country ?? form.country)} · {String(invoice.billingAddress?.phone ?? invoice.shippingAddress?.phone ?? `${phoneCountryCode}${form.phone}`)}</p>
                 </div>
               </div>
               <div className="mt-4 space-y-2 text-sm">
@@ -510,7 +538,8 @@ export default function CheckoutPage() {
 
       <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-3">
         <form onSubmit={createPaymentOrder} className="rounded-md bg-white p-6 shadow-rest lg:col-span-2">
-          <h2 className="font-display text-xl font-semibold text-ink">Delivery address</h2>
+          <h2 className="font-display text-xl font-semibold text-ink">Billing Address</h2>
+          <p className="mt-1 text-sm text-stone">This address is used for billing and GST invoice details.</p>
           <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
             {([
               ["fullName", "Full name"], ["phone", "Phone"], ["addressLine1", "Address line 1"], ["addressLine2", "Address line 2 (optional)"],
@@ -614,6 +643,124 @@ export default function CheckoutPage() {
               </label>
             ))}
           </div>
+          <div className="mt-5 rounded-md border border-fog bg-paper p-4">
+            <label className="flex cursor-pointer items-start gap-3">
+              <input type="checkbox" checked={shippingSameAsBilling} onChange={(event) => setShippingSameAsBilling(event.target.checked)} className="mt-1 h-4 w-4" />
+              <span>
+                <span className="block text-sm font-semibold text-ink">Shipping address is same as billing address</span>
+                <span className="mt-1 block text-xs text-stone">Uncheck this if the order should be delivered to a different address.</span>
+              </span>
+            </label>
+          </div>
+          {!shippingSameAsBilling && (
+            <div className="mt-6 border-t border-fog pt-6">
+              <h2 className="font-display text-xl font-semibold text-ink">Shipping Address</h2>
+              <p className="mt-1 text-sm text-stone">Enter the address where this order should be delivered.</p>
+          <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {([
+              ["fullName", "Full name"], ["phone", "Phone"], ["addressLine1", "Address line 1"], ["addressLine2", "Address line 2 (optional)"],
+              ["city", "City"], ["state", "State"], ["stateCode", "State/UT code (2 digits)"], ["postalCode", "PIN code"], ["country", "Country"], 
+            ] as const).map(([field, label]) => (
+              <label key={field} className={field === "addressLine1" || field === "addressLine2" ? "sm:col-span-2" : ""}>
+                <span className="text-sm font-medium text-ink">{label}</span>
+                {field === "phone" ? (
+                  <div className="mt-1 flex gap-2">
+                    <select
+                      aria-label="Country calling code"
+                      value={phoneCountryCode}
+                      onChange={(event) => setPhoneCountryCode(event.target.value)}
+                      className="w-24 rounded-md border border-fog bg-white px-2 py-3 text-sm text-ink outline-none focus:border-ink"
+                    >
+                      <option value="+91">+91 India</option>
+                    </select>
+                    <input
+                      required
+                      type="tel"
+                      inputMode="numeric"
+                      value={shippingForm.phone}
+                      onChange={(event) => updateField("phone", event.target.value.replace(/\D/g, "").slice(0, 10))}
+                      className="min-w-0 flex-1 rounded-md border border-fog bg-white px-3 py-3 text-sm text-ink outline-none focus:border-ink"
+                      autoComplete="tel-national"
+                      maxLength={10}
+                      placeholder="10-digit mobile number"
+                    />
+                  </div>
+                ) : field === "state" ? (
+                  <div className="mt-1 space-y-2">
+                    <select
+                      required={!shippingForm.state}
+                      value={shippingForm.state}
+                      onChange={(event) => {
+                        const selected = INDIA_STATES.find((item) => item.name === event.target.value);
+                        setShippingForm((current) => ({
+                          ...current,
+                          state: selected?.name ?? "",
+                          stateCode: selected?.code ?? "",
+                        }));
+                      }}
+                      className="w-full rounded-md border border-fog bg-white px-3 py-3 text-sm text-ink outline-none focus:border-ink"
+                    >
+                      <option value="">Select state / UT</option>
+                      {INDIA_STATES.map((item) => (
+                        <option key={item.code} value={item.name}>{item.name}</option>
+                      ))}
+                    </select>
+                    <div className="flex items-center gap-2">
+                      <input
+                        aria-label="Enter state name or state code"
+                        value={shippingForm.state && shippingForm.stateCode ? "" : shippingForm.state}
+                        onChange={(event) => {
+                          const value = event.target.value;
+                          const selected = resolveIndiaState(value);
+                          setForm((current) => ({
+                            ...current,
+                            state: selected?.name ?? value,
+                            stateCode: selected?.code ?? "",
+                          }));
+                        }}
+                        onBlur={() => {
+                          const selected = resolveIndiaState(form.state);
+                          if (selected) {
+                            setForm((current) => ({ ...current, state: selected.name, stateCode: selected.code }));
+                          }
+                        }}
+                        list="india-state-options"
+                        className="min-w-0 flex-1 rounded-md border border-fog bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-ink"
+                        placeholder="Or type Rajasthan / RJ / 08"
+                        autoComplete="address-level1"
+                      />
+                      <span className="shrink-0 text-xs text-stone">or type name / code</span>
+                    </div>
+                    <datalist id="india-state-options">
+                      {INDIA_STATES.map((item) => (
+                        <option key={item.code} value={item.name}>{item.code}</option>
+                      ))}
+                    </datalist>
+                  </div>
+                ) : field === "stateCode" ? (
+                  <input
+                    required
+                    value={shippingForm.stateCode}
+                    readOnly
+                    aria-readonly="true"
+                    className="mt-1 w-full rounded-md border border-fog bg-stone/5 px-3 py-3 text-sm text-ink outline-none"
+                    placeholder="Auto-filled from state"
+                  />
+                ) : (
+                  <input
+                    required={!["addressLine2", "customerLegalName", "customerGstin"].includes(field)}
+                    value={shippingForm[field as keyof typeof shippingForm]}
+                    onChange={(event) => updateShippingField(field as keyof typeof shippingForm, event.target.value)}
+                    className="mt-1 w-full rounded-md border border-fog bg-white px-3 py-3 text-sm text-ink outline-none focus:border-ink"
+                    autoComplete={field === "postalCode" ? "postal-code" : field === "fullName" ? "name" : undefined}
+                    maxLength={field === "customerGstin" ? 15 : undefined}
+                  />
+                )}
+              </label>
+            ))}
+          </div>
+            </div>
+          )}
           <Button type="submit" variant="primary" fullWidth className="mt-6" disabled={submitting}>
             {submitting ? "Starting secure payment…" : "Continue to payment"}
           </Button>
