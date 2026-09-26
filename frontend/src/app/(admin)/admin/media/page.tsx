@@ -14,6 +14,8 @@ function MediaContent() {
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selectedFiles, setSelectedFiles] = useState(0);
+  const [reoptimizing, setReoptimizing] = useState(false);
+  const [optimizationReport, setOptimizationReport] = useState<{ scanned: number; optimized: number; unchanged: number; failed: number; savedBytes: number } | null>(null);
   const formatBytes = (bytes: number) => bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`;
 
   useEffect(() => {
@@ -23,7 +25,7 @@ function MediaContent() {
       .finally(() => setLoading(false));
   }, []);
 
-  async function handleUpload() {
+  async function handleReoptimize() {\n    setError(null); setOptimizationReport(null); setReoptimizing(true);\n    try {\n      const report = await adminApi.reoptimizeMedia();\n      setOptimizationReport(report);\n      const { items } = await adminApi.listMedia();\n      setUploaded(items.map(({ key, url, type, contentType, size, originalSize, savedBytes, savedPercent }) => ({ key, url, type, contentType, size, originalSize, savedBytes, savedPercent })));\n    } catch (err) {\n      setError(err instanceof AdminApiError ? err.message : "Media optimization failed.");\n    } finally { setReoptimizing(false); }\n  }\n\n  async function handleUpload() {
     const files = Array.from(fileInput.current?.files ?? []);
     if (!files.length) return;
     setError(null); setUploading(true);
@@ -46,9 +48,9 @@ function MediaContent() {
       <RoleGate module="content" level="full" fallback={<Alert tone="information">You do not have permission to upload media.</Alert>}>
         <div className="flex flex-wrap items-center gap-4 rounded-xl bg-white p-6 shadow-rest">
           <input ref={fileInput} type="file" multiple accept="image/jpeg,image/png,image/webp,video/mp4" aria-label="Choose media files" onChange={(event) => setSelectedFiles(event.target.files?.length ?? 0)} />
-          <Button variant="primary" disabled={uploading} onClick={handleUpload}>{uploading ? "Optimizing & Uploading..." : "Upload Media"}</Button>
+          <Button variant="primary" disabled={uploading || reoptimizing} onClick={handleUpload}>{uploading ? "Optimizing & Uploading..." : "Upload Media"}</Button>\n          <Button variant="secondary" disabled={uploading || reoptimizing} onClick={handleReoptimize}>{reoptimizing ? "Optimizing Library..." : "Safe Optimize Library"}</Button>
           <span className="text-xs text-muted">Images auto-optimize to WebP (max 2400px). MP4 max upload: 25MB.</span>
-          {selectedFiles > 0 && <span className="text-xs text-muted">{selectedFiles} file{selectedFiles === 1 ? "" : "s"} selected</span>}
+          {selectedFiles > 0 && <span className="text-xs text-muted">{selectedFiles} file{selectedFiles === 1 ? "" : "s"} selected</span>}\n          {optimizationReport && <span className="text-xs text-muted">Scanned {optimizationReport.scanned} · Optimized {optimizationReport.optimized} · Unchanged {optimizationReport.unchanged} · Failed {optimizationReport.failed} · Saved {formatBytes(optimizationReport.savedBytes)}</span>}
         </div>
       </RoleGate>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
