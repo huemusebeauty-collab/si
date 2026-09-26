@@ -108,7 +108,7 @@ export const adminApi = {
   updateShipmentStatus: (id: string, body: UpdateShipmentStatusInput) => request<AdminShipment>(`/admin/logistics/shipments/${id}/status`, { method: "PATCH", body: JSON.stringify(body) }),
 };
 
-export interface AdminMediaItem { key: string; urlKey: string; url: string; type: "image" | "video"; contentType: string; size: number; lastModified: string | null }
+export interface AdminMediaItem { key: string; urlKey: string; url: string; type: "image" | "video"; contentType: string; size: number; originalSize: number | null; savedBytes: number | null; savedPercent: number | null; lastModified: string | null }
 export interface CreateProductInput {
   slug: string; name: string; categorySlug: string; price: number; salePrice?: number; hsnCode?: string; gstRate?: number; taxInclusiveMrp?: boolean; description: string;
   content: { shortDescription: string; keyBenefits: string[]; features: string[]; ingredients: string; usageInstructions: string[]; warnings: string; storageInstructions: string; specifications: Record<string, string>; faqs: { question: string; answer: string }[] };
