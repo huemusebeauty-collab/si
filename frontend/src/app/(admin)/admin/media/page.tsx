@@ -16,6 +16,7 @@ function MediaContent() {
   const [selectedFiles, setSelectedFiles] = useState(0);
   const [reoptimizing, setReoptimizing] = useState(false);
   const [optimizationReport, setOptimizationReport] = useState<{ scanned: number; optimized: number; unchanged: number; failed: number; savedBytes: number } | null>(null);
+  const [deletingKey, setDeletingKey] = useState<string | null>(null);
   const formatBytes = (bytes: number) => bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`;
 
   useEffect(() => {
@@ -35,6 +36,28 @@ function MediaContent() {
     } catch (err) {
       setError(err instanceof AdminApiError ? err.message : "Media optimization failed.");
     } finally { setReoptimizing(false); }
+  }
+
+  async function handleDelete(key: string) {
+    const item = uploaded.find((media) => media.key === key);
+    if (!item) return;
+    setError(null);
+    if (!window.confirm(`Delete this ${item.type} from Media Library? This cannot be undone.`)) return;
+    setDeletingKey(key);
+    try {
+      const references = await adminApi.getMediaReferences(key);
+      if (references.used) {
+        const names = references.products.slice(0, 3).map((product) => product.name).join(", ");
+        setError(`Delete blocked: this media is used by ${references.products.length} product(s)${names ? ` — ${names}` : ""}.`);
+        return;
+      }
+      await adminApi.deleteMedia(key);
+      setUploaded((prev) => prev.filter((media) => media.key !== key));
+    } catch (err) {
+      setError(err instanceof AdminApiError ? err.message : "Unable to delete media.");
+    } finally {
+      setDeletingKey(null);
+    }
   }
 
   async function handleUpload() {
@@ -68,7 +91,7 @@ function MediaContent() {
         </div>
       </RoleGate>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        {loading ? <div className="col-span-full py-10 text-center text-sm text-muted">Loading media library...</div> : uploaded.map((item) => <div key={item.key} className="overflow-hidden rounded-lg border border-line bg-white"><div>{item.type === "video" ? <video src={item.url} controls preload="metadata" className="aspect-square w-full object-cover"><track kind="captions" srcLang="en" label="English captions" /></video> : <img src={item.url} alt="" loading="lazy" decoding="async" className="aspect-square w-full object-cover" />}</div><div className="space-y-1 border-t border-line px-3 py-2 text-xs text-muted"><div className="flex justify-between gap-3"><span>Stored</span><span className="font-medium text-ink">{formatBytes(item.size)}</span></div>{item.originalSize !== null ? <><div className="flex justify-between gap-3"><span>Original</span><span>{formatBytes(item.originalSize)}</span></div><div className="flex justify-between gap-3"><span>Saved</span><span>{item.savedBytes !== null ? formatBytes(item.savedBytes) : "0 B"}{item.savedPercent !== null ? ` (${item.savedPercent.toFixed(1)}%)` : ""}</span></div></> : <div className="flex justify-between gap-3"><span>Original</span><span>Legacy media</span></div>}<div className="truncate pt-0.5">{item.contentType}</div></div></div>)}
+        {loading ? <div className="col-span-full py-10 text-center text-sm text-muted">Loading media library...</div> : uploaded.map((item) => <div key={item.key} className="overflow-hidden rounded-lg border border-line bg-white"><div>{item.type === "video" ? <video src={item.url} controls preload="metadata" className="aspect-square w-full object-cover"><track kind="captions" srcLang="en" label="English captions" /></video> : <img src={item.url} alt="" loading="lazy" decoding="async" className="aspect-square w-full object-cover" />}</div><div className="space-y-1 border-t border-line px-3 py-2 text-xs text-muted"><div className="flex justify-between gap-3"><span>Stored</span><span className="font-medium text-ink">{formatBytes(item.size)}</span></div>{item.originalSize !== null ? <><div className="flex justify-between gap-3"><span>Original</span><span>{formatBytes(item.originalSize)}</span></div><div className="flex justify-between gap-3"><span>Saved</span><span>{item.savedBytes !== null ? formatBytes(item.savedBytes) : "0 B"}{item.savedPercent !== null ? ` (${item.savedPercent.toFixed(1)}%)` : ""}</span></div></> : <div className="flex justify-between gap-3"><span>Original</span><span>Legacy media</span></div>}<div className="truncate pt-0.5">{item.contentType}</div><Button variant="secondary" disabled={deletingKey === item.key || uploading || reoptimizing} onClick={() => void handleDelete(item.key)}>{deletingKey === item.key ? "Checking..." : "Delete"}</Button></div></div>)}
       </div>
     </div>
   );
