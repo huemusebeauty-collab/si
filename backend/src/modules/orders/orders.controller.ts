@@ -6,7 +6,7 @@ import { CurrentUser, type AuthenticatedUser } from "@/common/decorators/current
 import { Public } from "@/common/decorators/public.decorator";
 import { DomainErrorCode, DomainException } from "@/common/exceptions/domain.exception";
 import { RequirePermission } from "@/admin/common/require-permission.decorator";
-import { createGuestCheckoutToken } from "@/common/security/guest-checkout-token";
+import { createGuestCheckoutToken, verifyGuestCheckoutToken } from "@/common/security/guest-checkout-token";
 
 @ApiTags("orders")
 @ApiBearerAuth()
@@ -97,7 +97,7 @@ export class OrdersController {
     @Query("format") format?: string,
   ) {
     const order = await this.orders.getOrder(orderId);
-    if (user?.id !== order.customerId && !(guestCheckoutToken && createGuestCheckoutToken(order.id) === guestCheckoutToken)) {
+    if (user?.id !== order.customerId && !(guestCheckoutToken && verifyGuestCheckoutToken(order.id, guestCheckoutToken))) {
       throw new DomainException(DomainErrorCode.REAUTHENTICATION_REQUIRED, "You do not have access to this invoice.");
     }
     return this.orders.generateInvoice(orderId, size, format);
