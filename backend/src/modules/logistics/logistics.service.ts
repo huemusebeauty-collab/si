@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { OrderEntity } from "@/modules/orders/entities/order.entity";
 import { OrderStatusHistoryEntity } from "@/modules/orders/entities/order-status-history.entity";
+import { OrderLineItemEntity } from "@/modules/orders/entities/order-line-item.entity";
 import { ShipmentEntity, type ShipmentStatus } from "./entities/shipment.entity";
 import { ShipmentEventEntity } from "./entities/shipment-event.entity";
 import { TransactionService } from "@/database/transaction.service";
@@ -153,7 +154,6 @@ export class LogisticsService {
       if (mappedOrderStatus && shipment.orderId) {
         const lockedOrder = await manager.findOne(OrderEntity, {
           where: { id: shipment.orderId },
-          relations: ["lineItems"],
           lock: { mode: "pessimistic_write" },
         });
         if (!lockedOrder) throw new NotFoundException("Order not found.");
@@ -176,7 +176,10 @@ export class LogisticsService {
             }
           }
           if (mappedOrderStatus === "returned") {
-            for (const line of lockedOrder.lineItems ?? []) {
+            const lockedLineItems = await manager.find(OrderLineItemEntity, {
+              where: { order: { id: lockedOrder.id } },
+            });
+            for (const line of lockedLineItems) {
               await this.products.adjustStock(line.variantId, line.quantity, manager, { reason: "order_return", referenceType: "order", referenceId: lockedOrder.id });
             }
           }
