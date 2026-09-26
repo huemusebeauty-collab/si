@@ -1,10 +1,10 @@
 "use client";
-import { use, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { RequireAdminAuth } from "@/admin/components/RequireAdminAuth";
 import { AdminShell } from "@/admin/components/AdminShell";
 import { RoleGate } from "@/admin/components/RoleGate";
 import { useAdminQuery } from "@/admin/hooks/useAdminQuery";
-import { adminApi, type AdminInvoice } from "@/admin/lib/admin-api-client";
+import { adminApi, type AdminInvoice, type AdminShipment } from "@/admin/lib/admin-api-client";
 import { Breadcrumb } from "@/components/patterns/Breadcrumb";
 import { SkeletonLoader } from "@/components/composite/SkeletonLoader";
 import { ErrorRecovery } from "@/components/patterns/ErrorRecovery";
@@ -32,7 +32,21 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
   const [invoice, setInvoice] = useState<AdminInvoice | null>(null);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [printing, setPrinting] = useState(false);
+  const [shipment, setShipment] = useState<AdminShipment | null>(null);
+  const [shipmentLoading, setShipmentLoading] = useState(false);
+  const [shipmentUpdating, setShipmentUpdating] = useState(false);
   const { data: order, isLoading, error, refetch } = useAdminQuery(() => adminApi.getOrder(orderId), [orderId]);
+
+  useEffect(() => {
+    let active = true;
+    if (!order) return () => { active = false; };
+    setShipmentLoading(true);
+    void adminApi.getOrderShipment(order.id)
+      .then((next) => { if (active) setShipment(next); })
+      .catch(() => { if (active) setShipment(null); })
+      .finally(() => { if (active) setShipmentLoading(false); });
+    return () => { active = false; };
+  }, [order?.id]);
 
   if (isLoading) return <SkeletonLoader className="h-64 w-full" />;
   if (error || !order) return <ErrorRecovery body={error ?? "Order not found."} onRetry={refetch} />;
@@ -128,23 +142,60 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
         <div className="rounded-md bg-white p-6 shadow-rest">
           <h2 className="mb-3 font-semibold text-ink">Update Status</h2>
           <div className="flex flex-wrap gap-2">
-            {(VALID_TRANSITIONS[order.status] ?? []).map((s) => (
+            {(VALID_TRANSITIONS[order.status] ?? [])
+              .filter((s) => !(
+                (order.status === "processing" && s === "shipped") ||
+                (order.status === "shipped" && s === "delivered") ||
+                (order.status === "delivered" && s === "returned")
+              ))
+              .map((s) => (
+                <Button
+                  key={s}
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      await adminApi.updateOrderStatus(order.id, s);
+                      setToast(`Status updated to "${s}".`);
+                      refetch();
+                    } catch (error) {
+                      setToast(error instanceof Error ? error.message : "Unable to update order status.");
+                    }
+                  }}
+                >{s}</Button>
+              ))}
+
+            {order.status === "processing" && (
               <Button
-                key={s}
-                variant="outline"
+                variant="primary"
+                disabled={shipmentLoading || shipmentUpdating || !shipment || !["ready_to_ship", "pickup_scheduled"].includes(shipment.status)}
                 onClick={async () => {
+                  if (!shipment) return;
+                  setShipmentUpdating(true);
                   try {
-                    await adminApi.updateOrderStatus(order.id, s);
-                    setToast(`Status updated to "${s}".`);
-                    refetch();
+                    await adminApi.updateShipmentStatus(shipment.id, {
+                      status: "picked_up",
+                      description: "Order picked up for dispatch.",
+                    });
+                    setToast("Shipment marked picked up; order will move to shipped.");
+                    setShipment(await adminApi.getOrderShipment(order.id));
+                    await refetch();
                   } catch (error) {
-                    setToast(error instanceof Error ? error.message : "Unable to update order status.");
+                    setToast(error instanceof Error ? error.message : "Unable to update shipment.");
+                  } finally {
+                    setShipmentUpdating(false);
                   }
                 }}
-              >{s}</Button>
-            ))}
-            {(VALID_TRANSITIONS[order.status] ?? []).length === 0 && (
-              <p className="text-sm text-muted">No valid status transitions from this state.</p>
+              >{shipmentUpdating ? "Updating..." : "Ship Order"}</Button>
+            )}
+
+            {(order.status === "processing" || order.status === "shipped" || order.status === "delivered") && (
+              <div className="w-full text-sm text-muted">
+                {shipmentLoading
+                  ? "Loading fulfillment workflow..."
+                  : shipment
+                    ? `Fulfillment: ${shipment.status}. Shipment status must be advanced from Logistics.`
+                    : "No shipment is linked to this order. Create/repair the shipment from Logistics before shipping."}
+              </div>
             )}
           </div>
         </div>
