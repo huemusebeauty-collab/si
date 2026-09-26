@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { authenticatedFetch } from "@/services/api/auth";
+import { authenticatedFetch, getAccessToken } from "@/services/api/auth";
 
 type Address = {
   id: string;
