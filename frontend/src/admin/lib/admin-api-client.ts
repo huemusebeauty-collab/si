@@ -130,7 +130,25 @@ export interface CreateCategoryInput { name: string; slug: string; parentId?: st
 export interface UpdateCategoryInput { name?: string; slug?: string; parentId?: string | null; displayOrder?: number; visible?: boolean; metaTitle?: string; metaDescription?: string }
 export interface AdminCategory { id: string; slug: string; name: string; visible: boolean; displayOrder: number; parentId?: string | null; children?: AdminCategory[] }
 export interface AdminCollection { id: string; slug: string; name: string; active: boolean; featured: boolean; displayOrder: number }
-export interface AdminOrder { id: string; customerId: string; status: string; total: string; currency: string; createdAt: string; lineItems?: unknown[] }
+export interface AdminOrder {
+  id: string;
+  customerId: string;
+  status: string;
+  total: string;
+  currency: string;
+  createdAt: string;
+  lineItems?: unknown[];
+  customerLegalName?: string;
+  customerGstin?: string;
+  shippingAddress?: Record<string, unknown>;
+  customer?: {
+    id: string;
+    name: string;
+    email: string;
+    phone: string | null;
+    addresses: Array<Record<string, unknown>>;
+  };
+}
 export interface AdminInvoice {
   orderId: string;
   customerId?: string;
