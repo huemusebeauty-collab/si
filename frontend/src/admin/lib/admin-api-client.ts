@@ -162,7 +162,7 @@ export interface CreateManualBillingInput {
   customerGstin?: string;
   billingAddress?: Record<string, unknown>;
   shippingAddress?: Record<string, unknown>;
-  items: { variantId: string; quantity: number; unitPrice?: number; discountAmount?: number }[];
+  items: { variantId: string; quantity: number; unitPrice?: number; discountType?: "percentage" | "amount"; discountValue?: number; discountAmount?: number }[];
   paymentMethod: "cash" | "upi" | "card" | "bank_transfer" | "other";
   paymentReference?: string;
   notes?: string;
