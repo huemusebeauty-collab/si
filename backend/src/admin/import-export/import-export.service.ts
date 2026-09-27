@@ -37,23 +37,61 @@ export class ImportExportService {
   // same succeeded/failed shape as the bulk-operation endpoints, for a
   // consistent admin UX pattern across both bulk mechanisms.
   async importProductsCsv(csv: string): Promise<{ succeeded: number; failed: { row: number; reason: string }[] }> {
-    const rows = fromCsv(csv);
+    let rows: Record<string, string>[];
+    try {
+      rows = fromCsv(csv);
+    } catch (error) {
+      return {
+        succeeded: 0,
+        failed: [{ row: 1, reason: error instanceof Error ? error.message : String(error) }],
+      };
+    }
+
+    if (rows.length === 0) {
+      return {
+        succeeded: 0,
+        failed: [{ row: 1, reason: "CSV must contain a header row and at least one product row." }],
+      };
+    }
+
+    const requiredHeaders = ["slug", "name", "category", "price"];
+    const missingHeaders = requiredHeaders.filter((header) => !(header in rows[0]));
+    if (missingHeaders.length > 0) {
+      return {
+        succeeded: 0,
+        failed: [{ row: 1, reason: "Missing required column(s): " + missingHeaders.join(", ") + "." }],
+      };
+    }
+
     let succeeded = 0;
     const failed: { row: number; reason: string }[] = [];
 
-    for (let i = 0; i < rows.length; i++) {
+    for (let i = 0; i < rows.length; i += 1) {
       const row = rows[i];
       try {
-        const category = await this.categories.getCategory(row.category);
+        const slug = row.slug?.trim();
+        const name = row.name?.trim();
+        const categorySlug = row.category?.trim();
+        const rawPrice = row.price?.trim();
+
+        if (!slug) throw new Error("Slug is required.");
+        if (!name) throw new Error("Product name is required.");
+        if (!categorySlug) throw new Error("Category is required.");
+        if (!rawPrice) throw new Error("Price is required.");
+
+        const price = Number(rawPrice);
+        if (!Number.isFinite(price) || price <= 0) throw new Error("Price must be a positive number.");
+
+        const category = await this.categories.getCategory(categorySlug);
         await this.products.upsertFromImportRow(
-          { slug: row.slug, name: row.name, categorySlug: row.category, price: row.price },
+          { slug, name, categorySlug, price: price.toFixed(2) },
           category,
         );
         succeeded += 1;
       } catch (error) {
-        failed.push({ row: i + 2, reason: error instanceof Error ? error.message : String(error) }); // +2: header row + 1-indexing
+        failed.push({ row: i + 2, reason: error instanceof Error ? error.message : String(error) });
       }
     }
+
     return { succeeded, failed };
-  }
-}
+  }}
