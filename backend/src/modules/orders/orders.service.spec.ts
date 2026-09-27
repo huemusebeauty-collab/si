@@ -48,7 +48,7 @@ describe("OrdersService", () => {
           : entity === InvoiceEntity
             ? invoiceRepo
             : entity === InvoiceSequenceEntity
-              ? createMockRepo<InvoiceSequenceEntity>()
+              ? { ...createMockRepo<InvoiceSequenceEntity>(), query: jest.fn().mockResolvedValue([{ issuedNumber: "1" }]) }
               : createMockRepo(),
       ),
     };
