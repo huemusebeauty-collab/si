@@ -30,7 +30,7 @@ export class StorageController {
   async upload(@UploadedFile() file: Express.Multer.File, @Query("category") category: string = "product-media", @Req() request: Request) {
     if (!MEDIA_CATEGORIES.includes(category as UploadCategory)) throw new BadRequestException("Invalid media category.");
     const result = await this.storage.upload(file, category as UploadCategory);
-    const [category, id] = result.key.split("/");
+    const [keyCategory, id] = result.key.split("/");
     const protocol = String(request.headers["x-forwarded-proto"] ?? request.protocol).split(",")[0].trim();
     const host = request.get("host");
     const type = result.contentType.startsWith("video/") ? "video" : "image";
@@ -41,7 +41,7 @@ export class StorageController {
 
     return {
       ...result,
-      url: mediaUrl(protocol, host, category, id, type),
+      url: mediaUrl(protocol, host, keyCategory, id, type),
     };
   }
 
