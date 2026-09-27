@@ -66,6 +66,49 @@ function LogisticsContent() {
 
   useEffect(() => { void load(); }, [status]);
 
+  const openDetails = async (shipment: AdminShipment) => {
+    setSelectedShipment(shipment);
+    setDetailAwb(shipment.awbNumber ?? "");
+    setDetailTrackingUrl(shipment.trackingUrl ?? "");
+    setDetailFailureReason(shipment.failureReason ?? "");
+    setDetailLocation("");
+    setDetailDescription("");
+    setDetailsLoading(true);
+    try {
+      setTrackingEvents(await adminApi.getShipmentTracking(shipment.id));
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "Unable to load tracking.");
+      setTrackingEvents([]);
+    } finally {
+      setDetailsLoading(false);
+    }
+  };
+
+  const saveDetails = async () => {
+    if (!selectedShipment) return;
+    setDetailsSaving(true);
+    try {
+      const updated = await adminApi.updateShipmentStatus(selectedShipment.id, {
+        status: selectedShipment.status,
+        awbNumber: detailAwb.trim() || undefined,
+        trackingUrl: detailTrackingUrl.trim() || undefined,
+        location: detailLocation.trim() || undefined,
+        description: detailDescription.trim() || undefined,
+        failureReason: detailFailureReason.trim() || undefined,
+      });
+      setSelectedShipment(updated);
+      setToast("Shipment details updated.");
+      await load();
+      setTrackingEvents(await adminApi.getShipmentTracking(updated.id));
+      setDetailLocation("");
+      setDetailDescription("");
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "Unable to update shipment details.");
+    } finally {
+      setDetailsSaving(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <Breadcrumb items={[{ label: "Logistics" }]} />
@@ -139,7 +182,25 @@ function LogisticsContent() {
           </tbody>
         </table>
       </div>
-      {selectedShipment && (\n        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-label="Shipment details">\n          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-md bg-white p-5 shadow-rest">\n            <div className="flex items-start justify-between"><div><h2 className="text-xl font-semibold text-ink">Shipment Details</h2><p className="text-sm text-ink-muted">Order {selectedShipment.orderId}</p></div><Button variant="outline" onClick={() => setSelectedShipment(null)}>Close</Button></div>\n            <div className="mt-4 grid gap-3 md:grid-cols-2">\n              <div><p className="text-xs text-ink-muted">Status</p><p className="font-medium">{selectedShipment.status}</p></div>\n              <div><p className="text-xs text-ink-muted">Courier / Service</p><p className="font-medium">{selectedShipment.carrier ?? "—"} {selectedShipment.serviceLevel ? `· ${selectedShipment.serviceLevel}` : ""}</p></div>\n              <label className="text-sm">AWB Number<input value={detailAwb} onChange={e => setDetailAwb(e.target.value)} className="mt-1 w-full rounded-md border border-line px-3 py-2" /></label>\n              <label className="text-sm">Tracking URL<input value={detailTrackingUrl} onChange={e => setDetailTrackingUrl(e.target.value)} className="mt-1 w-full rounded-md border border-line px-3 py-2" /></label>\n              <label className="text-sm">Event Location<input value={detailLocation} onChange={e => setDetailLocation(e.target.value)} placeholder="Optional" className="mt-1 w-full rounded-md border border-line px-3 py-2" /></label>\n              <label className="text-sm">Failure Reason<input value={detailFailureReason} onChange={e => setDetailFailureReason(e.target.value)} className="mt-1 w-full rounded-md border border-line px-3 py-2" /></label>\n            </div>\n            <label className="mt-3 block text-sm">Event Description<textarea value={detailDescription} onChange={e => setDetailDescription(e.target.value)} placeholder="Optional tracking note" className="mt-1 min-h-20 w-full rounded-md border border-line px-3 py-2" /></label>\n            <RoleGate module="logistics" level="edit"><div className="mt-3 flex justify-end"><Button variant="primary" disabled={detailsSaving} onClick={() => void saveDetails()}>{detailsSaving ? "Saving..." : "Save Details"}</Button></div></RoleGate>\n            <div className="mt-6"><h3 className="font-semibold text-ink">Tracking Timeline</h3>{detailsLoading ? <p className="mt-2 text-sm text-ink-muted">Loading tracking…</p> : trackingEvents.length === 0 ? <p className="mt-2 text-sm text-ink-muted">No tracking events yet.</p> : <div className="mt-3 space-y-3">{trackingEvents.map(event => <div key={event.id} className="rounded-md border border-line p-3"><div className="flex justify-between gap-2"><span className="font-medium">{event.status}</span><span className="text-xs text-ink-muted">{new Date(event.eventAt).toLocaleString()}</span></div>{event.location && <p className="text-sm text-ink-muted">Location: {event.location}</p>}{event.description && <p className="mt-1 text-sm">{event.description}</p>}</div>)}</div>}</div>\n          </div>\n        </div>\n      )}\n      {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
+      {selectedShipment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-label="Shipment details">
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-md bg-white p-5 shadow-rest">
+            <div className="flex items-start justify-between"><div><h2 className="text-xl font-semibold text-ink">Shipment Details</h2><p className="text-sm text-ink-muted">Order {selectedShipment.orderId}</p></div><Button variant="outline" onClick={() => setSelectedShipment(null)}>Close</Button></div>
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <div><p className="text-xs text-ink-muted">Status</p><p className="font-medium">{selectedShipment.status}</p></div>
+              <div><p className="text-xs text-ink-muted">Courier / Service</p><p className="font-medium">{selectedShipment.carrier ?? "—"} {selectedShipment.serviceLevel ? `· ${selectedShipment.serviceLevel}` : ""}</p></div>
+              <label className="text-sm">AWB Number<input value={detailAwb} onChange={e => setDetailAwb(e.target.value)} className="mt-1 w-full rounded-md border border-line px-3 py-2" /></label>
+              <label className="text-sm">Tracking URL<input value={detailTrackingUrl} onChange={e => setDetailTrackingUrl(e.target.value)} className="mt-1 w-full rounded-md border border-line px-3 py-2" /></label>
+              <label className="text-sm">Event Location<input value={detailLocation} onChange={e => setDetailLocation(e.target.value)} placeholder="Optional" className="mt-1 w-full rounded-md border border-line px-3 py-2" /></label>
+              <label className="text-sm">Failure Reason<input value={detailFailureReason} onChange={e => setDetailFailureReason(e.target.value)} className="mt-1 w-full rounded-md border border-line px-3 py-2" /></label>
+            </div>
+            <label className="mt-3 block text-sm">Event Description<textarea value={detailDescription} onChange={e => setDetailDescription(e.target.value)} placeholder="Optional tracking note" className="mt-1 min-h-20 w-full rounded-md border border-line px-3 py-2" /></label>
+            <RoleGate module="logistics" level="edit"><div className="mt-3 flex justify-end"><Button variant="primary" disabled={detailsSaving} onClick={() => void saveDetails()}>{detailsSaving ? "Saving..." : "Save Details"}</Button></div></RoleGate>
+            <div className="mt-6"><h3 className="font-semibold text-ink">Tracking Timeline</h3>{detailsLoading ? <p className="mt-2 text-sm text-ink-muted">Loading tracking…</p> : trackingEvents.length === 0 ? <p className="mt-2 text-sm text-ink-muted">No tracking events yet.</p> : <div className="mt-3 space-y-3">{trackingEvents.map(event => <div key={event.id} className="rounded-md border border-line p-3"><div className="flex justify-between gap-2"><span className="font-medium">{event.status}</span><span className="text-xs text-ink-muted">{new Date(event.eventAt).toLocaleString()}</span></div>{event.location && <p className="text-sm text-ink-muted">Location: {event.location}</p>}{event.description && <p className="mt-1 text-sm">{event.description}</p>}</div>)}</div>}</div>
+          </div>
+        </div>
+      )}
+      {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
     </div>
   );
 }
