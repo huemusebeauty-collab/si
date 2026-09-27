@@ -132,9 +132,9 @@ export class CustomersService {
   // admin Customer Profile screen fetches order history separately via
   // OrdersService.listOrderHistory, same as the storefront does.
   async adminSearch(filters: { query?: string; page: number; pageSize: number }) {
-    const qb = this.customers.createQueryBuilder("customer").orderBy("customer.createdAt", "DESC");
+    const qb = this.customers.createQueryBuilder("customer").leftJoinAndSelect("customer.addresses", "address").orderBy("customer.createdAt", "DESC");
     if (filters.query) {
-      qb.andWhere("(customer.email ILIKE :q OR customer.firstName ILIKE :q OR customer.lastName ILIKE :q)", {
+      qb.andWhere("(customer.email ILIKE :q OR customer.firstName ILIKE :q OR customer.lastName ILIKE :q OR customer.phone ILIKE :q)", {
         q: `%${filters.query}%`,
       });
     }
