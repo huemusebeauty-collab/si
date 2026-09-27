@@ -24,7 +24,7 @@ describe("PaymentService reliability", () => {
     issueInvoice: jest.fn().mockResolvedValue(undefined),
   };
   const products = { adjustStock: jest.fn() };
-  const logistics = {};
+  const logistics = { createShipment: jest.fn().mockResolvedValue(undefined) };
   const transactionService = {
     runInTransaction: jest.fn(async (fn) => fn({ manager: {
       update: jest.fn(),
