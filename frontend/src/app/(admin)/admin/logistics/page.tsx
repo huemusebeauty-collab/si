@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { RequireAdminAuth } from "@/admin/components/RequireAdminAuth";
 import { AdminShell } from "@/admin/components/AdminShell";
 import { RoleGate } from "@/admin/components/RoleGate";
-import { adminApi, type AdminShipment, type LogisticsDashboard } from "@/admin/lib/admin-api-client";
+import { adminApi, type AdminShipment, type LogisticsDashboard, type ShipmentEvent } from "@/admin/lib/admin-api-client";
 import { Breadcrumb } from "@/components/patterns/Breadcrumb";
 import { Badge } from "@/components/basic/Badge";
 import { Button } from "@/components/basic/Button";
@@ -38,6 +38,15 @@ function LogisticsContent() {
   const [serviceLevel, setServiceLevel] = useState("");
   const [creating, setCreating] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [selectedShipment, setSelectedShipment] = useState<AdminShipment | null>(null);
+  const [trackingEvents, setTrackingEvents] = useState<ShipmentEvent[]>([]);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [detailsSaving, setDetailsSaving] = useState(false);
+  const [detailAwb, setDetailAwb] = useState("");
+  const [detailTrackingUrl, setDetailTrackingUrl] = useState("");
+  const [detailLocation, setDetailLocation] = useState("");
+  const [detailDescription, setDetailDescription] = useState("");
+  const [detailFailureReason, setDetailFailureReason] = useState("");
 
   const load = async () => {
     setLoading(true);
@@ -98,9 +107,9 @@ function LogisticsContent() {
 
       <div className="overflow-x-auto rounded-md bg-white shadow-rest">
         <table className="w-full text-left text-sm">
-          <thead><tr className="border-b"><th className="p-4">Order</th><th className="p-4">Courier</th><th className="p-4">AWB</th><th className="p-4">Status</th><th className="p-4">Updated</th></tr></thead>
+          <thead><tr className="border-b"><th className="p-4">Order</th><th className="p-4">Courier</th><th className="p-4">AWB</th><th className="p-4">Status</th><th className="p-4">Updated</th><th className="p-4">Details</th></tr></thead>
           <tbody>
-            {loading ? <tr><td className="p-4" colSpan={5}>Loading…</td></tr> : shipments.length === 0 ? <tr><td className="p-4" colSpan={5}>No shipments found.</td></tr> : shipments.map((shipment) => (
+            {loading ? <tr><td className="p-4" colSpan={6}>Loading…</td></tr> : shipments.length === 0 ? <tr><td className="p-4" colSpan={6}>No shipments found.</td></tr> : shipments.map((shipment) => (
               <tr key={shipment.id} className="border-b last:border-0">
                 <td className="p-4 font-medium">{shipment.orderId.slice(0, 8)}</td>
                 <td className="p-4">{shipment.carrier ?? "—"}</td>
@@ -130,7 +139,7 @@ function LogisticsContent() {
           </tbody>
         </table>
       </div>
-      {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
+      {selectedShipment && (\n        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-label="Shipment details">\n          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-md bg-white p-5 shadow-rest">\n            <div className="flex items-start justify-between"><div><h2 className="text-xl font-semibold text-ink">Shipment Details</h2><p className="text-sm text-ink-muted">Order {selectedShipment.orderId}</p></div><Button variant="outline" onClick={() => setSelectedShipment(null)}>Close</Button></div>\n            <div className="mt-4 grid gap-3 md:grid-cols-2">\n              <div><p className="text-xs text-ink-muted">Status</p><p className="font-medium">{selectedShipment.status}</p></div>\n              <div><p className="text-xs text-ink-muted">Courier / Service</p><p className="font-medium">{selectedShipment.carrier ?? "—"} {selectedShipment.serviceLevel ? `· ${selectedShipment.serviceLevel}` : ""}</p></div>\n              <label className="text-sm">AWB Number<input value={detailAwb} onChange={e => setDetailAwb(e.target.value)} className="mt-1 w-full rounded-md border border-line px-3 py-2" /></label>\n              <label className="text-sm">Tracking URL<input value={detailTrackingUrl} onChange={e => setDetailTrackingUrl(e.target.value)} className="mt-1 w-full rounded-md border border-line px-3 py-2" /></label>\n              <label className="text-sm">Event Location<input value={detailLocation} onChange={e => setDetailLocation(e.target.value)} placeholder="Optional" className="mt-1 w-full rounded-md border border-line px-3 py-2" /></label>\n              <label className="text-sm">Failure Reason<input value={detailFailureReason} onChange={e => setDetailFailureReason(e.target.value)} className="mt-1 w-full rounded-md border border-line px-3 py-2" /></label>\n            </div>\n            <label className="mt-3 block text-sm">Event Description<textarea value={detailDescription} onChange={e => setDetailDescription(e.target.value)} placeholder="Optional tracking note" className="mt-1 min-h-20 w-full rounded-md border border-line px-3 py-2" /></label>\n            <RoleGate module="logistics" level="edit"><div className="mt-3 flex justify-end"><Button variant="primary" disabled={detailsSaving} onClick={() => void saveDetails()}>{detailsSaving ? "Saving..." : "Save Details"}</Button></div></RoleGate>\n            <div className="mt-6"><h3 className="font-semibold text-ink">Tracking Timeline</h3>{detailsLoading ? <p className="mt-2 text-sm text-ink-muted">Loading tracking…</p> : trackingEvents.length === 0 ? <p className="mt-2 text-sm text-ink-muted">No tracking events yet.</p> : <div className="mt-3 space-y-3">{trackingEvents.map(event => <div key={event.id} className="rounded-md border border-line p-3"><div className="flex justify-between gap-2"><span className="font-medium">{event.status}</span><span className="text-xs text-ink-muted">{new Date(event.eventAt).toLocaleString()}</span></div>{event.location && <p className="text-sm text-ink-muted">Location: {event.location}</p>}{event.description && <p className="mt-1 text-sm">{event.description}</p>}</div>)}</div>}</div>\n          </div>\n        </div>\n      )}\n      {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
     </div>
   );
 }
