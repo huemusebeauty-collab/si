@@ -44,6 +44,18 @@ const moods = [
   { id: "NATURE", label: "Nature / Calm", text: "Fresh looks better on you", artwork: "/invoice-art/sketch.svg" },
 ] as const;
 
+const INDIAN_STATES = [
+  ["Andhra Pradesh", "37"], ["Arunachal Pradesh", "12"], ["Assam", "18"], ["Bihar", "10"],
+  ["Chhattisgarh", "22"], ["Goa", "30"], ["Gujarat", "24"], ["Haryana", "06"],
+  ["Himachal Pradesh", "02"], ["Jharkhand", "20"], ["Karnataka", "29"], ["Kerala", "32"],
+  ["Madhya Pradesh", "23"], ["Maharashtra", "27"], ["Manipur", "14"], ["Meghalaya", "17"],
+  ["Mizoram", "15"], ["Nagaland", "13"], ["Odisha", "21"], ["Punjab", "03"],
+  ["Rajasthan", "08"], ["Sikkim", "11"], ["Tamil Nadu", "33"], ["Telangana", "36"],
+  ["Tripura", "16"], ["Uttar Pradesh", "09"], ["Uttarakhand", "05"], ["West Bengal", "19"],
+  ["Andaman and Nicobar Islands", "35"], ["Chandigarh", "04"], ["Dadra and Nagar Haveli and Daman and Diu", "26"],
+  ["Delhi", "07"], ["Jammu and Kashmir", "01"], ["Ladakh", "38"], ["Lakshadweep", "31"], ["Puducherry", "34"],
+] as const;
+
 const STORAGE_KEY = "silku-invoice-preferences";
 
 type Preferences = {
@@ -68,7 +80,13 @@ function ManualBilling() {
   const [walkInPhone, setWalkInPhone] = useState("");
   const [walkInEmail, setWalkInEmail] = useState("");
   const [customerGstin, setCustomerGstin] = useState("");
-  const [customerAddress, setCustomerAddress] = useState("");
+  const [hasCustomerAddress, setHasCustomerAddress] = useState(false);
+  const [customerAddressLine1, setCustomerAddressLine1] = useState("");
+  const [customerAddressLine2, setCustomerAddressLine2] = useState("");
+  const [customerCity, setCustomerCity] = useState("");
+  const [customerState, setCustomerState] = useState("");
+  const [customerStateCode, setCustomerStateCode] = useState("");
+  const [customerPostalCode, setCustomerPostalCode] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -152,8 +170,24 @@ function ManualBilling() {
         customerEmail: selectedCustomer?.email ?? (walkInEmail.trim() || undefined),
         customerPhone: selectedCustomer ? undefined : walkInPhone.trim() || undefined,
         customerGstin: customerGstin.trim().toUpperCase() || undefined,
-        billingAddress: customerAddress.trim() ? { line1: customerAddress.trim(), country: "India" } : undefined,
-        shippingAddress: customerAddress.trim() ? { line1: customerAddress.trim(), country: "India" } : undefined,
+        billingAddress: hasCustomerAddress ? {
+          line1: customerAddressLine1.trim(),
+          line2: customerAddressLine2.trim() || undefined,
+          city: customerCity.trim(),
+          state: customerState,
+          stateCode: customerStateCode,
+          postalCode: customerPostalCode.trim(),
+          country: "India",
+        } : undefined,
+        shippingAddress: hasCustomerAddress ? {
+          line1: customerAddressLine1.trim(),
+          line2: customerAddressLine2.trim() || undefined,
+          city: customerCity.trim(),
+          state: customerState,
+          stateCode: customerStateCode,
+          postalCode: customerPostalCode.trim(),
+          country: "India",
+        } : undefined,
         items: rows.map((row) => ({
           variantId: row.variantId,
           quantity: row.quantity,
@@ -173,7 +207,13 @@ function ManualBilling() {
       setWalkInPhone("");
       setWalkInEmail("");
       setCustomerGstin("");
-      setCustomerAddress("");
+      setHasCustomerAddress(false);
+      setCustomerAddressLine1("");
+      setCustomerAddressLine2("");
+      setCustomerCity("");
+      setCustomerState("");
+      setCustomerStateCode("");
+      setCustomerPostalCode("");
       setPaymentReference("");
       setNotes("");
     } catch (error) {
@@ -236,9 +276,47 @@ function ManualBilling() {
             )}
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <Input label="Customer GST No. (optional)" value={customerGstin} onChange={(e) => setCustomerGstin(e.target.value.toUpperCase())} placeholder="15-character GSTIN" maxLength={15} />
-              <Input label="Customer Address (optional)" value={customerAddress} onChange={(e) => setCustomerAddress(e.target.value)} placeholder="Billing / delivery address" />
             </div>
-            <p className="mt-2 text-xs text-muted">GST No. and address are optional. If left blank for an existing customer, their saved default address is used when available.</p>
+            <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                checked={hasCustomerAddress}
+                onChange={(e) => setHasCustomerAddress(e.target.checked)}
+                className="h-4 w-4 rounded border-line"
+              />
+              Add customer address
+            </label>
+            {hasCustomerAddress && (
+              <div className="mt-3 rounded-lg border border-line bg-surface p-4">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <Input label="Address Line 1" value={customerAddressLine1} onChange={(e) => setCustomerAddressLine1(e.target.value)} placeholder="House / flat / street" />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Input label="Address Line 2 (optional)" value={customerAddressLine2} onChange={(e) => setCustomerAddressLine2(e.target.value)} placeholder="Area / landmark" />
+                  </div>
+                  <Input label="City" value={customerCity} onChange={(e) => setCustomerCity(e.target.value)} placeholder="City" />
+                  <Input label="PIN Code" value={customerPostalCode} onChange={(e) => setCustomerPostalCode(e.target.value.replace(/\\D/g, "").slice(0, 6))} placeholder="6-digit PIN" maxLength={6} />
+                  <div>
+                    <label className="text-xs font-semibold uppercase tracking-wide text-muted">State</label>
+                    <select
+                      value={customerState}
+                      onChange={(e) => {
+                        const state = INDIAN_STATES.find(([name]) => name === e.target.value);
+                        setCustomerState(e.target.value);
+                        setCustomerStateCode(state?.[1] ?? "");
+                      }}
+                      className="mt-1 h-11 w-full rounded border border-line bg-white px-3"
+                    >
+                      <option value="">Select state</option>
+                      {INDIAN_STATES.map(([name, code]) => <option key={code} value={name}>{name}</option>)}
+                    </select>
+                  </div>
+                  <Input label="State Code" value={customerStateCode} readOnly placeholder="Auto from state" />
+                </div>
+              </div>
+            )}
+            <p className="mt-2 text-xs text-muted">GST No. is optional. Tick “Add customer address” to enter the complete address; State Code is filled automatically from the selected State.</p>
           </div>
         </div>
 
