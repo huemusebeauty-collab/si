@@ -14,8 +14,8 @@ function SalesReport() {
   return (
     <div className="grid grid-cols-3 gap-4">
       <KpiCard label="Orders (30d)" value={data.orderCount} />
-      <KpiCard label="Revenue (30d)" value={`$${data.totalRevenue.toFixed(2)}`} />
-      <KpiCard label="Avg Order Value" value={`$${data.averageOrderValue.toFixed(2)}`} />
+      <KpiCard label="Revenue (30d)" value={`₹${data.totalRevenue.toFixed(2)}`} />
+      <KpiCard label="Avg Order Value" value={`₹${data.averageOrderValue.toFixed(2)}`} />
     </div>
   );
 }
