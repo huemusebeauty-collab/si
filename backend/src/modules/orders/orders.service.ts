@@ -190,7 +190,7 @@ export class OrdersService {
     if (filters.status) qb.andWhere("order.status = :status", { status: filters.status });
     if (filters.dateFrom) qb.andWhere("order.createdAt >= :from", { from: filters.dateFrom });
     if (filters.dateTo) qb.andWhere("order.createdAt <= :to", { to: filters.dateTo });
-    if (filters.customerQuery) qb.andWhere("order.customerId ILIKE :q", { q: `%${filters.customerQuery}%` });
+    if (filters.customerQuery) qb.andWhere("(order.customerLegalName ILIKE :q OR order.customerId ILIKE :q)", { q: `%${filters.customerQuery}%` });
     const [items, totalItems] = await qb.skip((filters.page - 1) * filters.pageSize).take(filters.pageSize).getManyAndCount();
     return { items, totalItems };
   }
