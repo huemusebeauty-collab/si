@@ -13,6 +13,7 @@ import { CartService } from "@/modules/cart/cart.service";
 import { ProductsService } from "@/modules/products/products.service";
 import { TransactionService } from "@/database/transaction.service";
 import { SettingsService } from "@/admin/settings/settings.service";
+import { CustomersService } from "@/modules/customers/customers.service";
 import { DomainException } from "@/common/exceptions/domain.exception";
 
 function createMockRepo<T extends object>() {
@@ -41,6 +42,17 @@ describe("OrdersService", () => {
       create: jest.fn((_: unknown, entity: unknown) => entity),
       save: jest.fn((entity: unknown) => Promise.resolve(entity)),
       findOne: jest.fn().mockResolvedValue({ id: "o1", status: "processing", lineItems: [{ variantId: "v1", quantity: 2 }], statusHistory: [] }),
+      getRepository: jest.fn((entity: unknown) =>
+        entity === OrderEntity
+          ? orderRepo
+          : entity === InvoiceEntity
+            ? invoiceRepo
+            : entity === InvoiceSequenceEntity
+              ? { ...createMockRepo<InvoiceSequenceEntity>(), query: jest.fn().mockResolvedValue([{ issuedNumber: "1" }]) }
+              : entity === OrderLineItemEntity
+                ? { ...createMockRepo<OrderLineItemEntity>(), find: jest.fn().mockResolvedValue([]) }
+                : createMockRepo(),
+      ),
     };
     transactionService = { runInTransaction: jest.fn(async (work: (qr: unknown) => Promise<unknown>) => work({ manager })) };
     const settingsService = { getBusinessSettings: jest.fn().mockResolvedValue({ storeName: "Silku", gstRegistered: false, reverseChargeDefault: false }) };
@@ -59,6 +71,7 @@ describe("OrdersService", () => {
         { provide: ProductsService, useValue: productService },
         { provide: TransactionService, useValue: transactionService },
         { provide: SettingsService, useValue: settingsService },
+        { provide: CustomersService, useValue: { syncManualBillingCustomer: jest.fn() } },
       ],
     }).compile();
     service = module.get(OrdersService);
@@ -80,13 +93,14 @@ describe("OrdersService", () => {
       taxAmount: "18.00",
       total: "118.00",
       currency: "INR",
+      createdAt: new Date("2026-09-19T10:00:00Z"),
     } as unknown as OrderEntity);
     invoiceRepo.findOne.mockResolvedValue(null);
 
     const result = await service.generateInvoice("o1");
-    expect(result.invoiceNumber).toBeNull();
-    expect(result.issuedAt).toBeNull();
-    expect(result.total).toBe("118.00");
+    expect(result.invoiceNumber).toBe("SLK/26-27/000001");
+    expect(result.issuedAt).toEqual(expect.any(String));
+    expect((result as { total: string }).total).toBe("118.00");
   });
 
   it("issues one persistent invoice per order and reuses it idempotently", async () => {
@@ -138,7 +152,7 @@ describe("OrdersService", () => {
             entity === OrderEntity
               ? { findOne: jest.fn().mockResolvedValue(order) }
               : entity === InvoiceEntity
-                ? { findOne: jest.fn().mockResolvedValue({ id: "inv1", invoiceNumber: "SLK/26-27/000001", issuedAt: new Date("2026-09-19T10:00:00Z"), snapshot: first }) }
+                ? { findOne: jest.fn().mockResolvedValue({ id: "inv1", invoiceNumber: "SLK/26-27/000001", issuedAt: new Date("2026-09-19T10:00:00Z"), snapshot: first }), save: jest.fn().mockResolvedValue(undefined) }
                 : transactionSequenceRepo,
           ),
         },
@@ -158,7 +172,7 @@ describe("OrdersService", () => {
     } as unknown as OrderEntity;
     orderRepo.findOne.mockResolvedValue(existingOrder);
 
-    const result = await service.createOrder("c1", "cart-1", { city: "Jaipur" }, " checkout-123 ");
+    const result = await service.createOrder("c1", "cart-1", { city: "Jaipur" }, {}, " checkout-123 ");
     expect(result).toBe(existingOrder);
     expect(transactionService.runInTransaction).not.toHaveBeenCalled();
   });

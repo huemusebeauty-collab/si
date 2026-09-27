@@ -21,8 +21,10 @@ describe("PaymentService reliability", () => {
     getOrder: jest.fn(),
     confirmOrder: jest.fn(),
     checkRefundEligibility: jest.fn(),
+    issueInvoice: jest.fn().mockResolvedValue(undefined),
   };
   const products = { adjustStock: jest.fn() };
+  const logistics = { createShipment: jest.fn().mockResolvedValue(undefined) };
   const transactionService = {
     runInTransaction: jest.fn(async (fn) => fn({ manager: {
       update: jest.fn(),
@@ -43,6 +45,7 @@ describe("PaymentService reliability", () => {
       orders as never,
       products as never,
       transactionService as never,
+      logistics as never,
     );
   });
 

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { CollectionEntity } from "./entities/collection.entity";
@@ -50,6 +50,90 @@ export class CollectionsService {
   async deleteById(collectionId: string): Promise<void> {
     await this.collections.delete({ id: collectionId });
     await this.cacheInvalidation.invalidatePrefix("collections");
+  }
+
+  async listAdminCollections(): Promise<CollectionEntity[]> {
+    return this.collections.find({ relations: ["products"], order: { displayOrder: "ASC" } });
+  }
+
+  async createCollection(data: {
+    slug: string;
+    name: string;
+    tagline?: string;
+    active?: boolean;
+    featured?: boolean;
+    displayOrder?: number;
+    metaTitle?: string;
+    metaDescription?: string;
+    startAt?: Date;
+    endAt?: Date;
+  }): Promise<CollectionEntity> {
+    const slug = data.slug.trim().toLowerCase();
+    if (!slug || !data.name?.trim()) throw new BadRequestException("Collection name and slug are required.");
+    if (await this.slugExists(slug)) throw new ConflictException("A collection with this slug already exists.");
+    const entity = this.collections.create({
+      ...data,
+      slug,
+      name: data.name.trim(),
+      tagline: data.tagline?.trim() ?? "",
+      active: data.active ?? true,
+      featured: data.featured ?? false,
+      displayOrder: data.displayOrder ?? 0,
+    });
+    const saved = await this.collections.save(entity);
+    await this.cacheInvalidation.invalidatePrefix("collections");
+    return saved;
+  }
+
+  async updateCollection(collectionId: string, data: {
+    slug?: string;
+    name?: string;
+    tagline?: string;
+    active?: boolean;
+    featured?: boolean;
+    displayOrder?: number;
+    metaTitle?: string;
+    metaDescription?: string;
+    startAt?: Date | null;
+    endAt?: Date | null;
+  }): Promise<CollectionEntity> {
+    const entity = await this.findOrThrow(collectionId);
+    if (data.slug !== undefined) {
+      const slug = data.slug.trim().toLowerCase();
+      if (!slug) throw new BadRequestException("Collection slug cannot be empty.");
+      if (await this.slugExists(slug, collectionId)) throw new ConflictException("A collection with this slug already exists.");
+      entity.slug = slug;
+    }
+    if (data.name !== undefined) {
+      const name = data.name.trim();
+      if (!name) throw new BadRequestException("Collection name cannot be empty.");
+      entity.name = name;
+    }
+    if (data.tagline !== undefined) entity.tagline = data.tagline.trim();
+    if (data.active !== undefined) entity.active = data.active;
+    if (data.featured !== undefined) entity.featured = data.featured;
+    if (data.displayOrder !== undefined) entity.displayOrder = data.displayOrder;
+    if (data.metaTitle !== undefined) entity.metaTitle = data.metaTitle;
+    if (data.metaDescription !== undefined) entity.metaDescription = data.metaDescription;
+    if (data.startAt !== undefined) entity.startAt = data.startAt ?? undefined;
+    if (data.endAt !== undefined) entity.endAt = data.endAt ?? undefined;
+    if (entity.startAt && entity.endAt && entity.endAt < entity.startAt) throw new BadRequestException("End date cannot be before start date.");
+    const saved = await this.collections.save(entity);
+    await this.cacheInvalidation.invalidatePrefix("collections");
+    return saved;
+  }
+
+  async setActive(collectionId: string, active: boolean): Promise<CollectionEntity> {
+    return this.updateCollection(collectionId, { active });
+  }
+
+  async deleteCollection(collectionId: string): Promise<{ deleted: true }> {
+    const entity = await this.findOrThrow(collectionId);
+    entity.products = [];
+    await this.collections.save(entity);
+    await this.collections.delete({ id: collectionId });
+    await this.cacheInvalidation.invalidatePrefix("collections");
+    return { deleted: true };
   }
 
   // getCollection(slug) -> Collection (with member products)

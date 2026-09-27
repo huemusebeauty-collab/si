@@ -1,3 +1,4 @@
+import { OrderLineItemEntity } from "@/modules/orders/entities/order-line-item.entity";
 import { OrderEntity } from "@/modules/orders/entities/order.entity";
 import { OrderStatusHistoryEntity } from "@/modules/orders/entities/order-status-history.entity";
 import { ShipmentEntity } from "./entities/shipment.entity";
@@ -30,6 +31,7 @@ describe("LogisticsService", () => {
           return null;
         }),
         create: jest.fn((_entity: unknown, input: unknown) => input),
+        find: jest.fn(async (entity: unknown) => entity === OrderLineItemEntity ? [{ variantId: "v1", quantity: 2 }] : []),
         save: jest.fn(async (value: unknown) => value),
       };
       return work({ manager });
