@@ -396,12 +396,13 @@ function ManualBilling() {
         <div className="mt-3 overflow-x-auto rounded-lg border border-line">
           <table className="w-full min-w-[760px] text-sm">
             <thead className="bg-surface text-left text-xs uppercase tracking-wide text-muted">
-              <tr><th className="p-3">Product</th><th className="p-3">Qty</th><th className="p-3">Price</th><th className="p-3">Discount</th><th className="p-3">Line total</th><th className="p-3"></th></tr>
+              <tr><th className="p-3">Product</th><th className="p-3">HSN Code</th><th className="p-3">Qty</th><th className="p-3">Price</th><th className="p-3">Discount</th><th className="p-3">Line total</th><th className="p-3"></th></tr>
             </thead>
             <tbody>
               {rows.map((row) => (
                 <tr key={row.variantId} className="border-t border-line">
                   <td className="p-3"><div className="font-semibold">{row.productName}</div><div className="text-xs text-muted">{row.variantName} · {row.sku} · MRP ₹{row.mrp?.toFixed(2) ?? "—"}</div></td>
+                  <td className="p-3 font-medium">{products.find((product) => product.id === row.variantId || (product.variants ?? []).some((variant) => variant.id === row.variantId))?.hsnCode ?? "—"}</td>
                   <td className="p-3"><input className="w-20 rounded border border-line px-2 py-2" type="number" min={1} max={row.stockQuantity} value={row.quantity} onChange={(e) => updateRow(row.variantId, { quantity: Math.max(1, Number(e.target.value) || 1) })} /></td>
                   <td className="p-3"><input className="w-28 rounded border border-line px-2 py-2" type="number" min={0} step="0.01" value={row.unitPrice} onChange={(e) => updateRow(row.variantId, { unitPrice: Math.max(0, Number(e.target.value) || 0) })} /></td>
                   <td className="p-3">
@@ -417,7 +418,7 @@ function ManualBilling() {
                   <td className="p-3"><button type="button" onClick={() => removeRow(row.variantId)} className="text-xs font-semibold text-primary-rose">Remove</button></td>
                 </tr>
               ))}
-              {rows.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-sm text-muted">No items added yet.</td></tr>}
+              {rows.length === 0 && <tr><td colSpan={7} className="p-6 text-center text-sm text-muted">No items added yet.</td></tr>}
             </tbody>
           </table>
         </div>
