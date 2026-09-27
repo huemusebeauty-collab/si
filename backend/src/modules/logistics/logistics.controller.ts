@@ -24,6 +24,12 @@ export class LogisticsController {
   }
 
   @RequirePermission("logistics", "view")
+  @Get("orders")
+  eligibleOrders(@Query("q") query?: string) {
+    return this.logistics.listEligibleOrders(query);
+  }
+
+  @RequirePermission("logistics", "view")
   @Get("shipments/:shipmentId")
   get(@Param("shipmentId") shipmentId: string) {
     return this.logistics.getShipment(shipmentId);
