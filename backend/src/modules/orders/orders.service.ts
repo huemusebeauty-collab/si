@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
+import { randomUUID } from "crypto";
 import { InjectRepository } from "@nestjs/typeorm";
 import { QueryFailedError, Repository } from "typeorm";
 import { OrderEntity, type OrderStatus } from "./entities/order.entity";
@@ -16,6 +17,7 @@ import { resolveInvoiceLayout, type InvoiceFormat, type InvoiceSize } from "./in
 import { calculateGstWithinMrp, roundMoney } from "./tax.utils";
 import { SettingsService } from "@/admin/settings/settings.service";
 import { CustomersService } from "@/modules/customers/customers.service";
+import type { CreateManualBillingDto } from "./dto/create-manual-billing.dto";
 
 const CANCELLABLE_BEFORE: OrderStatus[] = ["pending_payment", "confirmed", "processing"];
 const RETURNABLE_AFTER: OrderStatus[] = ["delivered"];
@@ -198,6 +200,173 @@ export class OrdersService {
     const totalRevenue = orders.reduce((sum, o) => sum + Number(o.total), 0);
     const statusBreakdown = orders.reduce<Record<string, number>>((acc, o) => { acc[o.status] = (acc[o.status] ?? 0) + 1; return acc; }, {});
     return { orderCount: orders.length, averageOrderValue: orders.length ? roundMoney(totalRevenue / orders.length) : 0, totalRevenue: roundMoney(totalRevenue), statusBreakdown };
+  }
+
+  async createManualBilling(body: CreateManualBillingDto) {
+    if (!Array.isArray(body.items) || body.items.length === 0) {
+      throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "At least one product is required.");
+    }
+
+    const uniqueVariantIds = new Set(body.items.map((item) => item.variantId));
+    if (uniqueVariantIds.size !== body.items.length) {
+      throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Each product variant can only be added once.");
+    }
+
+    const normalizedGstin = body.customerGstin?.trim().toUpperCase() || undefined;
+    if (normalizedGstin && !/^\\d{2}[A-Z0-9]{10}[A-Z]\\d[A-Z]Z[A-Z0-9]$/.test(normalizedGstin)) {
+      throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Customer GSTIN format is invalid.");
+    }
+
+    const order = await this.transactions.runInTransaction(async (queryRunner) => {
+      const manager = queryRunner.manager;
+      const businessSettings = await this.settings.getBusinessSettings();
+
+      let customerId = body.customerId;
+      let customerName = body.customerName?.trim() || undefined;
+      let customerEmail = body.customerEmail?.trim() || undefined;
+      let customerPhone = body.customerPhone?.trim() || undefined;
+      let customerGstin = normalizedGstin;
+      let customerAddress = body.billingAddress ?? body.shippingAddress ?? {};
+      let shippingAddress = body.shippingAddress ?? body.billingAddress ?? {};
+
+      if (customerId) {
+        const customer = await this.customers.findById(customerId);
+        customerName = customerName || [customer.firstName, customer.lastName].filter(Boolean).join(" ");
+        customerEmail = customerEmail || customer.email;
+        customerPhone = customerPhone || customer.phone;
+        const defaultAddress = customer.addresses?.find((address) => address.isDefault) ?? customer.addresses?.[0];
+        if (Object.keys(customerAddress).length === 0 && defaultAddress) customerAddress = { ...defaultAddress };
+        if (Object.keys(shippingAddress).length === 0 && defaultAddress) shippingAddress = { ...defaultAddress };
+      } else {
+        customerId = randomUUID();
+      }
+
+      const placeOfSupplyState = typeof shippingAddress.region === "string" ? shippingAddress.region.trim() || undefined : undefined;
+      const placeOfSupplyStateCode = typeof shippingAddress.stateCode === "string" ? shippingAddress.stateCode.trim() || undefined : undefined;
+
+      let subtotal = 0;
+      let discountAmount = 0;
+      let taxableAmount = 0;
+      let taxAmount = 0;
+      let total = 0;
+      let cgstAmount = 0;
+      let sgstAmount = 0;
+      let igstAmount = 0;
+      const snapshotLines: Partial<OrderLineItemEntity>[] = [];
+
+      for (const item of body.items) {
+        const variant = await this.products.findVariantById(item.variantId, manager);
+        const quantity = Number(item.quantity);
+        if (!Number.isInteger(quantity) || quantity < 1) {
+          throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Quantity must be a positive integer.");
+        }
+
+        const defaultUnitPrice = Number(variant.product.salePrice ?? variant.product.price);
+        const unitPrice = item.unitPrice === undefined ? defaultUnitPrice : Number(item.unitPrice);
+        if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+          throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Unit price must be a valid non-negative amount.");
+        }
+        const mrp = variant.mrp == null ? null : Number(variant.mrp);
+        if (mrp != null && unitPrice > mrp + 0.005) {
+          throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, `Selling price for ${variant.sku} cannot exceed MRP.`);
+        }
+
+        const lineSubtotal = roundMoney(unitPrice * quantity);
+        const requestedDiscount = Math.max(0, Number(item.discountAmount ?? 0));
+        const lineDiscount = roundMoney(Math.min(requestedDiscount, lineSubtotal));
+        const amountAfterDiscount = roundMoney(lineSubtotal - lineDiscount);
+        const tax = calculateGstWithinMrp({
+          amountAfterDiscount,
+          mrp: mrp == null ? null : mrp * quantity,
+          gstRate: variant.product.gstRate == null ? null : Number(variant.product.gstRate),
+          taxInclusiveMrp: variant.product.taxInclusiveMrp,
+          gstRegistered: businessSettings.gstRegistered,
+          supplierStateCode: businessSettings.registeredStateCode,
+          placeOfSupplyStateCode,
+        });
+
+        subtotal = roundMoney(subtotal + lineSubtotal);
+        discountAmount = roundMoney(discountAmount + lineDiscount);
+        taxableAmount = roundMoney(taxableAmount + tax.taxableAmount);
+        taxAmount = roundMoney(taxAmount + tax.taxAmount);
+        cgstAmount = roundMoney(cgstAmount + tax.cgstAmount);
+        sgstAmount = roundMoney(sgstAmount + tax.sgstAmount);
+        igstAmount = roundMoney(igstAmount + tax.igstAmount);
+        total = roundMoney(total + tax.grossAmount);
+
+        snapshotLines.push({
+          variantId: variant.id,
+          productName: variant.product.name,
+          unitPrice: unitPrice.toFixed(2),
+          mrp: mrp == null ? undefined : mrp.toFixed(2),
+          hsnCode: variant.product.hsnCode,
+          gstRate: variant.product.gstRate,
+          taxInclusiveMrp: variant.product.taxInclusiveMrp,
+          discountAmount: lineDiscount.toFixed(2),
+          taxableAmount: tax.taxableAmount.toFixed(2),
+          taxAmount: tax.taxAmount.toFixed(2),
+          taxType: tax.taxType,
+          cgstRate: tax.cgstRate.toFixed(2),
+          cgstAmount: tax.cgstAmount.toFixed(2),
+          sgstRate: tax.sgstRate.toFixed(2),
+          sgstAmount: tax.sgstAmount.toFixed(2),
+          igstRate: tax.igstRate.toFixed(2),
+          igstAmount: tax.igstAmount.toFixed(2),
+          quantity,
+        });
+
+        await this.products.adjustStock(item.variantId, -quantity, manager, {
+          reason: "manual_billing",
+          referenceType: "manual_billing",
+          referenceId: customerId,
+        });
+      }
+
+      const logisticsFee = 0;
+      const platformFee = 0;
+      total = roundMoney(total + logisticsFee + platformFee);
+
+      if (businessSettings.gstRegistered && (!businessSettings.gstin || !businessSettings.registeredState || !businessSettings.registeredStateCode)) {
+        throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "GST-registered supplier settings are incomplete.");
+      }
+
+      const savedOrder = await manager.save(manager.create(OrderEntity, {
+        customerId,
+        customerLegalName: customerName,
+        customerGstin,
+        placeOfSupplyState,
+        placeOfSupplyStateCode,
+        status: "confirmed",
+        idempotencyKey: `manual-billing:${randomUUID()}`,
+        subtotal: subtotal.toFixed(2),
+        discountAmount: discountAmount.toFixed(2),
+        taxableAmount: taxableAmount.toFixed(2),
+        taxAmount: taxAmount.toFixed(2),
+        logisticsFee: logisticsFee.toFixed(2),
+        platformFee: platformFee.toFixed(2),
+        total: total.toFixed(2),
+        currency: "INR",
+        billingAddress: customerAddress,
+        shippingAddress,
+      }));
+
+      for (const snapshot of snapshotLines) {
+        await manager.save(manager.create(OrderLineItemEntity, { ...snapshot, order: savedOrder }));
+      }
+      await manager.save(manager.create(OrderStatusHistoryEntity, { order: savedOrder, status: "confirmed" }));
+
+      return savedOrder;
+    });
+
+    return this.issueInvoice(order.id, {
+      source: "manual",
+      paymentMethod: body.paymentMethod,
+      paymentReference: body.paymentReference?.trim() || null,
+      notes: body.notes?.trim() || null,
+      customerName: body.customerName?.trim() || null,
+      customerEmail: body.customerEmail?.trim() || null,
+      customerPhone: body.customerPhone?.trim() || null,
+    });
   }
 
   async createOrder(customerId: string, cartId: string, billingAddress: Record<string, unknown>, shippingAddress: Record<string, unknown>, idempotencyKey?: string, customerGstin?: string, customerLegalName?: string): Promise<OrderEntity> {
