@@ -18,16 +18,16 @@ export class CollectionsController {
     return this.collections.listActiveCollections(type);
   }
 
+  @Roles("admin")
+  @Get("admin")
+  listAdmin() { return this.collections.listAdminCollections(); }
+
   @Public()
   @Cacheable({ ttlSeconds: 300, keyPrefix: "collections" })
   @Get(":slug")
   getBySlug(@Param("slug") slug: string) {
     return this.collections.getCollection(slug);
   }
-
-  @Roles("admin")
-  @Get("admin")
-  listAdmin() { return this.collections.listAdminCollections(); }
 
   @RequirePermission("categories", "edit")
   @Post("admin")
