@@ -144,7 +144,7 @@ function ManualBilling() {
       const result = await adminApi.createManualBilling({
         customerId: selectedCustomer?.id,
         customerName: selectedCustomer ? [selectedCustomer.firstName, selectedCustomer.lastName].filter(Boolean).join(" ") : walkInName.trim(),
-        customerEmail: selectedCustomer?.email ?? walkInEmail.trim() || undefined,
+        customerEmail: selectedCustomer?.email ?? (walkInEmail.trim() || undefined),
         customerPhone: selectedCustomer ? undefined : walkInPhone.trim() || undefined,
         items: rows.map((row) => ({
           variantId: row.variantId,
