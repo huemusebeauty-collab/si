@@ -37,6 +37,34 @@ export const CMS_PAGE_SEEDS: CmsPageSeed[] = [
     metaDescription: "Get in touch with Silku customer support for order help, product questions, shipping, returns, and more.",
   },
   {
+    slug: "shipping-returns",
+    title: "Shipping & Returns",
+    content: "Silku currently ships within India only, subject to PIN code and courier coverage. Orders are generally dispatched within 1–2 business days after successful order processing. General domestic delivery is expected within 3–7 business days after dispatch. Orders of ₹500 or more qualify for free shipping. Eligible unused and unopened products may be returned within 7 days of delivery, subject to applicable conditions.",
+    metaTitle: "Shipping & Returns | Silku",
+    metaDescription: "Read Silku's shipping and returns policy.",
+  },
+  {
+    slug: "refund-cancellation",
+    title: "Refund & Cancellation Policy",
+    content: "Orders may be cancelled until the order is dispatched. Eligible returns must meet the applicable return conditions and be requested within 7 days of delivery. Approved refunds are normally issued to the original payment method.",
+    metaTitle: "Refund & Cancellation Policy | Silku",
+    metaDescription: "Read Silku's refund and cancellation policy.",
+  },
+  {
+    slug: "shipping-delivery",
+    title: "Shipping & Delivery Policy",
+    content: "Silku currently offers shipping within India only. Orders are generally dispatched within 1–2 business days after successful order processing. General domestic delivery is expected within 3–7 business days after dispatch. Orders of ₹500 or more qualify for free shipping.",
+    metaTitle: "Shipping & Delivery Policy | Silku",
+    metaDescription: "Learn about Silku shipping and delivery.",
+  },
+  {
+    slug: "accessibility",
+    title: "Accessibility Statement",
+    content: "Silku is committed to making its website usable and accessible to as many customers as reasonably possible. If you encounter an accessibility barrier, please contact silku981@gmail.com with details so we can review it.",
+    metaTitle: "Accessibility Statement | Silku",
+    metaDescription: "Read Silku's Accessibility Statement.",
+  },
+  {
     slug: "privacy",
     title: "Privacy Policy",
     content:
@@ -59,6 +87,20 @@ export const CMS_PAGE_SEEDS: CmsPageSeed[] = [
       "Silku currently ships within India only, subject to PIN code and courier coverage. Orders are generally dispatched within 1–2 business days after successful order processing. Domestic delivery is generally expected within 3–7 business days after dispatch, although actual delivery may vary by PIN code and courier network. Orders of ₹500 or more qualify for free shipping. Once an order ships, you'll receive tracking information by email or through the applicable order communication channel.",
     metaTitle: "Shipping Policy | Silku",
     metaDescription: "Learn about Silku's India-only shipping, 1–2 business day dispatch, 3–7 business day delivery, and free shipping on orders of ₹500 or more.",
+  },
+  {
+    slug: "product-pricing",
+    title: "Product & Pricing Information",
+    content: "Product names, descriptions, shades, images, variants, availability, and prices shown on Silku may change from time to time. Prices are displayed in the applicable currency shown at checkout.",
+    metaTitle: "Product & Pricing Information | Silku",
+    metaDescription: "Learn about Silku product and pricing information.",
+  },
+  {
+    slug: "faqs",
+    title: "Frequently Asked Questions",
+    content: "For questions about products, orders, shipping, returns, or payments, contact Silku at silku981@gmail.com or +91-7339899606.",
+    metaTitle: "FAQs | Silku",
+    metaDescription: "Frequently asked questions about Silku.",
   },
   {
     slug: "return-refund-policy",
