@@ -19,7 +19,7 @@ function CmsPagesContent() {
   const [slug, setSlug] = useState("about");
   const [content, setContent] = useState("");
   const [toast, setToast] = useState<string | null>(null);
-  const { data: page, isLoading, error, refetch } = useAdminQuery(() => adminApi.getPage(slug), [slug]);
+  const { data: page, isLoading, refetch } = useAdminQuery(() => adminApi.getPage(slug), [slug]);
 
   useEffect(() => {
     setContent(page?.content ?? "");
