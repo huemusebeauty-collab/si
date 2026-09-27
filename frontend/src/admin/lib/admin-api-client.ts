@@ -189,7 +189,7 @@ export interface AdminInvoice {
   invoiceNumber?: string | null;
   layout: { size: string; format: string; width: string };
 }
-export interface AdminCustomer { id: string; email: string; firstName: string; lastName: string; phone?: string; addresses?: Array<{ id?: string; line1: string; line2?: string; city: string; region: string; stateCode?: string; postalCode: string; country: string; isDefault?: boolean }>; createdAt: string }
+export interface AdminCustomer { id: string; email: string; firstName: string; lastName: string; phone?: string; gstin?: string; addresses?: Array<{ id?: string; line1: string; line2?: string; city: string; region: string; stateCode?: string; postalCode: string; country: string; isDefault?: boolean }>; createdAt: string }
 export interface AdminReview { id: string; customerId: string; variantId: string; rating: number; text: string; status: string; createdAt: string }
 export interface AdminPage { slug: string; title: string; content: string }
 export interface AdminBanner { id: string; placement: string; imageUrl: string; headline?: string; startAt: string; endAt: string }

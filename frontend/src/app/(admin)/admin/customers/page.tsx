@@ -21,6 +21,7 @@ function CustomersContent() {
     { header: "Name", render: (c) => <Link href={`/admin/customers/${c.id}`} className="font-semibold text-primary-rose hover:underline">{c.firstName} {c.lastName}</Link> },
     { header: "Email", render: (c) => c.email },
     { header: "Phone", render: (c) => c.phone || "—" },
+    { header: "GSTIN", render: (c) => c.gstin || "—" },
     { header: "Address", render: (c) => c.addresses?.find((a) => a.isDefault) ? `${c.addresses.find((a) => a.isDefault)?.city}, ${c.addresses.find((a) => a.isDefault)?.region}` : c.addresses?.[0] ? `${c.addresses[0].city}, ${c.addresses[0].region}` : "—" },
     { header: "Joined", render: (c) => new Date(c.createdAt).toLocaleDateString() },
   ];

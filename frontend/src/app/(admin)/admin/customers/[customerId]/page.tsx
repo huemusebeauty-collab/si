@@ -24,6 +24,7 @@ function CustomerDetailContent({ customerId }: { customerId: string }) {
       <div className="rounded-md bg-white p-6 shadow-rest">
         <p><strong>Email:</strong> {customer.email}</p>
         <p><strong>Phone:</strong> {customer.phone || "—"}</p>
+        <p><strong>GSTIN:</strong> {customer.gstin || "—"}</p>
         <p><strong>Joined:</strong> {new Date(customer.createdAt).toLocaleDateString()}</p>
       </div>
       <section>
