@@ -1,4 +1,5 @@
 import { ConflictException, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
+import { randomUUID } from "crypto";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Between, EntityManager, Repository } from "typeorm";
 import { CustomerEntity } from "./entities/customer.entity";
