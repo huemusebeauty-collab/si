@@ -66,6 +66,49 @@ function LogisticsContent() {
 
   useEffect(() => { void load(); }, [status]);
 
+  const openDetails = async (shipment: AdminShipment) => {
+    setSelectedShipment(shipment);
+    setDetailAwb(shipment.awbNumber ?? "");
+    setDetailTrackingUrl(shipment.trackingUrl ?? "");
+    setDetailFailureReason(shipment.failureReason ?? "");
+    setDetailLocation("");
+    setDetailDescription("");
+    setDetailsLoading(true);
+    try {
+      setTrackingEvents(await adminApi.getShipmentTracking(shipment.id));
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "Unable to load tracking.");
+      setTrackingEvents([]);
+    } finally {
+      setDetailsLoading(false);
+    }
+  };
+
+  const saveDetails = async () => {
+    if (!selectedShipment) return;
+    setDetailsSaving(true);
+    try {
+      const updated = await adminApi.updateShipmentStatus(selectedShipment.id, {
+        status: selectedShipment.status,
+        awbNumber: detailAwb.trim() || undefined,
+        trackingUrl: detailTrackingUrl.trim() || undefined,
+        location: detailLocation.trim() || undefined,
+        description: detailDescription.trim() || undefined,
+        failureReason: detailFailureReason.trim() || undefined,
+      });
+      setSelectedShipment(updated);
+      setToast("Shipment details updated.");
+      await load();
+      setTrackingEvents(await adminApi.getShipmentTracking(updated.id));
+      setDetailLocation("");
+      setDetailDescription("");
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "Unable to update shipment details.");
+    } finally {
+      setDetailsSaving(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <Breadcrumb items={[{ label: "Logistics" }]} />
