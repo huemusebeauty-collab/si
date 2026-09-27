@@ -141,7 +141,9 @@ export interface AdminInventoryItem { id: string; sku: string; name: string; sto
 export interface CreateCategoryInput { name: string; slug: string; parentId?: string | null; displayOrder?: number; visible?: boolean; metaTitle?: string; metaDescription?: string }
 export interface UpdateCategoryInput { name?: string; slug?: string; parentId?: string | null; displayOrder?: number; visible?: boolean; metaTitle?: string; metaDescription?: string }
 export interface AdminCategory { id: string; slug: string; name: string; visible: boolean; displayOrder: number; parentId?: string | null; children?: AdminCategory[] }
-export interface CreateCollectionInput { slug: string; name: string; tagline?: string; active?: boolean; featured?: boolean; displayOrder?: number; metaTitle?: string; metaDescription?: string; startAt?: string; endAt?: string }\nexport interface UpdateCollectionInput extends Partial<CreateCollectionInput> {}\nexport interface AdminCollection { id: string; slug: string; name: string; tagline?: string; active: boolean; featured: boolean; displayOrder: number; metaTitle?: string; metaDescription?: string; startAt?: string; endAt?: string; products?: Array<{ id: string; name: string; slug: string }> }
+export interface CreateCollectionInput { slug: string; name: string; tagline?: string; active?: boolean; featured?: boolean; displayOrder?: number; metaTitle?: string; metaDescription?: string; startAt?: string; endAt?: string }
+export interface UpdateCollectionInput extends Partial<CreateCollectionInput> {}
+export interface AdminCollection { id: string; slug: string; name: string; tagline?: string; active: boolean; featured: boolean; displayOrder: number; metaTitle?: string; metaDescription?: string; startAt?: string; endAt?: string; products?: Array<{ id: string; name: string; slug: string }> }
 export interface AdminOrder {
   id: string;
   customerId: string;
