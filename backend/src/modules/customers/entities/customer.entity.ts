@@ -17,8 +17,8 @@ export class CustomerEntity {
   @Column({ nullable: true })
   email?: string;
 
-  @Column()
-  passwordHash!: string;
+  @Column({ nullable: true })
+  passwordHash?: string;
 
   @Column()
   firstName!: string;
