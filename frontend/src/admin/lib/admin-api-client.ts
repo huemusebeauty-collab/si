@@ -110,6 +110,7 @@ export const adminApi = {
   },
   getIntegrationsStatus: () => request<IntegrationsStatus>("/integrations/status"),
   getDeadLetterJobs: (queueName: string) => request<DeadLetterJob[]>(`/integrations/dead-letter/${queueName}`),
+  retryDeadLetterJob: (queueName: string, jobId: string) => request<{ retried: true; queue: string; jobId?: string }>(`/integrations/dead-letter/${encodeURIComponent(queueName)}/${encodeURIComponent(jobId)}/retry`, { method: "POST" }),
   getLogisticsDashboard: () => request<LogisticsDashboard>("/admin/logistics/dashboard"),
   listLogisticsEligibleOrders: (query?: string) => request<LogisticsEligibleOrder[]>(`/admin/logistics/orders${query ? `?q=${encodeURIComponent(query)}` : ""}`),
   listShipments: (status?: string) => request<AdminShipment[]>(`/admin/logistics/shipments${status ? `?status=${encodeURIComponent(status)}` : ""}`),

@@ -1,11 +1,8 @@
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable } from "@nestjs/common";
 import { InjectQueue } from "@nestjs/bullmq";
 import { Queue } from "bullmq";
-import { QUEUE_NAMES } from "./queue.constants";
+import { QUEUE_NAMES, QueueName } from "./queue.constants";
 
-// Sprint 5.8 — Worker monitoring. Surfaces per-queue counts (waiting/
-// active/completed/failed/delayed) for the operations runbook / a
-// future admin dashboard — read-only, no queue mutation here.
 @Injectable()
 export class QueueMonitorService {
   constructor(
@@ -14,6 +11,12 @@ export class QueueMonitorService {
     @InjectQueue(QUEUE_NAMES.WEBHOOK_RETRY) private readonly webhookRetryQueue: Queue,
     @InjectQueue(QUEUE_NAMES.MEDIA_PROCESSING) private readonly mediaQueue: Queue,
   ) {}
+
+  private getQueue(queueName: string): Queue | undefined {
+    return [this.emailQueue, this.smsQueue, this.webhookRetryQueue, this.mediaQueue].find(
+      (q) => q.name === queueName,
+    );
+  }
 
   private async summarize(queue: Queue) {
     const counts = await queue.getJobCounts("waiting", "active", "completed", "failed", "delayed");
@@ -26,17 +29,10 @@ export class QueueMonitorService {
     );
   }
 
-  // Sprint 5.8 — dead-letter handling: BullMQ's own "failed" job list
-  // (after all retry attempts are exhausted) IS the dead-letter queue
-  // for Sprint 5's purposes — no separate physical queue is created,
-  // since BullMQ already retains failed jobs with their full error
-  // history (`removeOnFail: false` in queue.module.ts). This method
-  // exposes that list per-queue for inspection/manual retry.
   async getDeadLetterJobs(queueName: string) {
-    const queue = [this.emailQueue, this.smsQueue, this.webhookRetryQueue, this.mediaQueue].find(
-      (q) => q.name === queueName,
-    );
+    const queue = this.getQueue(queueName);
     if (!queue) return [];
+
     const failed = await queue.getFailed();
     return failed.map((job) => ({
       id: job.id,
@@ -45,5 +41,24 @@ export class QueueMonitorService {
       failedReason: job.failedReason,
       attemptsMade: job.attemptsMade,
     }));
+  }
+
+  async retryDeadLetterJob(queueName: string, jobId: string) {
+    const queue = this.getQueue(queueName);
+    if (!queue) {
+      throw new BadRequestException("Unknown queue.");
+    }
+
+    const job = await queue.getJob(jobId);
+    if (!job) {
+      throw new BadRequestException("Job not found.");
+    }
+
+    if (await job.isFailed()) {
+      await job.retry();
+      return { retried: true, queue: queue.name, jobId: job.id };
+    }
+
+    throw new BadRequestException("Only failed jobs can be retried.");
   }
 }
