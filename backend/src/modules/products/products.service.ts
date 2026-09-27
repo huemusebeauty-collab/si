@@ -352,7 +352,7 @@ export class ProductsService {
   }
 
   async upsertFullProduct(data: {
-    slug: string; name: string; category: CategoryEntity; price: number; salePrice?: number;
+    slug: string; name: string; commonName?: string; category: CategoryEntity; price: number; salePrice?: number;
     description: string; content: ProductContent; metaTitle: string; metaDescription: string;
     mediaUrls: string[]; hsnCode?: string; gstRate?: number; taxInclusiveMrp?: boolean;
     variants: { sku: string; name: string; hexColor?: string; stockQuantity: number; mrp?: number }[];
@@ -388,6 +388,7 @@ export class ProductsService {
 
       const entity = existing ?? productRepo.create({ slug: data.slug, status: "draft", visibility: "hidden" });
       entity.name = data.name;
+      if (data.commonName !== undefined) entity.commonName = data.commonName.trim() || undefined;
       entity.category = data.category;
       entity.price = String(data.price);
       entity.salePrice = data.salePrice !== undefined ? String(data.salePrice) : undefined;
