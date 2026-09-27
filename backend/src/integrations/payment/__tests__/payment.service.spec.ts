@@ -21,6 +21,7 @@ describe("PaymentService reliability", () => {
     getOrder: jest.fn(),
     confirmOrder: jest.fn(),
     checkRefundEligibility: jest.fn(),
+    issueInvoice: jest.fn().mockResolvedValue(undefined),
   };
   const products = { adjustStock: jest.fn() };
   const logistics = {};
