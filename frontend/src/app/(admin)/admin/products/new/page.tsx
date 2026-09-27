@@ -17,6 +17,7 @@ const inputClass = "w-full rounded-lg border border-line bg-white px-3 py-2.5 te
 function NewProductContent() {
   const { data: categories } = useAdminQuery(() => adminApi.listCategories(), []);
   const [name, setName] = useState("");
+  const [commonName, setCommonName] = useState("");
   const [slug, setSlug] = useState("");
   const [categorySlug, setCategorySlug] = useState("");
   const [price, setPrice] = useState("");
@@ -66,7 +67,7 @@ function NewProductContent() {
     setSaving(true);
     try {
       const created = await adminApi.createProduct({
-        name, slug, categorySlug, price: priceValue, salePrice: salePriceValue,
+        name, commonName: commonName.trim() || undefined, slug, categorySlug, price: priceValue, salePrice: salePriceValue,
         description, metaTitle: name, metaDescription: shortDescription || description,
         mediaUrls: mediaItems.map((item) => item.url),
         content: {
@@ -97,6 +98,7 @@ function NewProductContent() {
       <RoleGate module="products" level="edit" fallback={<Alert tone="information">You do not have permission to create products.</Alert>}>
         <div className="grid gap-5 rounded-xl border border-line bg-white p-5 sm:grid-cols-2">
           <label className="text-sm font-semibold">Product name<input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder="Silku Rose Glow Lipstick" /></label>
+          <label className="text-sm font-semibold">Common name / search name<input className={inputClass} value={commonName} onChange={(e) => setCommonName(e.target.value)} placeholder="Lip Gloss, Face Wash, Sunscreen..." /></label>
           <label className="text-sm font-semibold">Slug<input className={inputClass} value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="silku-rose-glow-lipstick" /></label>
           <label className="text-sm font-semibold">Category<select className={inputClass} value={categorySlug} onChange={(e) => setCategorySlug(e.target.value)}><option value="">Select category</option>{(categories ?? []).map((c) => <option key={c.id} value={c.slug}>{c.name}</option>)}</select></label>
           <label className="text-sm font-semibold">Price<input className={inputClass} type="number" min="0.01" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} /></label>
