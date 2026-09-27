@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { In, Repository } from "typeorm";
 import { OrderEntity } from "@/modules/orders/entities/order.entity";
 import { OrderStatusHistoryEntity } from "@/modules/orders/entities/order-status-history.entity";
 import { OrderLineItemEntity } from "@/modules/orders/entities/order-line-item.entity";
@@ -64,6 +64,18 @@ export class LogisticsService {
       where: status ? { status } : undefined,
       order: { createdAt: "DESC" },
     });
+  }
+
+  async listEligibleOrders(query?: string) {
+    const orders = await this.orders.find({
+      where: { status: In(["confirmed", "processing"]) },
+      order: { createdAt: "DESC" },
+      take: 100,
+    });
+    const normalized = query?.trim().toLowerCase();
+    return orders
+      .filter((order) => !normalized || order.id.toLowerCase().includes(normalized) || (order.customerLegalName ?? "").toLowerCase().includes(normalized))
+      .map((order) => ({ id: order.id, customerLegalName: order.customerLegalName, status: order.status, total: order.total, createdAt: order.createdAt }));
   }
 
   async createShipment(input: {

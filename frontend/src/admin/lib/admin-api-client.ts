@@ -111,6 +111,7 @@ export const adminApi = {
   getIntegrationsStatus: () => request<IntegrationsStatus>("/integrations/status"),
   getDeadLetterJobs: (queueName: string) => request<DeadLetterJob[]>(`/integrations/dead-letter/${queueName}`),
   getLogisticsDashboard: () => request<LogisticsDashboard>("/admin/logistics/dashboard"),
+  listLogisticsEligibleOrders: (query?: string) => request<LogisticsEligibleOrder[]>(`/admin/logistics/orders${query ? `?q=${encodeURIComponent(query)}` : ""}`),
   listShipments: (status?: string) => request<AdminShipment[]>(`/admin/logistics/shipments${status ? `?status=${encodeURIComponent(status)}` : ""}`),
   getShipment: (id: string) => request<AdminShipment>(`/admin/logistics/shipments/${id}`),
   getShipmentTracking: (id: string) => request<ShipmentEvent[]>(`/admin/logistics/shipments/${id}/tracking`),
@@ -210,6 +211,7 @@ export interface ProductsReport { lowestStock: { id: string; sku: string; name: 
 export interface AuditLogEntry { id: string; actorEmail: string; module: string; action: string; entityId?: string; createdAt: string }
 export interface CreateShipmentInput { orderId: string; carrier?: string; serviceLevel?: string; weightGrams?: number; lengthCm?: number; widthCm?: number; heightCm?: number; estimatedDeliveryAt?: string }
 export interface UpdateShipmentStatusInput { status: string; description?: string; location?: string; awbNumber?: string; trackingUrl?: string; failureReason?: string }
+export interface LogisticsEligibleOrder { id: string; customerLegalName?: string; status: string; total: string; createdAt: string }
 export interface AdminShipment { id: string; orderId: string; status: string; carrier?: string; serviceLevel?: string; awbNumber?: string; trackingUrl?: string; weightGrams?: number; shippingAddress: Record<string, unknown>; estimatedDeliveryAt?: string; shippedAt?: string; deliveredAt?: string; failureReason?: string; createdAt: string; updatedAt: string }
 export interface ShipmentEvent { id: string; shipmentId: string; status: string; description?: string; location?: string; eventAt: string }
 export interface LogisticsDashboard { total: number; counts: Record<string, number>; exceptions: number; terminal: number }
