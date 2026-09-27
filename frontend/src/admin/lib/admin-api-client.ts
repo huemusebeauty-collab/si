@@ -62,6 +62,7 @@ export const adminApi = {
   getAdminInvoice: (id: string, size = "A4", format = "STANDARD") =>
     request<AdminInvoice>(`/orders/admin/${id}/invoice?size=${encodeURIComponent(size)}&format=${encodeURIComponent(format)}`),
   issueAdminInvoice: (id: string) => request<AdminInvoice>(`/orders/admin/${id}/invoice`, { method: "POST" }),
+  createManualBilling: (body: CreateManualBillingInput) => request<AdminInvoice>("/orders/admin/manual", { method: "POST", body: JSON.stringify(body) }),
   updateOrderStatus: (id: string, status: string) => request<AdminOrder>(`/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
   searchCustomers: (params: URLSearchParams) => request<SimpleList<AdminCustomer>>(`/admin/customers?${params}`),
   getCustomer: (id: string) => request<AdminCustomer>(`/admin/customers/${id}`),
@@ -149,6 +150,20 @@ export interface AdminOrder {
     addresses: Array<Record<string, unknown>>;
   };
 }
+export interface CreateManualBillingInput {
+  customerId?: string;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  customerGstin?: string;
+  billingAddress?: Record<string, unknown>;
+  shippingAddress?: Record<string, unknown>;
+  items: { variantId: string; quantity: number; unitPrice?: number; discountAmount?: number }[];
+  paymentMethod: "cash" | "upi" | "card" | "bank_transfer" | "other";
+  paymentReference?: string;
+  notes?: string;
+}
+
 export interface AdminInvoice {
   orderId: string;
   customerId?: string;
