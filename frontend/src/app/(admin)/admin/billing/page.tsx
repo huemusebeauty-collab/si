@@ -277,8 +277,8 @@ function ManualBilling() {
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <Input label="Customer GST No. (optional)" value={customerGstin} onChange={(e) => setCustomerGstin(e.target.value.toUpperCase())} placeholder="15-character GSTIN" maxLength={15} />
             </div>
-            <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm font-medium">
-              <input
+            <label htmlFor="manual-add-customer-address" className="mt-3 flex cursor-pointer items-center gap-2 text-sm font-medium">
+              <input id="manual-add-customer-address"
                 type="checkbox"
                 checked={hasCustomerAddress}
                 onChange={(e) => setHasCustomerAddress(e.target.checked)}
