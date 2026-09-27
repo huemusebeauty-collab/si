@@ -31,7 +31,32 @@ function CustomersReport({ params }: { params: URLSearchParams }) {
   );
 }
 
-function OrdersReport({ params }: { params: URLSearchParams }) {\n  const { data, isLoading } = useAdminQuery(() => adminApi.getOrdersReport(params), [params.toString()]);\n  if (isLoading || !data) return <SkeletonLoader className="h-32 w-full" />;\n  return (\n    <div className="flex flex-col gap-4">\n      <div className="grid grid-cols-3 gap-4">\n        <KpiCard label="Orders" value={data.orderCount} />\n        <KpiCard label="Revenue" value={`₹${data.totalRevenue.toFixed(2)}`} />\n        <KpiCard label="Avg Order Value" value={`₹${data.averageOrderValue.toFixed(2)}`} />\n      </div>\n      <div className="rounded-md bg-white p-4 shadow-rest">\n        <h3 className="mb-3 font-semibold text-ink">Status Breakdown</h3>\n        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">\n          {Object.entries(data.statusBreakdown).map(([status, count]) => (\n            <div key={status} className="flex justify-between rounded border border-fog p-3">\n              <span className="capitalize">{status.replaceAll("_", " ")}</span>\n              <span className="font-semibold">{count}</span>\n            </div>\n          ))}\n        </div>\n      </div>\n    </div>\n  );\n}\n\nfunction ProductsReport() {
+function OrdersReport({ params }: { params: URLSearchParams }) {
+  const { data, isLoading } = useAdminQuery(() => adminApi.getOrdersReport(params), [params.toString()]);
+  if (isLoading || !data) return <SkeletonLoader className="h-32 w-full" />;
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-3 gap-4">
+        <KpiCard label="Orders" value={data.orderCount} />
+        <KpiCard label="Revenue" value={`₹${data.totalRevenue.toFixed(2)}`} />
+        <KpiCard label="Avg Order Value" value={`₹${data.averageOrderValue.toFixed(2)}`} />
+      </div>
+      <div className="rounded-md bg-white p-4 shadow-rest">
+        <h3 className="mb-3 font-semibold text-ink">Status Breakdown</h3>
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+          {Object.entries(data.statusBreakdown).map(([status, count]) => (
+            <div key={status} className="flex justify-between rounded border border-fog p-3">
+              <span className="capitalize">{status.replaceAll("_", " ")}</span>
+              <span className="font-semibold">{count}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProductsReport() {
   const { data, isLoading } = useAdminQuery(() => adminApi.getProductsReport(), []);
   if (isLoading || !data) return <SkeletonLoader className="h-32 w-full" />;
   return (
@@ -62,13 +87,30 @@ function CouponsReport() {
 }
 
 function ReportsContent() {
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const params = useMemo(() => {
+    const p = new URLSearchParams();
+    if (dateFrom) p.set("dateFrom", dateFrom);
+    if (dateTo) p.set("dateTo", dateTo);
+    return p;
+  }, [dateFrom, dateTo]);
+
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">\n        <h1 className="font-display text-[32px] font-semibold text-ink">Reports</h1>\n        <div className="flex flex-wrap items-end gap-3">\n          <label className="flex flex-col gap-1 text-sm font-medium text-stone">From<input type="date" value={dateFrom} max={dateTo || undefined} onChange={(e) => setDateFrom(e.target.value)} className="rounded border border-fog bg-white px-3 py-2 text-ink" /></label>\n          <label className="flex flex-col gap-1 text-sm font-medium text-stone">To<input type="date" value={dateTo} min={dateFrom || undefined} onChange={(e) => setDateTo(e.target.value)} className="rounded border border-fog bg-white px-3 py-2 text-ink" /></label>\n          <button type="button" onClick={() => { setDateFrom(""); setDateTo(""); }} className="rounded border border-fog px-3 py-2 text-sm font-semibold text-ink">Last 30 days</button>\n        </div>\n      </div>
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <h1 className="font-display text-[32px] font-semibold text-ink">Reports</h1>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="flex flex-col gap-1 text-sm font-medium text-stone">From<input type="date" value={dateFrom} max={dateTo || undefined} onChange={(e) => setDateFrom(e.target.value)} className="rounded border border-fog bg-white px-3 py-2 text-ink" /></label>
+          <label className="flex flex-col gap-1 text-sm font-medium text-stone">To<input type="date" value={dateTo} min={dateFrom || undefined} onChange={(e) => setDateTo(e.target.value)} className="rounded border border-fog bg-white px-3 py-2 text-ink" /></label>
+          <button type="button" onClick={() => { setDateFrom(""); setDateTo(""); }} className="rounded border border-fog px-3 py-2 text-sm font-semibold text-ink">Last 30 days</button>
+        </div>
+      </div>
       <Tabs
         items={[
           { id: "sales", label: "Sales Summary", content: <SalesReport params={params} /> },
-          { id: "orders", label: "Orders", content: <OrdersReport params={params} /> },\n          { id: "customers", label: "Customers", content: <CustomersReport params={params} /> },
+          { id: "orders", label: "Orders", content: <OrdersReport params={params} /> },
+          { id: "customers", label: "Customers", content: <CustomersReport params={params} /> },
           { id: "products", label: "Products (Low Stock)", content: <ProductsReport /> },
           { id: "coupons", label: "Coupons", content: <CouponsReport /> },
         ]}
