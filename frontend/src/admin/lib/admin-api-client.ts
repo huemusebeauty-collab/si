@@ -125,7 +125,7 @@ export interface Paginated<T> { items: T[]; meta: { page: number; pageSize: numb
 export interface SimpleList<T> { items: T[]; totalItems: number }
 export interface DashboardOverview { kpis: { todaysOrders: number; todaysRevenue: number; lowStockCount: number; pendingReviews: number }; pendingTasks: { type: string; count: number; label: string }[]; recentActivity: AuditLogEntry[] }
 export interface AdminProduct {
-  id: string; slug: string; name: string; price: string; salePrice?: string; status: string; visibility: string;
+  id: string; slug: string; name: string; price: string; salePrice?: string; hsnCode?: string; status: string; visibility: string;
   category?: { id?: string; slug?: string; name: string };
   variants?: { id: string; sku: string; name: string; stockQuantity: number; mrp?: string }[];
 }
