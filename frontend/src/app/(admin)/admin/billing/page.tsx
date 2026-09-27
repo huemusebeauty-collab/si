@@ -17,7 +17,8 @@ type BillRow = {
   unitPrice: number;
   mrp?: number;
   quantity: number;
-  discountAmount: number;
+  discountType: "percentage" | "amount";
+  discountValue: number;
   stockQuantity: number;
 };
 
@@ -101,7 +102,8 @@ function ManualBilling() {
   }, [products, productSearch]);
 
   const subtotal = rows.reduce((sum, row) => sum + row.unitPrice * row.quantity, 0);
-  const discount = rows.reduce((sum, row) => sum + row.discountAmount, 0);
+  const getRowDiscount = (row: BillRow) => Math.min(row.unitPrice * row.quantity, row.discountType === "percentage" ? (row.unitPrice * row.quantity * row.discountValue) / 100 : row.discountValue);
+  const discount = rows.reduce((sum, row) => sum + getRowDiscount(row), 0);
   const totalBeforeTax = Math.max(0, subtotal - discount);
 
   const addVariant = (product: AdminProduct, variant: NonNullable<AdminProduct["variants"]>[number]) => {
@@ -120,7 +122,8 @@ function ManualBilling() {
         unitPrice: defaultPrice,
         mrp: variant.mrp ? Number(variant.mrp) : undefined,
         quantity: 1,
-        discountAmount: 0,
+        discountType: "amount",
+        discountValue: 0,
         stockQuantity: variant.stockQuantity ?? 0,
       }];
     });
@@ -150,7 +153,8 @@ function ManualBilling() {
           variantId: row.variantId,
           quantity: row.quantity,
           unitPrice: row.unitPrice,
-          discountAmount: row.discountAmount,
+          discountType: row.discountType,
+          discountValue: row.discountValue,
         })),
         paymentMethod,
         paymentReference: paymentReference.trim() || undefined,
@@ -258,8 +262,16 @@ function ManualBilling() {
                   <td className="p-3"><div className="font-semibold">{row.productName}</div><div className="text-xs text-muted">{row.variantName} · {row.sku} · MRP ₹{row.mrp?.toFixed(2) ?? "—"}</div></td>
                   <td className="p-3"><input className="w-20 rounded border border-line px-2 py-2" type="number" min={1} max={row.stockQuantity} value={row.quantity} onChange={(e) => updateRow(row.variantId, { quantity: Math.max(1, Number(e.target.value) || 1) })} /></td>
                   <td className="p-3"><input className="w-28 rounded border border-line px-2 py-2" type="number" min={0} step="0.01" value={row.unitPrice} onChange={(e) => updateRow(row.variantId, { unitPrice: Math.max(0, Number(e.target.value) || 0) })} /></td>
-                  <td className="p-3"><input className="w-28 rounded border border-line px-2 py-2" type="number" min={0} step="0.01" value={row.discountAmount} onChange={(e) => updateRow(row.variantId, { discountAmount: Math.max(0, Number(e.target.value) || 0) })} /></td>
-                  <td className="p-3 font-semibold">₹{Math.max(0, row.unitPrice * row.quantity - row.discountAmount).toFixed(2)}</td>
+                  <td className="p-3">
+                    <div className="flex gap-2">
+                      <select aria-label="Discount type" value={row.discountType} onChange={(e) => updateRow(row.variantId, { discountType: e.target.value as BillRow["discountType"], discountValue: 0 })} className="w-24 rounded border border-line px-2 py-2">
+                        <option value="amount">₹ Amount</option>
+                        <option value="percentage">% Percent</option>
+                      </select>
+                      <input aria-label="Discount value" className="w-24 rounded border border-line px-2 py-2" type="number" min={0} max={row.discountType === "percentage" ? 100 : undefined} step="0.01" value={row.discountValue} onChange={(e) => updateRow(row.variantId, { discountValue: Math.max(0, Number(e.target.value) || 0) })} />
+                    </div>
+                  </td>
+                  <td className="p-3 font-semibold">₹{Math.max(0, row.unitPrice * row.quantity - getRowDiscount(row)).toFixed(2)}</td>
                   <td className="p-3"><button type="button" onClick={() => removeRow(row.variantId)} className="text-xs font-semibold text-primary-rose">Remove</button></td>
                 </tr>
               ))}
