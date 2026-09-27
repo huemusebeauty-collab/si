@@ -24,7 +24,7 @@ function OrdersContent() {
 
   const columns: Column<AdminOrder>[] = [
     { header: "Order", render: (o) => <Link href={`/admin/orders/${o.id}`} className="font-semibold text-primary-rose hover:underline">{o.id.slice(0, 8)}</Link> },
-    { header: "Customer", render: (o) => o.customerId.slice(0, 8) },
+    { header: "Customer", render: (o) => o.customerLegalName?.trim() || o.customer?.name?.trim() || "Guest Customer" },
     { header: "Total", render: (o) => `₹${o.total}` },
     { header: "Status", render: (o) => <Badge tone="information">{o.status}</Badge> },
     { header: "Date", render: (o) => new Date(o.createdAt).toLocaleDateString() },
