@@ -157,6 +157,16 @@ function ManualBilling() {
 
   const removeRow = (variantId: string) => setRows((current) => current.filter((row) => row.variantId !== variantId));
 
+  const useNewCustomer = () => {
+    if (!walkInName.trim()) return setMessage("Billing Name is required.");
+    if (!walkInPhone.trim()) return setMessage("Phone No. is required.");
+    if (!customerAddressLine1.trim() || !customerCity.trim() || !customerState || !customerPostalCode.trim()) return setMessage("Complete Billing Address is required.");
+    if (customerPostalCode.trim().length !== 6) return setMessage("PIN Code must be 6 digits.");
+    setHasCustomerAddress(true);
+    setShowAddCustomer(false);
+    setMessage("Customer details added to this bill.");
+  };
+
   const createBill = async () => {
     if (rows.length === 0) return setMessage("Add at least one product.");
     if (!selectedCustomer && !walkInName.trim()) return setMessage("Select a customer or enter a walk-in customer name.");
@@ -330,7 +340,7 @@ function ManualBilling() {
                       </div>
                     </div>
                     <div className="mt-4 flex gap-2">
-                      <Button variant="primary" type="button" onClick={() => setShowAddCustomer(false)}>Use Customer</Button>
+                      <Button variant="primary" type="button" onClick={useNewCustomer}>Use Customer</Button>
                       <Button variant="secondary" type="button" onClick={() => {
                         setShowAddCustomer(false);
                         setWalkInName("");
