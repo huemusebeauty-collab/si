@@ -18,6 +18,7 @@ interface ApiProduct {
   id: string;
   slug: string;
   name: string;
+  commonName: string | null;
   description: string;
   mediaUrls: string[];
   category: { id: string; slug: string; name: string };
@@ -94,6 +95,7 @@ function mapProduct(p: ApiProduct): Product {
     id: p.id,
     slug: p.slug,
     name: p.name,
+    commonName: p.commonName ?? undefined,
     categoryId: p.category.id,
     price: Number.parseFloat(p.price),
     salePrice: p.salePrice ? Number.parseFloat(p.salePrice) : undefined,
