@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Breadcrumb } from "@/components/patterns/Breadcrumb";
 import { ContactAddressGate } from "@/components/patterns/ContactAddressGate";
-import { getFaqs } from "@/services/api/cms";
+import { getFaqs, getStaticPage } from "@/services/api/cms";
 
 // Storefront policy pages. Business-specific details are kept here until a CMS is introduced.
 const STATIC_PAGES: Record<string, { title: string; body: string }> = {
@@ -54,16 +54,21 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const page = STATIC_PAGES[slug];
-  if (!page) return {};
+  const fallback = STATIC_PAGES[slug];
+  if (!fallback) return {};
+  const cmsPage = await getStaticPage(slug);
+  const page = cmsPage ?? fallback;
   return { title: page.title, alternates: { canonical: `/pages/${slug}` } };
 }
 
 export default async function StaticPage({ params }: Props) {
   const { slug } = await params;
-  const page = STATIC_PAGES[slug];
-  if (!page) notFound();
+  const fallback = STATIC_PAGES[slug];
+  if (!fallback) notFound();
 
+  const cmsPage = await getStaticPage(slug);
+  const page = cmsPage ?? fallback;
+  const body = cmsPage?.content ?? fallback.body;
   const faqs = slug === "faqs" ? await getFaqs() : [];
 
   return (
@@ -81,7 +86,7 @@ export default async function StaticPage({ params }: Props) {
           ))}
         </div>
       ) : (
-        <p className="prose-copy mt-4 whitespace-pre-line text-base text-charcoal">{page.body}</p>
+        <p className="prose-copy mt-4 whitespace-pre-line text-base text-charcoal">{body}</p>
       )}
 
       {slug === "contact" ? <ContactAddressGate /> : null}
