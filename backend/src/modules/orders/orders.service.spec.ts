@@ -13,6 +13,7 @@ import { CartService } from "@/modules/cart/cart.service";
 import { ProductsService } from "@/modules/products/products.service";
 import { TransactionService } from "@/database/transaction.service";
 import { SettingsService } from "@/admin/settings/settings.service";
+import { CustomersService } from "@/modules/customers/customers.service";
 import { DomainException } from "@/common/exceptions/domain.exception";
 
 function createMockRepo<T extends object>() {
@@ -59,6 +60,7 @@ describe("OrdersService", () => {
         { provide: ProductsService, useValue: productService },
         { provide: TransactionService, useValue: transactionService },
         { provide: SettingsService, useValue: settingsService },
+        { provide: CustomersService, useValue: { syncManualBillingCustomer: jest.fn() } },
       ],
     }).compile();
     service = module.get(OrdersService);
