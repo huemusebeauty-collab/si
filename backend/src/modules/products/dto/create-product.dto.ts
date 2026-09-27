@@ -77,6 +77,10 @@ export class CreateProductDto {
   @IsString()
   name!: string;
 
+  @IsOptional()
+  @IsString()
+  commonName?: string;
+
   @IsString()
   categorySlug!: string;
 
