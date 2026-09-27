@@ -19,7 +19,7 @@ function EditProductContent() {
   const id = params.productId;
   const [product, setProduct] = useState<AdminProductDetail | null>(null);
   const [categories, setCategories] = useState<Array<{ id: string; slug: string; name: string }>>([]);
-  const [form, setForm] = useState({ name: "", slug: "", categorySlug: "", price: "", salePrice: "", gstRate: "", hsnCode: "", taxInclusiveMrp: true, description: "", shortDescription: "", ingredients: "" });
+  const [form, setForm] = useState({ name: "", commonName: "", slug: "", categorySlug: "", price: "", salePrice: "", gstRate: "", hsnCode: "", taxInclusiveMrp: true, description: "", shortDescription: "", ingredients: "" });
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [uploading, setUploading] = useState(false);
   const [variants, setVariants] = useState<Array<{ id?: string; sku: string; name: string; hexColor: string; stock: string; mrp: string }>>([]);
@@ -32,7 +32,7 @@ function EditProductContent() {
     void Promise.all([adminApi.getAdminProduct(id), adminApi.listCategories()]).then(([p, cats]) => {
       setProduct(p); setCategories(cats);
       setForm({
-        name: p.name, slug: p.slug, categorySlug: p.category?.slug ?? "", price: p.price, salePrice: p.salePrice ?? "",
+        name: p.name, commonName: p.commonName ?? "", slug: p.slug, categorySlug: p.category?.slug ?? "", price: p.price, salePrice: p.salePrice ?? "",
         gstRate: p.gstRate ?? "", hsnCode: p.hsnCode ?? "", taxInclusiveMrp: p.taxInclusiveMrp,
         description: p.description ?? "", shortDescription: p.content?.shortDescription ?? "", ingredients: p.content?.ingredients ?? "",
 
@@ -67,7 +67,7 @@ function EditProductContent() {
     setSaving(true);
     try {
       await adminApi.updateProduct(id, {
-        name: form.name, slug: form.slug, categorySlug: form.categorySlug, price, salePrice,
+        name: form.name, commonName: form.commonName.trim() || undefined, slug: form.slug, categorySlug: form.categorySlug, price, salePrice,
         description: form.description,
         // Preserve content/SEO fields that this screen does not edit.
         // The previous implementation replaced them with empty values on every save.
@@ -106,6 +106,7 @@ function EditProductContent() {
     <RoleGate module="products" level="edit" fallback={<Alert tone="information">You do not have permission to edit products.</Alert>}>
       <div className="grid gap-5 rounded-xl border border-line bg-white p-5 sm:grid-cols-2">
         <label className="text-sm font-semibold">Product name<input className={inputClass} value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label>
+        <label className="text-sm font-semibold">Common name / search name<input className={inputClass} value={form.commonName} onChange={e=>setForm({...form,commonName:e.target.value})} placeholder="Lip Gloss, Face Wash, Sunscreen..." /></label>
         <label className="text-sm font-semibold">Slug<input className={inputClass} value={form.slug} onChange={e=>setForm({...form,slug:e.target.value})}/></label>
         <label className="text-sm font-semibold">Category<select className={inputClass} value={form.categorySlug} onChange={e=>setForm({...form,categorySlug:e.target.value})}><option value="">Select category</option>{categories.map(c=><option key={c.id} value={c.slug}>{c.name}</option>)}</select></label>
         <label className="text-sm font-semibold">Price<input className={inputClass} type="number" min="0.01" step="0.01" value={form.price} onChange={e=>setForm({...form,price:e.target.value})}/></label>
