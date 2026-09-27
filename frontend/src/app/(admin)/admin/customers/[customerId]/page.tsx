@@ -48,7 +48,7 @@ function CustomerDetailContent({ customerId }: { customerId: string }) {
           {(orders ?? []).map((o) => (
             <li key={o.id} className="flex items-center justify-between p-4">
               <Link href={`/admin/orders/${o.id}`} className="text-primary-rose hover:underline">{o.id.slice(0, 8)}</Link>
-              <span>${o.total}</span>
+              <span>₹{o.total}</span>
               <Badge tone="information">{o.status}</Badge>
             </li>
           ))}
