@@ -691,7 +691,7 @@ export class OrdersService {
     return { ...issued, layout };
   }
 
-  async issueInvoice(orderId: string) {
+  async issueInvoice(orderId: string, metadata?: { source?: "manual" | "online"; paymentMethod?: string | null; paymentReference?: string | null; notes?: string | null; customerName?: string | null; customerEmail?: string | null; customerPhone?: string | null }) {
     return this.transactions.runInTransaction(async (queryRunner) => {
       const orderRepo = queryRunner.manager.getRepository(OrderEntity);
       const invoiceRepo = queryRunner.manager.getRepository(InvoiceEntity);
@@ -725,6 +725,13 @@ export class OrdersService {
       const issuedAt = now;
       const snapshot = {
         orderId: order.id,
+        source: metadata?.source ?? "online",
+        payment: metadata?.source === "manual" ? {
+          method: metadata.paymentMethod ?? null,
+          reference: metadata.paymentReference ?? null,
+          status: "paid_manual",
+        } : null,
+        notes: metadata?.notes ?? null,
         customerId: order.customerId,
         supplier: {
           legalEntityName: businessSettings.legalEntityName ?? businessSettings.storeName,
@@ -736,6 +743,9 @@ export class OrdersService {
           reverseCharge: businessSettings.reverseChargeDefault,
         },
         recipient: {
+          name: metadata?.customerName ?? order.customerLegalName ?? null,
+          email: metadata?.customerEmail ?? null,
+          phone: metadata?.customerPhone ?? null,
           legalName: order.customerLegalName ?? null,
           gstin: order.customerGstin ?? null,
           billingAddress: order.billingAddress,
