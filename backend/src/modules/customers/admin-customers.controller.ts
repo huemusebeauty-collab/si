@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Query } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { CustomersService } from "./customers.service";
 import { RequirePermission } from "@/admin/common/require-permission.decorator";
@@ -20,6 +20,36 @@ export class AdminCustomersController {
   @Get()
   search(@Query("query") query?: string, @Query("page") page = "1", @Query("pageSize") pageSize = "20") {
     return this.customers.adminSearch({ query, page: Number(page), pageSize: Number(pageSize) });
+  }
+
+  @RequirePermission("customers", "edit")
+  @Post()
+  create(@Body() body: {
+    firstName: string;
+    lastName?: string;
+    email?: string;
+    phone?: string;
+    gstin?: string;
+    address?: Record<string, unknown>;
+  }) {
+    const address = body.address ? {
+      line1: String(body.address.line1 ?? "").trim(),
+      line2: body.address.line2 ? String(body.address.line2).trim() : undefined,
+      city: String(body.address.city ?? "").trim(),
+      region: String(body.address.region ?? "").trim(),
+      stateCode: body.address.stateCode ? String(body.address.stateCode).trim() : undefined,
+      postalCode: String(body.address.postalCode ?? "").trim(),
+      country: String(body.address.country ?? "India").trim(),
+      isDefault: true,
+    } : undefined;
+    return this.customers.createAdminCustomer({
+      firstName: String(body.firstName ?? "").trim(),
+      lastName: String(body.lastName ?? "").trim(),
+      email: body.email,
+      phone: body.phone,
+      gstin: body.gstin,
+      address: address as any,
+    });
   }
 
   @RequirePermission("customers", "view")
