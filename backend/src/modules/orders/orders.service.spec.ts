@@ -86,7 +86,7 @@ describe("OrdersService", () => {
     const result = await service.generateInvoice("o1");
     expect(result.invoiceNumber).toBeNull();
     expect(result.issuedAt).toBeNull();
-    expect(result.total).toBe("118.00");
+    expect((result as { total: string }).total).toBe("118.00");
   });
 
   it("issues one persistent invoice per order and reuses it idempotently", async () => {
@@ -158,7 +158,7 @@ describe("OrdersService", () => {
     } as unknown as OrderEntity;
     orderRepo.findOne.mockResolvedValue(existingOrder);
 
-    const result = await service.createOrder("c1", "cart-1", { city: "Jaipur" }, " checkout-123 ");
+    const result = await service.createOrder("c1", "cart-1", { city: "Jaipur" }, {}, " checkout-123 ");
     expect(result).toBe(existingOrder);
     expect(transactionService.runInTransaction).not.toHaveBeenCalled();
   });
