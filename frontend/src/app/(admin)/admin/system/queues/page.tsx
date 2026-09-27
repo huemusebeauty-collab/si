@@ -10,7 +10,7 @@ import { Badge } from "@/components/basic/Badge";
 import { Button } from "@/components/basic/Button";
 
 function QueueMonitorContent() {
-  const { data, isLoading, refetch } = useAdminQuery(() => adminApi.getIntegrationsStatus(), []);
+  const { data, isLoading, error: statusError, refetch } = useAdminQuery(() => adminApi.getIntegrationsStatus(), []);
   const [selectedQueue, setSelectedQueue] = useState("");
   const [jobs, setJobs] = useState<DeadLetterJob[]>([]);
   const [jobsLoading, setJobsLoading] = useState(false);
@@ -57,6 +57,22 @@ function QueueMonitorContent() {
   };
 
   if (isLoading) return <SkeletonLoader className="h-64 w-full" />;
+
+  if (statusError) {
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="font-display text-[32px] font-semibold text-ink">Queue Monitor</h1>
+          <Button variant="outline" onClick={() => void refetch()}>Retry</Button>
+        </div>
+        <div className="rounded-md bg-white p-6 shadow-rest">
+          <p className="font-semibold text-error">Unable to load queue data.</p>
+          <p className="mt-2 text-[13px] text-stone">{statusError}</p>
+          <p className="mt-2 text-[13px] text-stone">Please retry. The page will not remain blank when the queue API is unavailable.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">
