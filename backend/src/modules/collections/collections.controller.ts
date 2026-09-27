@@ -59,19 +59,19 @@ export class CollectionsController {
     return this.collections.assignProduct(collectionId, productId);
   }
 
-  @Roles("admin")
+  @RequirePermission("categories", "edit")
   @Delete(":collectionId/products/:productId")
   unassignProduct(@Param("collectionId") collectionId: string, @Param("productId") productId: string) {
     return this.collections.unassignProduct(collectionId, productId);
   }
 
-  @Roles("admin")
+  @RequirePermission("categories", "edit")
   @Patch(":collectionId/featured")
   setFeatured(@Param("collectionId") collectionId: string, @Body("featured") featured: boolean) {
     return this.collections.setFeatured(collectionId, featured);
   }
 
-  @Roles("admin")
+  @RequirePermission("categories", "edit")
   @Patch(":collectionId/display-order")
   setDisplayOrder(@Param("collectionId") collectionId: string, @Body("displayOrder") displayOrder: number) {
     return this.collections.setDisplayOrder(collectionId, displayOrder);
