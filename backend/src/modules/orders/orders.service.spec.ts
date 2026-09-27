@@ -42,6 +42,15 @@ describe("OrdersService", () => {
       create: jest.fn((_: unknown, entity: unknown) => entity),
       save: jest.fn((entity: unknown) => Promise.resolve(entity)),
       findOne: jest.fn().mockResolvedValue({ id: "o1", status: "processing", lineItems: [{ variantId: "v1", quantity: 2 }], statusHistory: [] }),
+      getRepository: jest.fn((entity: unknown) =>
+        entity === OrderEntity
+          ? orderRepo
+          : entity === InvoiceEntity
+            ? invoiceRepo
+            : entity === InvoiceSequenceEntity
+              ? createMockRepo<InvoiceSequenceEntity>()
+              : createMockRepo(),
+      ),
     };
     transactionService = { runInTransaction: jest.fn(async (work: (qr: unknown) => Promise<unknown>) => work({ manager })) };
     const settingsService = { getBusinessSettings: jest.fn().mockResolvedValue({ storeName: "Silku", gstRegistered: false, reverseChargeDefault: false }) };
@@ -140,7 +149,7 @@ describe("OrdersService", () => {
             entity === OrderEntity
               ? { findOne: jest.fn().mockResolvedValue(order) }
               : entity === InvoiceEntity
-                ? { findOne: jest.fn().mockResolvedValue({ id: "inv1", invoiceNumber: "SLK/26-27/000001", issuedAt: new Date("2026-09-19T10:00:00Z"), snapshot: first }) }
+                ? { findOne: jest.fn().mockResolvedValue({ id: "inv1", invoiceNumber: "SLK/26-27/000001", issuedAt: new Date("2026-09-19T10:00:00Z"), snapshot: first }), save: jest.fn().mockResolvedValue(undefined) }
                 : transactionSequenceRepo,
           ),
         },
