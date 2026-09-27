@@ -56,6 +56,13 @@ export const adminApi = {
   setCategoryVisibility: (id: string, visible: boolean) => request<AdminCategory>(`/categories/${id}/visibility`, { method: "PATCH", body: JSON.stringify({ visible }) }),
   setCategoryDisplayOrder: (id: string, displayOrder: number) => request<AdminCategory>(`/categories/${id}/display-order`, { method: "PATCH", body: JSON.stringify({ displayOrder }) }),
   listCollections: () => request<AdminCollection[]>("/collections"),
+  listAdminCollections: () => request<AdminCollection[]>("/collections/admin"),
+  createCollection: (body: CreateCollectionInput) => request<AdminCollection>("/collections/admin", { method: "POST", body: JSON.stringify(body) }),
+  updateCollection: (id: string, body: UpdateCollectionInput) => request<AdminCollection>(`/collections/admin/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  deleteCollection: (id: string) => request<{ deleted: true }>(`/collections/admin/${id}`, { method: "DELETE" }),
+  setCollectionActive: (id: string, active: boolean) => request<AdminCollection>(`/collections/${id}/active`, { method: "PATCH", body: JSON.stringify({ active }) }),
+  assignCollectionProduct: (collectionId: string, productId: string) => request<AdminCollection>(`/collections/${collectionId}/products/${productId}`, { method: "POST" }),
+  unassignCollectionProduct: (collectionId: string, productId: string) => request<AdminCollection>(`/collections/${collectionId}/products/${productId}`, { method: "DELETE" }),
   setCollectionFeatured: (id: string, featured: boolean) => request<AdminCollection>(`/collections/${id}/featured`, { method: "PATCH", body: JSON.stringify({ featured }) }),
   listOrders: (params: URLSearchParams) => request<SimpleList<AdminOrder>>(`/orders/admin/search?${params}`),
   getOrder: (id: string) => request<AdminOrder>(`/orders/admin/${id}`),
@@ -134,7 +141,7 @@ export interface AdminInventoryItem { id: string; sku: string; name: string; sto
 export interface CreateCategoryInput { name: string; slug: string; parentId?: string | null; displayOrder?: number; visible?: boolean; metaTitle?: string; metaDescription?: string }
 export interface UpdateCategoryInput { name?: string; slug?: string; parentId?: string | null; displayOrder?: number; visible?: boolean; metaTitle?: string; metaDescription?: string }
 export interface AdminCategory { id: string; slug: string; name: string; visible: boolean; displayOrder: number; parentId?: string | null; children?: AdminCategory[] }
-export interface AdminCollection { id: string; slug: string; name: string; active: boolean; featured: boolean; displayOrder: number }
+export interface CreateCollectionInput { slug: string; name: string; tagline?: string; active?: boolean; featured?: boolean; displayOrder?: number; metaTitle?: string; metaDescription?: string; startAt?: string; endAt?: string }\nexport interface UpdateCollectionInput extends Partial<CreateCollectionInput> {}\nexport interface AdminCollection { id: string; slug: string; name: string; tagline?: string; active: boolean; featured: boolean; displayOrder: number; metaTitle?: string; metaDescription?: string; startAt?: string; endAt?: string; products?: Array<{ id: string; name: string; slug: string }> }
 export interface AdminOrder {
   id: string;
   customerId: string;
