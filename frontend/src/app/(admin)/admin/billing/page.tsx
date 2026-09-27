@@ -120,6 +120,7 @@ function ManualBilling() {
     return products.filter((product) => {
       if (!q) return true;
       return product.name.toLowerCase().includes(q) ||
+        (product.commonName ?? "").toLowerCase().includes(q) ||
         (product.variants ?? []).some((variant) => variant.sku.toLowerCase().includes(q) || variant.name.toLowerCase().includes(q));
     }).slice(0, 20);
   }, [products, productSearch]);
@@ -377,7 +378,7 @@ function ManualBilling() {
         <div>
           <h3 className="font-semibold">2. Add products</h3>
           <div className="mt-3">
-            <Input label="Search product / SKU" value={productSearch} onChange={(e) => setProductSearch(e.target.value)} placeholder="Search..." />
+            <Input label="Search product / SKU" value={productSearch} onChange={(e) => setProductSearch(e.target.value)} placeholder="Product name, common name or SKU..." />
             {loading ? <div className="mt-3 text-sm text-muted">Loading products…</div> : (
               <div className="mt-3 max-h-72 overflow-auto rounded-lg border border-line divide-y">
                 {visibleProducts.flatMap((product) => (product.variants ?? []).map((variant) => (
