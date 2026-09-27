@@ -213,7 +213,7 @@ export class OrdersService {
     }
 
     const normalizedGstin = body.customerGstin?.trim().toUpperCase() || undefined;
-    if (normalizedGstin && !/^\d{2}[A-Z0-9]{10}[A-Z]\d[A-Z]Z[A-Z0-9]$/.test(normalizedGstin)) {
+    if (normalizedGstin && !/^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z0-9]Z[A-Z0-9]$/.test(normalizedGstin)) {
       throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Customer GSTIN format is invalid.");
     }
 
@@ -381,7 +381,7 @@ export class OrdersService {
   async createOrder(customerId: string, cartId: string, billingAddress: Record<string, unknown>, shippingAddress: Record<string, unknown>, idempotencyKey?: string, customerGstin?: string, customerLegalName?: string): Promise<OrderEntity> {
     const normalizedIdempotencyKey = idempotencyKey?.trim();
     const normalizedGstin = customerGstin?.trim().toUpperCase() || undefined;
-    if (normalizedGstin && !/^\d{2}[A-Z0-9]{10}[A-Z]\d[A-Z]Z[A-Z0-9]$/.test(normalizedGstin)) {
+    if (normalizedGstin && !/^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z0-9]Z[A-Z0-9]$/.test(normalizedGstin)) {
       throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Customer GSTIN format is invalid.");
     }
     const normalizedLegalName = customerLegalName?.trim() || undefined;
