@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { RequireAdminAuth } from "@/admin/components/RequireAdminAuth";
 import { AdminShell } from "@/admin/components/AdminShell";
 import { RoleGate } from "@/admin/components/RoleGate";
@@ -13,13 +13,13 @@ import { SkeletonLoader } from "@/components/composite/SkeletonLoader";
 // Sprint 6B — CMS Editor. Simple static-page content editor: slug-based
 // lookup + textarea edit, matching the shape CmsService already exposes
 // (getStaticPage/updateStaticPage) — no new content model introduced.
-const KNOWN_PAGE_SLUGS = ["about", "shipping-returns", "faqs", "privacy", "terms", "accessibility"];
+const KNOWN_PAGE_SLUGS = ["about", "contact", "shipping-returns", "refund-cancellation", "shipping-delivery", "privacy", "terms", "accessibility", "product-pricing", "faqs"];
 
 function CmsPagesContent() {
   const [slug, setSlug] = useState("about");
   const [content, setContent] = useState("");
   const [toast, setToast] = useState<string | null>(null);
-  const { data: page, isLoading, refetch } = useAdminQuery(() => adminApi.getPage(slug), [slug]);
+  const { data: page, isLoading, error, refetch } = useAdminQuery(() => adminApi.getPage(slug), [slug]);\n\n  useEffect(() => {\n    setContent(page?.content ?? "");\n  }, [page, slug]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -35,7 +35,7 @@ function CmsPagesContent() {
         <div className="flex flex-col gap-4 rounded-md bg-white p-6 shadow-rest">
           <h2 className="font-semibold text-ink">{page?.title}</h2>
           <textarea
-            defaultValue={page?.content}
+            value={content}
             onChange={(e) => setContent(e.target.value)}
             rows={10}
             className="rounded-sm border border-fog p-3 text-base"
