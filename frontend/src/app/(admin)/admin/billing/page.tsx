@@ -79,6 +79,8 @@ function ManualBilling() {
   const [walkInName, setWalkInName] = useState("");
   const [walkInPhone, setWalkInPhone] = useState("");
   const [walkInEmail, setWalkInEmail] = useState("");
+  const [phoneIsdCode, setPhoneIsdCode] = useState("+91");
+  const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [customerGstin, setCustomerGstin] = useState("");
   const [hasCustomerAddress, setHasCustomerAddress] = useState(false);
   const [customerAddressLine1, setCustomerAddressLine1] = useState("");
@@ -168,7 +170,7 @@ function ManualBilling() {
         customerId: selectedCustomer?.id,
         customerName: selectedCustomer ? [selectedCustomer.firstName, selectedCustomer.lastName].filter(Boolean).join(" ") : walkInName.trim(),
         customerEmail: selectedCustomer?.email ?? (walkInEmail.trim() || undefined),
-        customerPhone: selectedCustomer ? undefined : walkInPhone.trim() || undefined,
+        customerPhone: selectedCustomer ? undefined : (walkInPhone.trim() ? `${phoneIsdCode}${walkInPhone.trim()}` : undefined),
         customerGstin: customerGstin.trim().toUpperCase() || undefined,
         billingAddress: hasCustomerAddress ? {
           line1: customerAddressLine1.trim(),
@@ -206,6 +208,8 @@ function ManualBilling() {
       setWalkInName("");
       setWalkInPhone("");
       setWalkInEmail("");
+      setPhoneIsdCode("+91");
+      setShowAddCustomer(false);
       setCustomerGstin("");
       setHasCustomerAddress(false);
       setCustomerAddressLine1("");
@@ -266,58 +270,95 @@ function ManualBilling() {
               </div>
             ) : (
               <div className="rounded-lg border border-dashed border-line p-3">
-                <div className="text-xs font-semibold uppercase tracking-wide text-muted">Walk-in customer</div>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <Input label="Name" value={walkInName} onChange={(e) => setWalkInName(e.target.value)} />
-                  <Input label="Phone" value={walkInPhone} onChange={(e) => setWalkInPhone(e.target.value)} />
-                  <Input label="Email (optional)" value={walkInEmail} onChange={(e) => setWalkInEmail(e.target.value)} />
-                </div>
-              </div>
-            )}
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <Input label="Customer GST No. (optional)" value={customerGstin} onChange={(e) => setCustomerGstin(e.target.value.toUpperCase())} placeholder="15-character GSTIN" maxLength={15} />
-            </div>
-            <label htmlFor="manual-add-customer-address" className="mt-3 flex cursor-pointer items-center gap-2 text-sm font-medium">
-              <input id="manual-add-customer-address"
-                type="checkbox"
-                checked={hasCustomerAddress}
-                onChange={(e) => setHasCustomerAddress(e.target.checked)}
-                className="h-4 w-4 rounded border-line"
-              />
-              Add customer address
-            </label>
-            {hasCustomerAddress && (
-              <div className="mt-3 rounded-lg border border-line bg-surface p-4">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="sm:col-span-2">
-                    <Input label="Address Line 1" value={customerAddressLine1} onChange={(e) => setCustomerAddressLine1(e.target.value)} placeholder="House / flat / street" />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <Input label="Address Line 2 (optional)" value={customerAddressLine2} onChange={(e) => setCustomerAddressLine2(e.target.value)} placeholder="Area / landmark" />
-                  </div>
-                  <Input label="City" value={customerCity} onChange={(e) => setCustomerCity(e.target.value)} placeholder="City" />
-                  <Input label="PIN Code" value={customerPostalCode} onChange={(e) => setCustomerPostalCode(e.target.value.replace(/\\D/g, "").slice(0, 6))} placeholder="6-digit PIN" maxLength={6} />
+                <div className="flex items-center justify-between gap-3">
                   <div>
-                    <label htmlFor="manual-customer-state" className="text-xs font-semibold uppercase tracking-wide text-muted">State</label>
-                    <select
-                      id="manual-customer-state"
-                      value={customerState}
-                      onChange={(e) => {
-                        const state = INDIAN_STATES.find(([name]) => name === e.target.value);
-                        setCustomerState(e.target.value);
-                        setCustomerStateCode(state?.[1] ?? "");
-                      }}
-                      className="mt-1 h-11 w-full rounded border border-line bg-white px-3"
-                    >
-                      <option value="">Select state</option>
-                      {INDIAN_STATES.map(([name, code]) => <option key={code} value={name}>{name}</option>)}
-                    </select>
+                    <div className="text-xs font-semibold uppercase tracking-wide text-muted">Customer</div>
+                    <div className="mt-1 text-sm text-muted">Use an existing customer or add a new customer for this bill.</div>
                   </div>
-                  <Input label="State Code" value={customerStateCode} readOnly placeholder="Auto from state" />
+                  <Button variant="secondary" type="button" onClick={() => setShowAddCustomer(true)}>+ Add Customer</Button>
                 </div>
+                {showAddCustomer && (
+                  <div className="mt-4 rounded-lg border border-primary-plum bg-white p-4">
+                    <div className="mb-4">
+                      <div className="font-semibold">Add Customer</div>
+                      <div className="text-xs text-muted">Complete customer details for the billing record. Email is optional.</div>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Input label="Billing Name" value={walkInName} onChange={(e) => setWalkInName(e.target.value)} placeholder="Customer / business name" />
+                      <Input label="GST No. (optional)" value={customerGstin} onChange={(e) => setCustomerGstin(e.target.value.toUpperCase())} placeholder="15-character GSTIN" maxLength={15} />
+                      <div className="sm:col-span-2">
+                        <label htmlFor="manual-customer-phone" className="text-xs font-semibold uppercase tracking-wide text-muted">Phone No.</label>
+                        <div className="mt-1 flex gap-2">
+                          <select aria-label="ISD code" value={phoneIsdCode} onChange={(e) => setPhoneIsdCode(e.target.value)} className="h-11 w-28 rounded border border-line bg-white px-2">
+                            <option value="+91">+91 India</option>
+                            <option value="+971">+971 UAE</option>
+                            <option value="+44">+44 UK</option>
+                            <option value="+1">+1 USA/Canada</option>
+                            <option value="+61">+61 Australia</option>
+                            <option value="+65">+65 Singapore</option>
+                          </select>
+                          <input id="manual-customer-phone" className="h-11 flex-1 rounded border border-line px-3" value={walkInPhone} onChange={(e) => setWalkInPhone(e.target.value.replace(/\D/g, "").slice(0, 15))} placeholder="Phone number" inputMode="tel" />
+                        </div>
+                      </div>
+                      <div className="sm:col-span-2">
+                        <Input label="Email ID (optional)" type="email" value={walkInEmail} onChange={(e) => setWalkInEmail(e.target.value)} placeholder="customer@example.com" />
+                      </div>
+                    </div>
+                    <div className="mt-4 border-t border-line pt-4">
+                      <div className="mb-3 text-sm font-semibold">Billing Address</div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="sm:col-span-2">
+                          <Input label="Address Line 1" value={customerAddressLine1} onChange={(e) => setCustomerAddressLine1(e.target.value)} placeholder="House / flat / street" />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <Input label="Address Line 2 (optional)" value={customerAddressLine2} onChange={(e) => setCustomerAddressLine2(e.target.value)} placeholder="Area / landmark" />
+                        </div>
+                        <Input label="City" value={customerCity} onChange={(e) => setCustomerCity(e.target.value)} placeholder="City" />
+                        <Input label="PIN Code" value={customerPostalCode} onChange={(e) => setCustomerPostalCode(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="6-digit PIN" maxLength={6} />
+                        <div>
+                          <label htmlFor="manual-customer-state" className="text-xs font-semibold uppercase tracking-wide text-muted">State</label>
+                          <select id="manual-customer-state" value={customerState} onChange={(e) => {
+                            const state = INDIAN_STATES.find(([name]) => name === e.target.value);
+                            setCustomerState(e.target.value);
+                            setCustomerStateCode(state?.[1] ?? "");
+                          }} className="mt-1 h-11 w-full rounded border border-line bg-white px-3">
+                            <option value="">Select state</option>
+                            {INDIAN_STATES.map(([name, code]) => <option key={code} value={name}>{name}</option>)}
+                          </select>
+                        </div>
+                        <Input label="State Code" value={customerStateCode} readOnly placeholder="Auto from state" />
+                      </div>
+                    </div>
+                    <div className="mt-4 flex gap-2">
+                      <Button variant="primary" type="button" onClick={() => setShowAddCustomer(false)}>Use Customer</Button>
+                      <Button variant="secondary" type="button" onClick={() => {
+                        setShowAddCustomer(false);
+                        setWalkInName("");
+                        setWalkInPhone("");
+                        setWalkInEmail("");
+                        setPhoneIsdCode("+91");
+                        setCustomerGstin("");
+                        setHasCustomerAddress(false);
+                        setCustomerAddressLine1("");
+                        setCustomerAddressLine2("");
+                        setCustomerCity("");
+                        setCustomerState("");
+                        setCustomerStateCode("");
+                        setCustomerPostalCode("");
+                      }}>Cancel</Button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
-            <p className="mt-2 text-xs text-muted">GST No. is optional. Tick “Add customer address” to enter the complete address; State Code is filled automatically from the selected State.</p>
+            {!showAddCustomer && !selectedCustomer && walkInName && (
+              <div className="mt-3 rounded-lg border border-success/30 bg-success/5 p-3 text-sm">
+                <strong>{walkInName}</strong>
+                <div className="text-xs text-muted">{phoneIsdCode}{walkInPhone} {walkInEmail ? `· ${walkInEmail}` : ""}</div>
+                {customerGstin && <div className="text-xs text-muted">GSTIN: {customerGstin}</div>}
+                {hasCustomerAddress && <div className="mt-1 text-xs text-muted">{customerAddressLine1}, {customerCity}, {customerState} - {customerPostalCode}</div>}
+              </div>
+            )}            <p className="mt-2 text-xs text-muted">Use “+ Add Customer” for Billing Name, GST No., Phone with ISD code, optional Email ID and complete Billing Address. State Code is filled automatically from the selected State.</p>
           </div>
         </div>
 
