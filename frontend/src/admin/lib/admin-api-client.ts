@@ -114,7 +114,7 @@ export const adminApi = {
 
 export interface AdminMediaItem { key: string; urlKey: string; url: string; type: "image" | "video"; contentType: string; size: number; originalSize: number | null; savedBytes: number | null; savedPercent: number | null; lastModified: string | null }
 export interface CreateProductInput {
-  slug: string; name: string; categorySlug: string; price: number; salePrice?: number; hsnCode?: string; gstRate?: number; taxInclusiveMrp?: boolean; description: string;
+  slug: string; name: string; commonName?: string; categorySlug: string; price: number; salePrice?: number; hsnCode?: string; gstRate?: number; taxInclusiveMrp?: boolean; description: string;
   content: { shortDescription: string; keyBenefits: string[]; features: string[]; ingredients: string; usageInstructions: string[]; warnings: string; storageInstructions: string; specifications: Record<string, string>; faqs: { question: string; answer: string }[] };
   metaTitle: string; metaDescription: string; mediaUrls: string[];
   variants: { id?: string; sku: string; name: string; hexColor?: string; stockQuantity: number; mrp?: number }[];
@@ -125,7 +125,7 @@ export interface Paginated<T> { items: T[]; meta: { page: number; pageSize: numb
 export interface SimpleList<T> { items: T[]; totalItems: number }
 export interface DashboardOverview { kpis: { todaysOrders: number; todaysRevenue: number; lowStockCount: number; pendingReviews: number }; pendingTasks: { type: string; count: number; label: string }[]; recentActivity: AuditLogEntry[] }
 export interface AdminProduct {
-  id: string; slug: string; name: string; price: string; salePrice?: string; hsnCode?: string; status: string; visibility: string;
+  id: string; slug: string; name: string; commonName?: string; price: string; salePrice?: string; hsnCode?: string; status: string; visibility: string;
   category?: { id?: string; slug?: string; name: string };
   variants?: { id: string; sku: string; name: string; stockQuantity: number; mrp?: string }[];
 }
