@@ -298,8 +298,9 @@ function ManualBilling() {
                   <Input label="City" value={customerCity} onChange={(e) => setCustomerCity(e.target.value)} placeholder="City" />
                   <Input label="PIN Code" value={customerPostalCode} onChange={(e) => setCustomerPostalCode(e.target.value.replace(/\\D/g, "").slice(0, 6))} placeholder="6-digit PIN" maxLength={6} />
                   <div>
-                    <label className="text-xs font-semibold uppercase tracking-wide text-muted">State</label>
+                    <label htmlFor="manual-customer-state" className="text-xs font-semibold uppercase tracking-wide text-muted">State</label>
                     <select
+                      id="manual-customer-state"
                       value={customerState}
                       onChange={(e) => {
                         const state = INDIAN_STATES.find(([name]) => name === e.target.value);
