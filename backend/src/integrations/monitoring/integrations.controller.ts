@@ -2,7 +2,6 @@ import { Controller, Get, Param, Post } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { ProviderStatusService } from "@/integrations/common/provider-status.service";
 import { QueueMonitorService } from "@/integrations/queue/queue-monitor.service";
-import { Public } from "@/common/decorators/public.decorator";
 import { RequirePermission } from "@/admin/common/require-permission.decorator";
 import { Audit } from "@/admin/audit/audit.decorator";
 
@@ -15,7 +14,7 @@ export class IntegrationsController {
     private readonly queueMonitor: QueueMonitorService,
   ) {}
 
-  @Public()
+  @RequirePermission("settings", "view")
   @Get("status")
   async getStatus() {
     const [providers, queues] = await Promise.all([
@@ -25,7 +24,7 @@ export class IntegrationsController {
     return { providers, queues };
   }
 
-  @Public()
+  @RequirePermission("settings", "view")
   @Get("dead-letter/:queueName")
   getDeadLetter(@Param("queueName") queueName: string) {
     return this.queueMonitor.getDeadLetterJobs(queueName);
