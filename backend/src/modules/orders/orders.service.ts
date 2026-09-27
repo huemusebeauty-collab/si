@@ -712,7 +712,15 @@ export class OrdersService {
         throw new DomainException(DomainErrorCode.INVALID_STATUS_TRANSITION, "An invoice can only be issued for a confirmed or fulfilled order.");
       }
       const existing = await invoiceRepo.findOne({ where: { orderId } });
-      if (existing) return { ...existing.snapshot, invoiceId: existing.id, invoiceNumber: existing.invoiceNumber, issuedAt: existing.issuedAt.toISOString(), layout: resolveInvoiceLayout("A4", "STANDARD") };
+      if (existing) {
+        const repairedSnapshot = {
+          ...existing.snapshot,
+          lineItems: order.lineItems.map((line) => ({ ...line })),
+        };
+        existing.snapshot = repairedSnapshot;
+        await invoiceRepo.save(existing);
+        return { ...repairedSnapshot, invoiceId: existing.id, invoiceNumber: existing.invoiceNumber, issuedAt: existing.issuedAt.toISOString(), layout: resolveInvoiceLayout("A4", "STANDARD") };
+      }
 
       const businessSettings = await this.settings.getBusinessSettings();
       if (businessSettings.gstRegistered && (!businessSettings.gstin || !businessSettings.registeredState || !businessSettings.registeredStateCode)) {
@@ -763,7 +771,7 @@ export class OrdersService {
         placeOfSupply: { state: order.placeOfSupplyState ?? null, stateCode: order.placeOfSupplyStateCode ?? null },
         billingAddress: order.billingAddress,
         shippingAddress: order.shippingAddress,
-        lineItems: order.lineItems.map(({ hsnCode: _hsnCode, ...line }) => line),
+        lineItems: order.lineItems.map((line) => ({ ...line })),
         subtotal: order.subtotal,
         discountAmount: order.discountAmount,
         taxableAmount: order.taxableAmount,
