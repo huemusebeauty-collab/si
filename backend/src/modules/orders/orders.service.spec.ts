@@ -93,6 +93,7 @@ describe("OrdersService", () => {
       taxAmount: "18.00",
       total: "118.00",
       currency: "INR",
+      createdAt: new Date("2026-09-19T10:00:00Z"),
     } as unknown as OrderEntity);
     invoiceRepo.findOne.mockResolvedValue(null);
 
