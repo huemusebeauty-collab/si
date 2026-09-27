@@ -1,5 +1,15 @@
 import { apiFetch } from "./client";
 
+export interface StaticPage {
+  slug: string;
+  title: string;
+  content: string;
+}
+
+export async function getStaticPage(slug: string): Promise<StaticPage | null> {
+  return apiFetch<StaticPage>(`/cms/pages/${encodeURIComponent(slug)}`);
+}
+
 export interface FaqEntry {
   id: string;
   category?: string;
