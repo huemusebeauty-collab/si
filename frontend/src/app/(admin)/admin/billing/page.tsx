@@ -274,8 +274,8 @@ function ManualBilling() {
           <h3 className="font-semibold">4. Payment</h3>
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wide text-muted">Payment method</label>
-              <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value as typeof paymentMethod)} className="mt-1 h-11 w-full rounded border border-line px-3">
+              <label htmlFor="manual-payment-method" className="text-xs font-semibold uppercase tracking-wide text-muted">Payment method</label>
+              <select id="manual-payment-method" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value as typeof paymentMethod)} className="mt-1 h-11 w-full rounded border border-line px-3">
                 <option value="cash">Cash</option><option value="upi">UPI</option><option value="card">Card</option><option value="bank_transfer">Bank Transfer</option><option value="other">Other</option>
               </select>
             </div>
