@@ -2,6 +2,8 @@ import { IsArray, IsIn, IsInt, IsOptional, IsString, IsUUID, Max, Min, ValidateN
 import { Type } from "class-transformer";
 
 export const MANUAL_PAYMENT_METHODS = ["cash", "upi", "card", "bank_transfer", "other"] as const;
+export const MANUAL_DISCOUNT_TYPES = ["percentage", "amount"] as const;
+export type ManualDiscountType = (typeof MANUAL_DISCOUNT_TYPES)[number];
 export type ManualPaymentMethod = (typeof MANUAL_PAYMENT_METHODS)[number];
 
 export class ManualBillingItemDto {
@@ -16,6 +18,15 @@ export class ManualBillingItemDto {
   @Min(0)
   unitPrice?: number;
 
+  @IsOptional()
+  @IsIn(MANUAL_DISCOUNT_TYPES)
+  discountType?: ManualDiscountType;
+
+  @IsOptional()
+  @Min(0)
+  discountValue?: number;
+
+  /** @deprecated Kept for backward compatibility with older admin clients. */
   @IsOptional()
   @Min(0)
   discountAmount?: number;
