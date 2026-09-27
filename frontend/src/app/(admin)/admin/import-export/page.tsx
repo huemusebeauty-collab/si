@@ -25,9 +25,32 @@ function ImportExportContent() {
 
       <div className="rounded-md bg-white p-6 shadow-rest">
         <h2 className="mb-3 font-semibold text-ink">Export Products</h2>
-        <a href={adminApi.exportProductsCsvUrl()} target="_blank" rel="noreferrer">
-          <Button variant="outline">Download Products CSV</Button>
-        </a>
+        <Button
+          variant="outline"
+          onClick={async () => {
+            const response = await fetch(adminApi.exportProductsCsvUrl(), {
+              headers: (() => {
+                const token = window.localStorage.getItem("hmb_admin_token");
+                return token ? { Authorization: `Bearer ${token}` } : {};
+              })(),
+            });
+            if (!response.ok) {
+              const body = await response.json().catch(() => ({ message: response.statusText }));
+              throw new Error(body.message ?? "Export failed.");
+            }
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = "products-export.csv";
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+          }}
+        >
+          Download Products CSV
+        </Button>
       </div>
 
       <RoleGate module="products" level="full">
