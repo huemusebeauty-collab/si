@@ -14,8 +14,8 @@ export class CustomerEntity {
   id!: string;
 
   @Index({ unique: true })
-  @Column()
-  email!: string;
+  @Column({ nullable: true })
+  email?: string;
 
   @Column()
   passwordHash!: string;
@@ -28,6 +28,9 @@ export class CustomerEntity {
 
   @Column({ nullable: true })
   phone?: string;
+
+  @Column({ type: "varchar", length: 15, nullable: true })
+  gstin?: string;
 
   @Column({ type: "jsonb", default: {} })
   preferences!: Record<string, unknown>;
