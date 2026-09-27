@@ -26,6 +26,7 @@ const VALID_NEXT_STATUSES: Record<string, string[]> = {
   cancelled: [],
 };
 const STATUSES = Object.keys(VALID_NEXT_STATUSES).filter((value) => value !== "draft");
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function LogisticsContent() {
   const [dashboard, setDashboard] = useState<LogisticsDashboard | null>(null);
@@ -128,10 +129,10 @@ function LogisticsContent() {
 
       <RoleGate module="logistics" level="edit">
         <div className="grid gap-3 rounded-md bg-white p-4 shadow-rest md:grid-cols-[1.5fr_1fr_1fr_auto]">
-          <input value={orderId} onChange={(e) => setOrderId(e.target.value)} placeholder="Confirmed/processing Order ID" className="rounded-md border border-line px-3 py-2 text-sm" />
+          <div><input value={orderId} onChange={(e) => setOrderId(e.target.value)} placeholder="Full Order UUID" className="w-full rounded-md border border-line px-3 py-2 text-sm" aria-describedby="logistics-order-id-help" /><p id="logistics-order-id-help" className="mt-1 text-xs text-ink-muted">Use the complete Order ID (UUID), not the 8-character value shown in the table.</p></div>
           <input value={carrier} onChange={(e) => setCarrier(e.target.value)} placeholder="Courier / carrier" className="rounded-md border border-line px-3 py-2 text-sm" />
           <input value={serviceLevel} onChange={(e) => setServiceLevel(e.target.value)} placeholder="Service level" className="rounded-md border border-line px-3 py-2 text-sm" />
-          <Button variant="primary" disabled={creating || !orderId.trim()} onClick={async () => {
+          <Button variant="primary" disabled={creating || !UUID_RE.test(orderId.trim())} onClick={async () => {
             setCreating(true);
             try {
               await adminApi.createShipment({ orderId: orderId.trim(), carrier: carrier.trim() || undefined, serviceLevel: serviceLevel.trim() || undefined });
