@@ -29,6 +29,10 @@ export class ProductEntity {
   @Column()
   name!: string;
 
+  // Common/search name used for customer-friendly product discovery.
+  @Column({ name: "common_name", type: "varchar", length: 255, nullable: true })
+  commonName?: string;
+
   @Column({ type: "text", nullable: true })
   description?: string;
 
