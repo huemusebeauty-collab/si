@@ -23,7 +23,7 @@ export class OrdersController {
     return order;
   }
 
-  @RequirePermission("billing", "view")
+  @RequirePermission("billing", "edit")
   @Post("admin/manual")
   createManualBilling(@Body() body: CreateManualBillingDto) {
     return this.orders.createManualBilling(body);
