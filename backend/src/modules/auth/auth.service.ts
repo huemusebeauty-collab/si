@@ -26,7 +26,7 @@ export class AuthService {
       firstName: dto.firstName,
       lastName: dto.lastName,
     });
-    const sessionToken = await this.issueAccessToken(customer.id, customer.email, "customer");
+    const sessionToken = await this.issueAccessToken(customer.id, (customer.email ?? ""), "customer");
     return { customerId: customer.id, sessionToken };
   }
 
@@ -35,7 +35,7 @@ export class AuthService {
     if (!customer || !(await verifyPassword(password, customer.passwordHash))) {
       throw new UnauthorizedException("Invalid email or password.");
     }
-    const sessionToken = await this.issueAccessToken(customer.id, customer.email, "customer");
+    const sessionToken = await this.issueAccessToken(customer.id, (customer.email ?? ""), "customer");
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
     return { customerId: customer.id, sessionToken, expiresAt };
   }
@@ -52,7 +52,7 @@ export class AuthService {
       throw new UnauthorizedException("Refresh token is invalid or expired.");
     }
     const customer = await this.customers.findById(stored.customerId);
-    const sessionToken = await this.issueAccessToken(customer.id, customer.email, "customer");
+    const sessionToken = await this.issueAccessToken(customer.id, (customer.email ?? ""), "customer");
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
     return { sessionToken, expiresAt };
   }
