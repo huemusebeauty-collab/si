@@ -4,7 +4,8 @@ import { LessThanOrEqual, MoreThanOrEqual, Repository } from "typeorm";
 import { CacheInvalidationService } from "@/cache/cache-invalidation.service";
 import { StaticPageEntity } from "./entities/static-page.entity";
 import { BannerEntity } from "./entities/banner.entity";
-import { FaqEntryEntity } from "./entities/faq-entry.entity";\nimport { CMS_PAGE_SEEDS } from "@/database/seeds/data/cms";
+import { FaqEntryEntity } from "./entities/faq-entry.entity";
+import { CMS_PAGE_SEEDS } from "@/database/seeds/data/cms";
 
 // Sprint 3.5 — CmsService, method signatures per Phase 16 §16.11.
 @Injectable()
@@ -78,13 +79,30 @@ export class CmsService {
   // getStaticPage(slug) -> StaticPage
   async getStaticPage(slug: string): Promise<StaticPageEntity> {
     const page = await this.pages.findOne({ where: { slug } });
-    if (!page) throw new NotFoundException("Page not found.");
-    return page;
+    if (page) return page;
+
+    const seed = CMS_PAGE_SEEDS.find((entry) => entry.slug === slug);
+    if (!seed) throw new NotFoundException("Page not found.");
+    return this.pages.create({
+      slug: seed.slug,
+      title: seed.title,
+      content: seed.content,
+      metaTitle: seed.metaTitle,
+      metaDescription: seed.metaDescription,
+    });
   }
 
   // updateStaticPage(slug, content, adminId) -> StaticPage
   async updateStaticPage(slug: string, content: string, adminId: string): Promise<StaticPageEntity> {
-    const page = await this.getStaticPage(slug);
+    const existing = await this.pages.findOne({ where: { slug } });
+    const seed = CMS_PAGE_SEEDS.find((entry) => entry.slug === slug);
+    const page = existing ?? this.pages.create({
+      slug,
+      title: seed?.title ?? slug.split("-").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" "),
+      content: seed?.content ?? "",
+      metaTitle: seed?.metaTitle,
+      metaDescription: seed?.metaDescription,
+    });
     page.content = content;
     page.lastEditedByAdminId = adminId;
     const saved = await this.pages.save(page);
