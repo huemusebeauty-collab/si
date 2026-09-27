@@ -5,7 +5,7 @@ import { AddressEntity } from "./address.entity";
 export class CustomerEntity {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
-  @Index({ unique: true }) @Column() email!: string;
+  @Index({ unique: true }) @Column({ nullable: true }) email?: string;
   @Column() passwordHash!: string;
   @Column() firstName!: string;
   @Column() lastName!: string;

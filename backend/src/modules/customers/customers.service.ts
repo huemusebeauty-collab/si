@@ -1,6 +1,7 @@
 import { ConflictException, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
+import { randomUUID } from "crypto";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Between, Repository } from "typeorm";
+import { Between, EntityManager, Repository } from "typeorm";
 import { CustomerEntity } from "./entities/customer.entity";
 import { AddressEntity } from "./entities/address.entity";
 import type { UpdateProfileDto } from "./dto/update-profile.dto";
@@ -100,6 +101,82 @@ export class CustomersService {
   }
 
   // updatePreferences(customerId, prefs) -> Preferences (Phase 16 §16.3)
+  async syncManualBillingCustomer(
+    manager: EntityManager,
+    data: {
+      customerId?: string;
+      customerName: string;
+      customerEmail?: string;
+      customerPhone?: string;
+      customerGstin?: string;
+      billingAddress?: Partial<AddressDto>;
+      shippingAddress?: Partial<AddressDto>;
+    },
+  ): Promise<string> {
+    const customerRepo = manager.getRepository(CustomerEntity);
+    const addressRepo = manager.getRepository(AddressEntity);
+    const normalizedEmail = data.customerEmail?.trim().toLowerCase() || undefined;
+
+    let customer = data.customerId
+      ? await customerRepo.findOne({ where: { id: data.customerId }, relations: ["addresses"] })
+      : normalizedEmail
+        ? await customerRepo.findOne({ where: { email: normalizedEmail }, relations: ["addresses"] })
+        : null;
+
+    const nameParts = data.customerName.trim().split(/\\s+/).filter(Boolean);
+    const firstName = nameParts.shift() || "Walk-in";
+    const lastName = nameParts.join(" ") || "Customer";
+
+    if (!customer) {
+      customer = customerRepo.create({
+        email: normalizedEmail,
+        passwordHash: await hashPassword(`manual-customer:${randomUUID()}`),
+        firstName,
+        lastName,
+        phone: data.customerPhone?.trim() || undefined,
+        gstin: data.customerGstin?.trim().toUpperCase() || undefined,
+        preferences: { source: "manual_billing" },
+      });
+      customer = await customerRepo.save(customer);
+    } else {
+      customer.firstName = firstName;
+      customer.lastName = lastName;
+      if (normalizedEmail) customer.email = normalizedEmail;
+      if (data.customerPhone?.trim()) customer.phone = data.customerPhone.trim();
+      if (data.customerGstin?.trim()) customer.gstin = data.customerGstin.trim().toUpperCase();
+      customer = await customerRepo.save(customer);
+    }
+
+    const address = data.billingAddress ?? data.shippingAddress;
+    if (address?.line1 && address.city && address.region && address.postalCode && address.country) {
+      const existingDefault = (customer.addresses ?? []).find((item) => item.isDefault);
+      if (existingDefault) {
+        existingDefault.line1 = String(address.line1);
+        existingDefault.line2 = address.line2 ? String(address.line2) : undefined;
+        existingDefault.city = String(address.city);
+        existingDefault.region = String(address.region);
+        existingDefault.stateCode = address.stateCode ? String(address.stateCode) : undefined;
+        existingDefault.postalCode = String(address.postalCode);
+        existingDefault.country = String(address.country);
+        await addressRepo.save(existingDefault);
+      } else {
+        await addressRepo.save(addressRepo.create({
+          customer,
+          line1: String(address.line1),
+          line2: address.line2 ? String(address.line2) : undefined,
+          city: String(address.city),
+          region: String(address.region),
+          stateCode: address.stateCode ? String(address.stateCode) : undefined,
+          postalCode: String(address.postalCode),
+          country: String(address.country),
+          isDefault: true,
+        }));
+      }
+    }
+
+    return customer.id;
+  }
+
   async updatePreferences(customerId: string, prefs: Record<string, unknown>): Promise<Record<string, unknown>> {
     const customer = await this.findById(customerId);
     customer.preferences = { ...customer.preferences, ...prefs };

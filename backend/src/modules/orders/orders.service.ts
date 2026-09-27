@@ -237,9 +237,17 @@ export class OrdersService {
         const defaultAddress = customer.addresses?.find((address) => address.isDefault) ?? customer.addresses?.[0];
         if (Object.keys(customerAddress).length === 0 && defaultAddress) customerAddress = { ...defaultAddress };
         if (Object.keys(shippingAddress).length === 0 && defaultAddress) shippingAddress = { ...defaultAddress };
-      } else {
-        customerId = randomUUID();
       }
+
+      customerId = await this.customers.syncManualBillingCustomer(manager, {
+        customerId,
+        customerName: customerName || "Walk-in Customer",
+        customerEmail,
+        customerPhone,
+        customerGstin,
+        billingAddress: customerAddress,
+        shippingAddress,
+      });
 
       const placeOfSupplyState = typeof shippingAddress.region === "string" ? shippingAddress.region.trim() || undefined : undefined;
       const placeOfSupplyStateCode = typeof shippingAddress.stateCode === "string" ? shippingAddress.stateCode.trim() || undefined : undefined;
