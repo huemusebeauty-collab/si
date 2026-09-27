@@ -32,6 +32,9 @@ export class CustomerEntity {
   @Column({ type: "varchar", length: 15, nullable: true })
   gstin?: string;
 
+  @Column({ type: "varchar", length: 15, nullable: true })
+  gstin?: string;
+
   @Column({ type: "jsonb", default: {} })
   preferences!: Record<string, unknown>;
 
