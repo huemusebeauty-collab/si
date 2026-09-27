@@ -98,8 +98,8 @@ describe("OrdersService", () => {
     invoiceRepo.findOne.mockResolvedValue(null);
 
     const result = await service.generateInvoice("o1");
-    expect(result.invoiceNumber).toBeNull();
-    expect(result.issuedAt).toBeNull();
+    expect(result.invoiceNumber).toBe("SLK/26-27/000001");
+    expect(result.issuedAt).toEqual(expect.any(String));
     expect((result as { total: string }).total).toBe("118.00");
   });
 
