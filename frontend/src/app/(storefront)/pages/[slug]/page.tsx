@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Breadcrumb } from "@/components/patterns/Breadcrumb";
 import { ContactAddressGate } from "@/components/patterns/ContactAddressGate";
-import { getFaqs } from "@/services/api/cms";
+import { getFaqs, getStaticPage } from "@/services/api/cms";
 
 // Storefront policy pages. Business-specific details are kept here until a CMS is introduced.
 const STATIC_PAGES: Record<string, { title: string; body: string }> = {
@@ -81,7 +81,7 @@ export default async function StaticPage({ params }: Props) {
           ))}
         </div>
       ) : (
-        <p className="prose-copy mt-4 whitespace-pre-line text-base text-charcoal">{page.body}</p>
+        <p className="prose-copy mt-4 whitespace-pre-line text-base text-charcoal">{body}</p>
       )}
 
       {slug === "contact" ? <ContactAddressGate /> : null}
