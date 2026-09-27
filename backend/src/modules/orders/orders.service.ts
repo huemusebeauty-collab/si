@@ -213,7 +213,7 @@ export class OrdersService {
     }
 
     const normalizedGstin = body.customerGstin?.trim().toUpperCase() || undefined;
-    if (normalizedGstin && !/^\\d{2}[A-Z0-9]{10}[A-Z]\\d[A-Z]Z[A-Z0-9]$/.test(normalizedGstin)) {
+    if (normalizedGstin && !/^\d{2}[A-Z0-9]{10}[A-Z]\d[A-Z]Z[A-Z0-9]$/.test(normalizedGstin)) {
       throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Customer GSTIN format is invalid.");
     }
 
