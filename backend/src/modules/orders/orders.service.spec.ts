@@ -49,7 +49,9 @@ describe("OrdersService", () => {
             ? invoiceRepo
             : entity === InvoiceSequenceEntity
               ? { ...createMockRepo<InvoiceSequenceEntity>(), query: jest.fn().mockResolvedValue([{ issuedNumber: "1" }]) }
-              : createMockRepo(),
+              : entity === OrderLineItemEntity
+                ? { ...createMockRepo<OrderLineItemEntity>(), find: jest.fn().mockResolvedValue([]) }
+                : createMockRepo(),
       ),
     };
     transactionService = { runInTransaction: jest.fn(async (work: (qr: unknown) => Promise<unknown>) => work({ manager })) };
