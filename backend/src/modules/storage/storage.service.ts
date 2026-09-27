@@ -429,10 +429,10 @@ export class StorageService {
   }
 
   async deleteMedia(key: string): Promise<{ deleted: true; key: string }> {
-    if (!/^product-media\/[0-9a-f-]{36}(?:\.[a-z0-9]{1,12})?$/i.test(key)) {
+    if (!/^(?:product-media|cms-assets|review-media)\/[0-9a-f-]{36}(?:\.[a-z0-9]{1,12})?$/i.test(key)) {
       throw new BadRequestException("Invalid media reference.");
     }
-    const references = await this.getMediaReferences(key);
+    const references = key.startsWith("product-media/") ? await this.getMediaReferences(key) : { used: false, products: [] };
     if (references.used) {
       throw new BadRequestException("Media is still used by a product and cannot be deleted.");
     }

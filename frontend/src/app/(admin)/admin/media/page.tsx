@@ -17,21 +17,23 @@ function MediaContent() {
   const [reoptimizing, setReoptimizing] = useState(false);
   const [optimizationReport, setOptimizationReport] = useState<{ scanned: number; optimized: number; unchanged: number; failed: number; savedBytes: number } | null>(null);
   const [deletingKey, setDeletingKey] = useState<string | null>(null);
+  const [category, setCategory] = useState<"product-media" | "cms-assets" | "review-media">("product-media");
   const formatBytes = (bytes: number) => bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`;
 
   useEffect(() => {
-    void adminApi.listMedia()
+    setLoading(true); setError(null); setOptimizationReport(null);
+    void adminApi.listMedia(category)
       .then(({ items }) => setUploaded(items.map(({ key, url, type, contentType, size, originalSize, savedBytes, savedPercent }) => ({ key, url, type, contentType, size, originalSize, savedBytes, savedPercent }))))
       .catch((err) => setError(err instanceof AdminApiError ? err.message : "Unable to load media library."))
       .finally(() => setLoading(false));
-  }, []);
+  }, [category]);
 
   async function handleReoptimize() {
     setError(null); setOptimizationReport(null); setReoptimizing(true);
     try {
-      const report = await adminApi.reoptimizeMedia();
+      const report = await adminApi.reoptimizeMedia(category);
       setOptimizationReport(report);
-      const { items } = await adminApi.listMedia();
+      const { items } = await adminApi.listMedia(category);
       setUploaded(items.map(({ key, url, type, contentType, size, originalSize, savedBytes, savedPercent }) => ({ key, url, type, contentType, size, originalSize, savedBytes, savedPercent })));
     } catch (err) {
       setError(err instanceof AdminApiError ? err.message : "Media optimization failed.");
@@ -45,13 +47,13 @@ function MediaContent() {
     if (!window.confirm(`Delete this ${item.type} from Media Library? This cannot be undone.`)) return;
     setDeletingKey(key);
     try {
-      const references = await adminApi.getMediaReferences(key);
+      const references = category === "product-media" ? await adminApi.getMediaReferences(key, category) : { used: false, products: [] };
       if (references.used) {
         const names = references.products.slice(0, 3).map((product) => product.name).join(", ");
         setError(`Delete blocked: this media is used by ${references.products.length} product(s)${names ? ` — ${names}` : ""}.`);
         return;
       }
-      await adminApi.deleteMedia(key);
+      await adminApi.deleteMedia(key, category);
       setUploaded((prev) => prev.filter((media) => media.key !== key));
     } catch (err) {
       setError(err instanceof AdminApiError ? err.message : "Unable to delete media.");
@@ -66,7 +68,7 @@ function MediaContent() {
     setError(null); setUploading(true);
     try {
       const results = await Promise.all(files.map(async (file) => {
-        const result = await adminApi.uploadMedia(file);
+        const result = await adminApi.uploadMedia(file, category);
         return { key: result.key, url: result.url, contentType: result.contentType, size: result.storedSize, originalSize: result.originalSize, savedBytes: result.savedBytes, savedPercent: result.savedPercent, type: file.type.startsWith("video/") ? "video" as const : "image" as const };
       }));
       setUploaded((prev) => [...results, ...prev]);
@@ -78,10 +80,11 @@ function MediaContent() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div><h1 className="font-display text-[32px] font-semibold text-ink">Media Library</h1><p className="mt-1 text-sm text-muted">Upload product photos, MP4/WebM videos and campaign media.</p></div>
+      <div><h1 className="font-display text-[32px] font-semibold text-ink">Media Library</h1><p className="mt-1 text-sm text-muted">Manage product photos, videos, CMS assets and review media.</p></div>
       {error && <Alert tone="error">{error}</Alert>}
       <RoleGate module="content" level="full" fallback={<Alert tone="information">You do not have permission to upload media.</Alert>}>
         <div className="flex flex-wrap items-center gap-4 rounded-xl bg-white p-6 shadow-rest">
+          <label className="flex items-center gap-2 text-sm font-medium text-ink">Library<select value={category} onChange={(event) => setCategory(event.target.value as typeof category)} className="rounded-md border border-line bg-white px-3 py-2"><option value="product-media">Product Media</option><option value="cms-assets">CMS Assets</option><option value="review-media">Review Media</option></select></label>
           <input ref={fileInput} type="file" multiple accept="image/jpeg,image/png,image/webp,video/mp4" aria-label="Choose media files" onChange={(event) => setSelectedFiles(event.target.files?.length ?? 0)} />
           <Button variant="primary" disabled={uploading || reoptimizing} onClick={handleUpload}>{uploading ? "Optimizing & Uploading..." : "Upload Media"}</Button>
           <Button variant="secondary" disabled={uploading || reoptimizing} onClick={handleReoptimize}>{reoptimizing ? "Optimizing Library..." : "Safe Optimize Library"}</Button>

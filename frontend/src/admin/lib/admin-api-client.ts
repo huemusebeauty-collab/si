@@ -95,13 +95,13 @@ export const adminApi = {
   listAuditLogs: (params: URLSearchParams) => request<Paginated<AuditLogEntry>>(`/admin/audit-logs?${params}`),
   exportProductsCsvUrl: () => `${API_BASE}/admin/products/export`,
   importProductsCsv: (csv: string) => request<{ succeeded: number; failed: { row: number; reason: string }[] }>("/admin/products/import", { method: "POST", body: JSON.stringify({ csv }) }),
-  listMedia: () => request<{ items: AdminMediaItem[] }>("/storage/media/library", { cache: "no-store" }),
-  reoptimizeMedia: () => request<{ category: string; scanned: number; optimized: number; unchanged: number; failed: number; savedBytes: number; results: { key: string; action: string; beforeBytes: number; afterBytes: number; savedBytes: number; savedPercent: number }[] }>("/storage/media/reoptimize?category=product-media", { method: "POST" }),
-  getMediaReferences: (key: string) => request<{ used: boolean; products: { id: string; name: string; slug: string }[] }>(`/storage/media/${encodeURIComponent("product-media")}/${encodeURIComponent(key.split("/").pop() ?? key)}/references`),
-  deleteMedia: (key: string) => request<{ deleted: true; key: string }>(`/storage/media/${encodeURIComponent("product-media")}/${encodeURIComponent(key.split("/").pop() ?? key)}`, { method: "DELETE" }),
-  uploadMedia: async (file: File): Promise<{ key: string; url: string; originalSize: number; storedSize: number; savedBytes: number; savedPercent: number; contentType: string }> => {
+  listMedia: (category = "product-media") => request<{ items: AdminMediaItem[] }>(`/storage/media/library?category=${encodeURIComponent(category)}`, { cache: "no-store" }),
+  reoptimizeMedia: (category = "product-media") => request<{ category: string; scanned: number; optimized: number; unchanged: number; failed: number; savedBytes: number; results: { key: string; action: string; beforeBytes: number; afterBytes: number; savedBytes: number; savedPercent: number }[] }>(`/storage/media/reoptimize?category=${encodeURIComponent(category)}`, { method: "POST" }),
+  getMediaReferences: (key: string, category = "product-media") => request<{ used: boolean; products: { id: string; name: string; slug: string }[] }>(`/storage/media/${encodeURIComponent(category)}/${encodeURIComponent(key.split("/").pop() ?? key)}/references`),
+  deleteMedia: (key: string, category = "product-media") => request<{ deleted: true; key: string }>(`/storage/media/${encodeURIComponent(category)}/${encodeURIComponent(key.split("/").pop() ?? key)}`, { method: "DELETE" }),
+  uploadMedia: async (file: File, category = "product-media"): Promise<{ key: string; url: string; originalSize: number; storedSize: number; savedBytes: number; savedPercent: number; contentType: string }> => {
     const token = getToken(); const form = new FormData(); form.append("file", file);
-    const response = await fetch(`${API_BASE}/storage/upload`, { method: "POST", headers: token ? { Authorization: `Bearer ${token}` } : {}, body: form });
+    const response = await fetch(`${API_BASE}/storage/upload?category=${encodeURIComponent(category)}`, { method: "POST", headers: token ? { Authorization: `Bearer ${token}` } : {}, body: form });
     if (!response.ok) {
       const body = await response.json().catch(() => ({ errorCode: "UNKNOWN", message: response.statusText }));
       throw new AdminApiError(response.status, body.errorCode ?? "UPLOAD_FAILED", body.message ?? "Upload failed.");
