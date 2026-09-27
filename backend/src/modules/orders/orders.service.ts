@@ -238,7 +238,31 @@ export class OrdersService {
         if (Object.keys(customerAddress).length === 0 && defaultAddress) customerAddress = { ...defaultAddress };
         if (Object.keys(shippingAddress).length === 0 && defaultAddress) shippingAddress = { ...defaultAddress };
       } else {
-        customerId = randomUUID();
+        const fullName = customerName || "Walk-in Customer";
+        const nameParts = fullName.split(/\s+/).filter(Boolean);
+        const firstName = nameParts.shift() || "Walk-in";
+        const lastName = nameParts.join(" ") || "Customer";
+        const address = Object.keys(customerAddress).length > 0
+          ? {
+              line1: String(customerAddress.line1 ?? "").trim(),
+              line2: customerAddress.line2 ? String(customerAddress.line2).trim() : undefined,
+              city: String(customerAddress.city ?? "").trim(),
+              region: String(customerAddress.region ?? "").trim(),
+              stateCode: customerAddress.stateCode ? String(customerAddress.stateCode).trim() : undefined,
+              postalCode: String(customerAddress.postalCode ?? "").trim(),
+              country: String(customerAddress.country ?? "India").trim(),
+              isDefault: true,
+            }
+          : undefined;
+        const customer = await this.customers.createAdminCustomer({
+          firstName,
+          lastName,
+          email: customerEmail,
+          phone: customerPhone,
+          gstin: customerGstin,
+          address,
+        });
+        customerId = customer.id;
       }
 
       const placeOfSupplyState = typeof shippingAddress.region === "string" ? shippingAddress.region.trim() || undefined : undefined;
