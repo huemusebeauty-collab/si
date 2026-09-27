@@ -32,7 +32,7 @@ export class ProductsService {
   }
 
   async updateProductById(productId: string, data: {
-    slug: string; name: string; category: CategoryEntity; price: number; salePrice?: number;
+    slug: string; name: string; commonName?: string; category: CategoryEntity; price: number; salePrice?: number;
     description: string; content: ProductContent; metaTitle: string; metaDescription: string;
     mediaUrls: string[]; hsnCode?: string; gstRate?: number; taxInclusiveMrp?: boolean;
     variants: { id?: string; sku: string; name: string; hexColor?: string; stockQuantity: number; mrp?: number }[];
@@ -91,6 +91,7 @@ export class ProductsService {
       }
       locked.slug = data.slug;
       locked.name = data.name;
+      if (data.commonName !== undefined) locked.commonName = data.commonName.trim() || undefined;
       locked.category = data.category;
       locked.price = String(data.price);
       locked.salePrice = data.salePrice !== undefined ? String(data.salePrice) : undefined;
