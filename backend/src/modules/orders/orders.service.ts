@@ -78,7 +78,7 @@ export class OrdersService {
         ? {
             id: customer.id,
             name: [customer.firstName, customer.lastName].filter(Boolean).join(" "),
-            email: customer.email,
+            email: customer.email ?? "",
             phone: customer.phone ?? null,
             addresses: (customer.addresses ?? []).map((address) => ({
               id: address.id,
