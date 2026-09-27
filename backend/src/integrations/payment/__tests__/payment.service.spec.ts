@@ -23,6 +23,7 @@ describe("PaymentService reliability", () => {
     checkRefundEligibility: jest.fn(),
   };
   const products = { adjustStock: jest.fn() };
+  const logistics = {};
   const transactionService = {
     runInTransaction: jest.fn(async (fn) => fn({ manager: {
       update: jest.fn(),
@@ -43,6 +44,7 @@ describe("PaymentService reliability", () => {
       orders as never,
       products as never,
       transactionService as never,
+      logistics as never,
     );
   });
 
