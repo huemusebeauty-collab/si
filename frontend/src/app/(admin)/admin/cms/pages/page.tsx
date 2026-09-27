@@ -19,7 +19,11 @@ function CmsPagesContent() {
   const [slug, setSlug] = useState("about");
   const [content, setContent] = useState("");
   const [toast, setToast] = useState<string | null>(null);
-  const { data: page, isLoading, error, refetch } = useAdminQuery(() => adminApi.getPage(slug), [slug]);\n\n  useEffect(() => {\n    setContent(page?.content ?? "");\n  }, [page, slug]);
+  const { data: page, isLoading, error, refetch } = useAdminQuery(() => adminApi.getPage(slug), [slug]);
+
+  useEffect(() => {
+    setContent(page?.content ?? "");
+  }, [page, slug]);
 
   return (
     <div className="flex flex-col gap-6">
