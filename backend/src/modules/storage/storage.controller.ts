@@ -27,8 +27,9 @@ export class StorageController {
   @ApiConsumes("multipart/form-data")
   @Post("upload")
   @UseInterceptors(FileInterceptor("file"))
-  async upload(@UploadedFile() file: Express.Multer.File, @Req() request: Request) {
-    const result = await this.storage.upload(file);
+  async upload(@UploadedFile() file: Express.Multer.File, @Query("category") category: string = "product-media", @Req() request: Request) {
+    if (!MEDIA_CATEGORIES.includes(category as UploadCategory)) throw new BadRequestException("Invalid media category.");
+    const result = await this.storage.upload(file, category as UploadCategory);
     const [category, id] = result.key.split("/");
     const protocol = String(request.headers["x-forwarded-proto"] ?? request.protocol).split(",")[0].trim();
     const host = request.get("host");
