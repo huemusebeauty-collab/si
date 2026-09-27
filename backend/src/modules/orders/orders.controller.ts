@@ -7,6 +7,7 @@ import { Public } from "@/common/decorators/public.decorator";
 import { DomainErrorCode, DomainException } from "@/common/exceptions/domain.exception";
 import { RequirePermission } from "@/admin/common/require-permission.decorator";
 import { createGuestCheckoutToken, verifyGuestCheckoutToken } from "@/common/security/guest-checkout-token";
+import { CreateManualBillingDto } from "./dto/create-manual-billing.dto";
 
 @ApiTags("orders")
 @ApiBearerAuth()
@@ -20,6 +21,12 @@ export class OrdersController {
       throw new DomainException(DomainErrorCode.REAUTHENTICATION_REQUIRED, "You do not have access to this order.");
     }
     return order;
+  }
+
+  @RequirePermission("billing", "view")
+  @Post("admin/manual")
+  createManualBilling(@Body() body: CreateManualBillingDto) {
+    return this.orders.createManualBilling(body);
   }
 
   @RequirePermission("orders", "view")
