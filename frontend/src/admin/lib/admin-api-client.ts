@@ -62,6 +62,7 @@ export const adminApi = {
   getAdminInvoice: (id: string, size = "A4", format = "STANDARD") =>
     request<AdminInvoice>(`/orders/admin/${id}/invoice?size=${encodeURIComponent(size)}&format=${encodeURIComponent(format)}`),
   issueAdminInvoice: (id: string) => request<AdminInvoice>(`/orders/admin/${id}/invoice`, { method: "POST" }),
+  createManualBilling: (body: CreateManualBillingInput) => request<AdminInvoice>("/orders/admin/manual", { method: "POST", body: JSON.stringify(body) }),
   updateOrderStatus: (id: string, status: string) => request<AdminOrder>(`/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
   searchCustomers: (params: URLSearchParams) => request<SimpleList<AdminCustomer>>(`/admin/customers?${params}`),
   getCustomer: (id: string) => request<AdminCustomer>(`/admin/customers/${id}`),
@@ -123,7 +124,11 @@ export interface ProductTaxConfig { productId: string; productName: string; hsnC
 export interface Paginated<T> { items: T[]; meta: { page: number; pageSize: number; totalItems: number; totalPages: number } }
 export interface SimpleList<T> { items: T[]; totalItems: number }
 export interface DashboardOverview { kpis: { todaysOrders: number; todaysRevenue: number; lowStockCount: number; pendingReviews: number }; pendingTasks: { type: string; count: number; label: string }[]; recentActivity: AuditLogEntry[] }
-export interface AdminProduct { id: string; slug: string; name: string; price: string; status: string; visibility: string; category?: { id?: string; slug?: string; name: string } }
+export interface AdminProduct {
+  id: string; slug: string; name: string; price: string; salePrice?: string; status: string; visibility: string;
+  category?: { id?: string; slug?: string; name: string };
+  variants?: { id: string; sku: string; name: string; stockQuantity: number; mrp?: string }[];
+}
 export interface AdminProductDetail extends AdminProduct { salePrice?: string; description?: string; metaTitle?: string; metaDescription?: string; mediaUrls: string[]; content?: CreateProductInput["content"]; hsnCode?: string; gstRate?: string; taxInclusiveMrp: boolean; variants: { id: string; sku: string; name: string; hexColor?: string; stockQuantity: number; mrp?: string }[] }
 export interface AdminInventoryItem { id: string; sku: string; name: string; stockQuantity: number; stockState: "in-stock" | "low-stock" | "out-of-stock" | "coming-soon" | "pre-order"; version: number; product: { id: string; name: string; slug: string; category: string } }
 export interface CreateCategoryInput { name: string; slug: string; parentId?: string | null; displayOrder?: number; visible?: boolean; metaTitle?: string; metaDescription?: string }
@@ -149,6 +154,20 @@ export interface AdminOrder {
     addresses: Array<Record<string, unknown>>;
   };
 }
+export interface CreateManualBillingInput {
+  customerId?: string;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  customerGstin?: string;
+  billingAddress?: Record<string, unknown>;
+  shippingAddress?: Record<string, unknown>;
+  items: { variantId: string; quantity: number; unitPrice?: number; discountAmount?: number }[];
+  paymentMethod: "cash" | "upi" | "card" | "bank_transfer" | "other";
+  paymentReference?: string;
+  notes?: string;
+}
+
 export interface AdminInvoice {
   orderId: string;
   customerId?: string;
