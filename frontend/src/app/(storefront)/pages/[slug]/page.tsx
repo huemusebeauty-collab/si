@@ -54,16 +54,21 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const page = STATIC_PAGES[slug];
-  if (!page) return {};
+  const fallback = STATIC_PAGES[slug];
+  if (!fallback) return {};
+  const cmsPage = await getStaticPage(slug);
+  const page = cmsPage ?? fallback;
   return { title: page.title, alternates: { canonical: `/pages/${slug}` } };
 }
 
 export default async function StaticPage({ params }: Props) {
   const { slug } = await params;
-  const page = STATIC_PAGES[slug];
-  if (!page) notFound();
+  const fallback = STATIC_PAGES[slug];
+  if (!fallback) notFound();
 
+  const cmsPage = await getStaticPage(slug);
+  const page = cmsPage ?? fallback;
+  const body = cmsPage?.content ?? fallback.body;
   const faqs = slug === "faqs" ? await getFaqs() : [];
 
   return (
