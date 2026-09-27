@@ -16,7 +16,12 @@ export default async function SearchPage({ searchParams }: Props) {
   const query = q ?? "";
   const allProducts = query ? await getAllProducts() : [];
   const results = query
-    ? allProducts.filter((p) => p.name.toLowerCase().includes(query.toLowerCase()))
+    ? allProducts.filter((p) => {
+      const q = query.toLowerCase().trim();
+      return p.name.toLowerCase().includes(q) ||
+        (p.commonName ?? "").toLowerCase().includes(q) ||
+        p.shades.some((shade) => shade.name.toLowerCase().includes(q));
+    })
     : [];
 
   return (
