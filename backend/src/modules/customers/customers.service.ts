@@ -65,7 +65,7 @@ export class CustomersService {
     }
     const customer = this.customers.create({
       email,
-      passwordHash: await hashPassword(require("crypto").randomUUID()),
+      passwordHash: undefined,
       firstName: data.firstName.trim(),
       lastName: data.lastName.trim(),
       phone: data.phone?.trim() || undefined,
