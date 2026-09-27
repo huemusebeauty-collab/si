@@ -272,7 +272,17 @@ export class OrdersService {
         }
 
         const lineSubtotal = roundMoney(unitPrice * quantity);
-        const requestedDiscount = Math.max(0, Number(item.discountAmount ?? 0));
+        const discountType = item.discountType ?? "amount";
+        const discountValue = Math.max(0, Number(item.discountValue ?? item.discountAmount ?? 0));
+        if (!Number.isFinite(discountValue)) {
+          throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Discount must be a valid non-negative amount.");
+        }
+        if (discountType === "percentage" && discountValue > 100) {
+          throw new DomainException(DomainErrorCode.INVALID_PRODUCT_DATA, "Discount percentage cannot exceed 100%.");
+        }
+        const requestedDiscount = discountType === "percentage"
+          ? roundMoney(lineSubtotal * discountValue / 100)
+          : roundMoney(discountValue);
         const lineDiscount = roundMoney(Math.min(requestedDiscount, lineSubtotal));
         const amountAfterDiscount = roundMoney(lineSubtotal - lineDiscount);
         const tax = calculateGstWithinMrp({
@@ -299,7 +309,6 @@ export class OrdersService {
           productName: variant.product.name,
           unitPrice: unitPrice.toFixed(2),
           mrp: mrp == null ? undefined : mrp.toFixed(2),
-          hsnCode: variant.product.hsnCode,
           gstRate: variant.product.gstRate,
           taxInclusiveMrp: variant.product.taxInclusiveMrp,
           discountAmount: lineDiscount.toFixed(2),
@@ -754,7 +763,7 @@ export class OrdersService {
         placeOfSupply: { state: order.placeOfSupplyState ?? null, stateCode: order.placeOfSupplyStateCode ?? null },
         billingAddress: order.billingAddress,
         shippingAddress: order.shippingAddress,
-        lineItems: order.lineItems,
+        lineItems: order.lineItems.map(({ hsnCode: _hsnCode, ...line }) => line),
         subtotal: order.subtotal,
         discountAmount: order.discountAmount,
         taxableAmount: order.taxableAmount,
