@@ -36,7 +36,11 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(async (loginEmail: string, password: string) => {
     const result = await adminApi.login(loginEmail, password);
     setToken(result.sessionToken);
-    window.localStorage.setItem("hmb_admin_pending_email", loginEmail);
+    window.localStorage.setItem("hmb_admin_role", result.role);
+    window.localStorage.setItem("hmb_admin_email", loginEmail);
+    window.localStorage.removeItem("hmb_admin_pending_email");
+    setRole(result.role as AdminRole);
+    setEmail(loginEmail);
   }, []);
 
   const sendOtp = useCallback(async (phoneNumber: string) => {
