@@ -57,6 +57,26 @@ export class CustomersService {
     await this.customers.delete({ id: customerId });
   }
 
+  async createAdminCustomer(data: { firstName: string; lastName: string; email?: string; phone?: string; gstin?: string; address?: AddressDto }): Promise<CustomerEntity> {
+    const email = data.email?.trim().toLowerCase() || undefined;
+    if (email) {
+      const existing = await this.findByEmail(email);
+      if (existing) throw new ConflictException("A customer with this email already exists.");
+    }
+    const customer = this.customers.create({
+      email,
+      passwordHash: await hashPassword(require("crypto").randomUUID()),
+      firstName: data.firstName.trim(),
+      lastName: data.lastName.trim(),
+      phone: data.phone?.trim() || undefined,
+      gstin: data.gstin?.trim().toUpperCase() || undefined,
+      preferences: { source: "admin" },
+    });
+    const saved = await this.customers.save(customer);
+    if (data.address) await this.addAddress(saved.id, data.address);
+    return this.findById(saved.id);
+  }
+
   // getProfile(customerId) -> Customer (Phase 16 §16.3)
   async getProfile(customerId: string): Promise<CustomerEntity> {
     return this.findById(customerId);
