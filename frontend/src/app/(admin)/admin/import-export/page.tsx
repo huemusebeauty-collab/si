@@ -14,9 +14,16 @@ function ImportExportContent() {
   async function handleImport() {
     const file = fileInput.current?.files?.[0];
     if (!file) return;
-    const csv = await file.text();
-    const res = await adminApi.importProductsCsv(csv);
-    setResult(res);
+    try {
+      const csv = await file.text();
+      const res = await adminApi.importProductsCsv(csv);
+      setResult(res);
+    } catch (error) {
+      setResult({
+        succeeded: 0,
+        failed: [{ row: 1, reason: error instanceof Error ? error.message : "Import failed." }],
+      });
+    }
   }
 
   return (
