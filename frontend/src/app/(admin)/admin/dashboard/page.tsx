@@ -23,7 +23,7 @@ function DashboardContent() {
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <KpiCard label="Today's Orders" value={data.kpis.todaysOrders} />
-        <KpiCard label="Today's Revenue" value={`$${data.kpis.todaysRevenue.toFixed(2)}`} />
+        <KpiCard label="Today's Revenue" value={`₹${data.kpis.todaysRevenue.toFixed(2)}`} />
         <KpiCard label="Low Stock" value={data.kpis.lowStockCount} />
         <KpiCard label="Pending Reviews" value={data.kpis.pendingReviews} />
       </div>
