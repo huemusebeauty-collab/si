@@ -67,6 +67,8 @@ function ManualBilling() {
   const [walkInName, setWalkInName] = useState("");
   const [walkInPhone, setWalkInPhone] = useState("");
   const [walkInEmail, setWalkInEmail] = useState("");
+  const [customerGstin, setCustomerGstin] = useState("");
+  const [customerAddress, setCustomerAddress] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -149,6 +151,9 @@ function ManualBilling() {
         customerName: selectedCustomer ? [selectedCustomer.firstName, selectedCustomer.lastName].filter(Boolean).join(" ") : walkInName.trim(),
         customerEmail: selectedCustomer?.email ?? (walkInEmail.trim() || undefined),
         customerPhone: selectedCustomer ? undefined : walkInPhone.trim() || undefined,
+        customerGstin: customerGstin.trim().toUpperCase() || undefined,
+        billingAddress: customerAddress.trim() ? { line1: customerAddress.trim(), country: "India" } : undefined,
+        shippingAddress: customerAddress.trim() ? { line1: customerAddress.trim(), country: "India" } : undefined,
         items: rows.map((row) => ({
           variantId: row.variantId,
           quantity: row.quantity,
@@ -167,6 +172,8 @@ function ManualBilling() {
       setWalkInName("");
       setWalkInPhone("");
       setWalkInEmail("");
+      setCustomerGstin("");
+      setCustomerAddress("");
       setPaymentReference("");
       setNotes("");
     } catch (error) {
@@ -227,6 +234,11 @@ function ManualBilling() {
                 </div>
               </div>
             )}
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <Input label="Customer GST No. (optional)" value={customerGstin} onChange={(e) => setCustomerGstin(e.target.value.toUpperCase())} placeholder="15-character GSTIN" maxLength={15} />
+              <Input label="Customer Address (optional)" value={customerAddress} onChange={(e) => setCustomerAddress(e.target.value)} placeholder="Billing / delivery address" />
+            </div>
+            <p className="mt-2 text-xs text-muted">GST No. and address are optional. If left blank for an existing customer, their saved default address is used when available.</p>
           </div>
         </div>
 
