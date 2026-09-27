@@ -1,3 +1,4 @@
+import { OrderLineItemEntity } from "@/modules/orders/entities/order-line-item.entity";
 import { OrderEntity } from "@/modules/orders/entities/order.entity";
 import { OrderStatusHistoryEntity } from "@/modules/orders/entities/order-status-history.entity";
 import { ShipmentEntity } from "./entities/shipment.entity";
