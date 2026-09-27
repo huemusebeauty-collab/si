@@ -87,8 +87,9 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
             const quantity = Number(row.quantity ?? 1);
             const unitPrice = String(row.unitPrice ?? "0.00");
             const lineTotal = Number(row.taxableAmount ?? Number(unitPrice) * quantity);
+            const hsnCode = String(row.hsnCode ?? "—");
             const tax = String(row.taxAmount ?? "0.00");
-            return `<tr><td>${escapeHtml(name)}</td><td style="text-align:center">${quantity}</td><td style="text-align:right">₹${escapeHtml(unitPrice)}</td><td style="text-align:right">₹${lineTotal.toFixed(2)}</td><td style="text-align:right">₹${escapeHtml(tax)}</td></tr>`;
+            return `<tr><td>${escapeHtml(name)}</td><td>${escapeHtml(hsnCode)}</td><td style="text-align:center">${quantity}</td><td style="text-align:right">₹${escapeHtml(unitPrice)}</td><td style="text-align:right">₹${lineTotal.toFixed(2)}</td><td style="text-align:right">₹${escapeHtml(tax)}</td></tr>`;
           }).join("")
         : "";
 
@@ -106,7 +107,7 @@ table{width:100%;border-collapse:collapse;margin-top:24px}th,td{border-bottom:1p
 <div class="header"><div><h1>SILKU</h1><div>Tax Invoice</div></div><div style="text-align:right"><strong>Invoice:</strong> ${escapeHtml(issued.invoiceNumber ?? "")}<br><strong>Order:</strong> ${escapeHtml(order.id)}<br><strong>Issued:</strong> ${escapeHtml(issued.issuedAt ? new Date(issued.issuedAt).toLocaleString() : "")}</div></div>
 <div class="grid"><div class="box"><h2>Bill From</h2><strong>${escapeHtml(get(supplier, "legalEntityName"))}</strong><br>${escapeHtml(get(supplier, "address"))}<br>${escapeHtml(get(supplier, "state"))} ${escapeHtml(get(supplier, "stateCode"))}<br>${get(supplier, "gstin") ? `GSTIN: ${escapeHtml(get(supplier, "gstin"))}` : ""}</div>
 <div class="box"><h2>Bill To / Delivery Address</h2><strong>${escapeHtml(get(recipient, "legalName") || get(address, "fullName"))}</strong><br>${fullAddress}<br>${get(address, "phone") ? `Phone: ${escapeHtml(get(address, "phone"))}<br>` : ""}${get(recipient, "gstin") ? `GSTIN: ${escapeHtml(get(recipient, "gstin"))}` : ""}</div></div>
-<table><thead><tr><th>Product</th><th>Qty</th><th style="text-align:right">Unit Price</th><th style="text-align:right">Taxable</th><th style="text-align:right">GST</th></tr></thead><tbody>${lines}</tbody></table>
+<table><thead><tr><th>Product</th><th>HSN Code</th><th>Qty</th><th style="text-align:right">Unit Price</th><th style="text-align:right">Taxable</th><th style="text-align:right">GST</th></tr></thead><tbody>${lines}</tbody></table>
 <div class="summary"><div class="row"><span>Subtotal</span><strong>₹${escapeHtml(issued.subtotal)}</strong></div><div class="row"><span>Discount</span><strong>- ₹${escapeHtml(issued.discountAmount)}</strong></div><div class="row"><span>Taxable Amount</span><strong>₹${escapeHtml(issued.taxableAmount)}</strong></div><div class="row"><span>GST</span><strong>₹${escapeHtml(issued.taxAmount)}</strong></div><div class="row"><span>Logistics / Shipping Fee</span><strong>₹${escapeHtml(issued.logisticsFee ?? "0.00")}</strong></div><div class="row"><span>Platform Fee</span><strong>₹${escapeHtml(issued.platformFee ?? "0.00")}</strong></div><div class="row grand"><span>Total Paid</span><strong>₹${escapeHtml(issued.total)} ${escapeHtml(issued.currency)}</strong></div></div>
 <div class="footer">This invoice is generated from the recorded order and invoice snapshot. Invoice layout: ${escapeHtml(issued.layout.size)} / ${escapeHtml(issued.layout.format)}.</div>
 </div><script>window.onload=()=>window.print()</script></body></html>`;
