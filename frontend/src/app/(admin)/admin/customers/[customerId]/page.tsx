@@ -23,8 +23,24 @@ function CustomerDetailContent({ customerId }: { customerId: string }) {
       <h1 className="font-display text-[32px] font-semibold text-ink">{customer.firstName} {customer.lastName}</h1>
       <div className="rounded-md bg-white p-6 shadow-rest">
         <p><strong>Email:</strong> {customer.email}</p>
+        <p><strong>Phone:</strong> {customer.phone || "—"}</p>
         <p><strong>Joined:</strong> {new Date(customer.createdAt).toLocaleDateString()}</p>
       </div>
+      <section>
+        <h2 className="mb-3 font-semibold text-ink">Billing / Shipping Address</h2>
+        <div className="rounded-md bg-white p-6 shadow-rest">
+          {(customer.addresses ?? []).length === 0 && <p className="text-stone">No address saved.</p>}
+          {(customer.addresses ?? []).map((address) => (
+            <div key={address.id ?? address.line1} className="border-b border-fog pb-4 last:border-b-0 last:pb-0">
+              <p>{address.line1}</p>
+              {address.line2 && <p>{address.line2}</p>}
+              <p>{address.city}, {address.region}{address.stateCode ? ` (${address.stateCode})` : ""}</p>
+              <p>{address.postalCode}, {address.country}</p>
+              {address.isDefault && <p className="mt-1 text-sm text-stone">Default address</p>}
+            </div>
+          ))}
+        </div>
+      </section>
       <section>
         <h2 className="mb-3 font-semibold text-ink">Order History</h2>
         <ul className="flex flex-col divide-y divide-fog rounded-md bg-white shadow-rest">
