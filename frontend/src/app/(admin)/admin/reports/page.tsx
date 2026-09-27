@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { RequireAdminAuth } from "@/admin/components/RequireAdminAuth";
 import { AdminShell } from "@/admin/components/AdminShell";
 import { Tabs } from "@/components/composite/Tabs";
@@ -8,8 +8,8 @@ import { adminApi } from "@/admin/lib/admin-api-client";
 import { KpiCard } from "@/admin/components/KpiCard";
 import { SkeletonLoader } from "@/components/composite/SkeletonLoader";
 
-function SalesReport() {
-  const { data, isLoading } = useAdminQuery(() => adminApi.getSalesSummary(new URLSearchParams()), []);
+function SalesReport({ params }: { params: URLSearchParams }) {
+  const { data, isLoading } = useAdminQuery(() => adminApi.getSalesSummary(params), [params.toString()]);
   if (isLoading || !data) return <SkeletonLoader className="h-32 w-full" />;
   return (
     <div className="grid grid-cols-3 gap-4">
@@ -20,8 +20,8 @@ function SalesReport() {
   );
 }
 
-function CustomersReport() {
-  const { data, isLoading } = useAdminQuery(() => adminApi.getCustomersReport(new URLSearchParams()), []);
+function CustomersReport({ params }: { params: URLSearchParams }) {
+  const { data, isLoading } = useAdminQuery(() => adminApi.getCustomersReport(params), [params.toString()]);
   if (isLoading || !data) return <SkeletonLoader className="h-32 w-full" />;
   return (
     <div className="grid grid-cols-2 gap-4">
@@ -31,7 +31,7 @@ function CustomersReport() {
   );
 }
 
-function ProductsReport() {
+function OrdersReport({ params }: { params: URLSearchParams }) {\n  const { data, isLoading } = useAdminQuery(() => adminApi.getOrdersReport(params), [params.toString()]);\n  if (isLoading || !data) return <SkeletonLoader className="h-32 w-full" />;\n  return (\n    <div className="flex flex-col gap-4">\n      <div className="grid grid-cols-3 gap-4">\n        <KpiCard label="Orders" value={data.orderCount} />\n        <KpiCard label="Revenue" value={`₹${data.totalRevenue.toFixed(2)}`} />\n        <KpiCard label="Avg Order Value" value={`₹${data.averageOrderValue.toFixed(2)}`} />\n      </div>\n      <div className="rounded-md bg-white p-4 shadow-rest">\n        <h3 className="mb-3 font-semibold text-ink">Status Breakdown</h3>\n        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">\n          {Object.entries(data.statusBreakdown).map(([status, count]) => (\n            <div key={status} className="flex justify-between rounded border border-fog p-3">\n              <span className="capitalize">{status.replaceAll("_", " ")}</span>\n              <span className="font-semibold">{count}</span>\n            </div>\n          ))}\n        </div>\n      </div>\n    </div>\n  );\n}\n\nfunction ProductsReport() {
   const { data, isLoading } = useAdminQuery(() => adminApi.getProductsReport(), []);
   if (isLoading || !data) return <SkeletonLoader className="h-32 w-full" />;
   return (
@@ -64,11 +64,11 @@ function CouponsReport() {
 function ReportsContent() {
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="font-display text-[32px] font-semibold text-ink">Reports</h1>
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">\n        <h1 className="font-display text-[32px] font-semibold text-ink">Reports</h1>\n        <div className="flex flex-wrap items-end gap-3">\n          <label className="flex flex-col gap-1 text-sm font-medium text-stone">From<input type="date" value={dateFrom} max={dateTo || undefined} onChange={(e) => setDateFrom(e.target.value)} className="rounded border border-fog bg-white px-3 py-2 text-ink" /></label>\n          <label className="flex flex-col gap-1 text-sm font-medium text-stone">To<input type="date" value={dateTo} min={dateFrom || undefined} onChange={(e) => setDateTo(e.target.value)} className="rounded border border-fog bg-white px-3 py-2 text-ink" /></label>\n          <button type="button" onClick={() => { setDateFrom(""); setDateTo(""); }} className="rounded border border-fog px-3 py-2 text-sm font-semibold text-ink">Last 30 days</button>\n        </div>\n      </div>
       <Tabs
         items={[
-          { id: "sales", label: "Sales Summary", content: <SalesReport /> },
-          { id: "customers", label: "Customers", content: <CustomersReport /> },
+          { id: "sales", label: "Sales Summary", content: <SalesReport params={params} /> },
+          { id: "orders", label: "Orders", content: <OrdersReport params={params} /> },\n          { id: "customers", label: "Customers", content: <CustomersReport params={params} /> },
           { id: "products", label: "Products (Low Stock)", content: <ProductsReport /> },
           { id: "coupons", label: "Coupons", content: <CouponsReport /> },
         ]}
