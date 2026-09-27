@@ -4,7 +4,7 @@ import { LessThanOrEqual, MoreThanOrEqual, Repository } from "typeorm";
 import { CacheInvalidationService } from "@/cache/cache-invalidation.service";
 import { StaticPageEntity } from "./entities/static-page.entity";
 import { BannerEntity } from "./entities/banner.entity";
-import { FaqEntryEntity } from "./entities/faq-entry.entity";
+import { FaqEntryEntity } from "./entities/faq-entry.entity";\nimport { CMS_PAGE_SEEDS } from "@/database/seeds/data/cms";
 
 // Sprint 3.5 — CmsService, method signatures per Phase 16 §16.11.
 @Injectable()
