@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { CmsService } from "./cms.service";
 import { Public } from "@/common/decorators/public.decorator";
@@ -28,7 +28,7 @@ export class CmsController {
   }
 
   @Public()
-  @Cacheable({ ttlSeconds: 60, keyPrefix: "cms" }) // shorter TTL — banners are schedule-sensitive (startAt/endAt)
+  @Cacheable({ ttlSeconds: 60, keyPrefix: "cms" })
   @Get("banners")
   listBanners(@Query("placement") placement: string) {
     return this.cms.listBanners(placement);
@@ -39,6 +39,25 @@ export class CmsController {
   @Post("banners")
   scheduleBanner(@Body() body: Partial<BannerEntity> & { startAt: string; endAt: string }) {
     return this.cms.scheduleBanner(body, new Date(body.startAt), new Date(body.endAt));
+  }
+
+  @ApiBearerAuth()
+  @Roles("admin")
+  @Patch("banners/:id")
+  updateBanner(@Param("id") id: string, @Body() body: Partial<BannerEntity> & { startAt?: string; endAt?: string }) {
+    return this.cms.updateBanner(id, {
+      ...body,
+      ...(body.startAt ? { startAt: new Date(body.startAt) } : {}),
+      ...(body.endAt ? { endAt: new Date(body.endAt) } : {}),
+    });
+  }
+
+  @ApiBearerAuth()
+  @Roles("admin")
+  @Delete("banners/:id")
+  async deleteBanner(@Param("id") id: string) {
+    await this.cms.deleteBannerById(id);
+    return { deleted: true };
   }
 
   @Public()
