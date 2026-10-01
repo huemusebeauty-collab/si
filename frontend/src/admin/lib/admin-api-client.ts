@@ -16,18 +16,33 @@ export function setToken(token: string | null): void {
   else window.localStorage.removeItem("hmb_admin_token");
 }
 
+const ADMIN_REQUEST_TIMEOUT_MS = 15000;
+
 async function request<T>(path: string, options: RequestInit = {}, bearerToken?: string | null): Promise<T> {
   const token = bearerToken ?? getToken();
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers },
-  });
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({ errorCode: "UNKNOWN", message: response.statusText }));
-    throw new AdminApiError(response.status, body.errorCode ?? "UNKNOWN", body.message ?? "Request failed.");
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), ADMIN_REQUEST_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      signal: controller.signal,
+      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers },
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({ errorCode: "UNKNOWN", message: response.statusText }));
+      throw new AdminApiError(response.status, body.errorCode ?? "UNKNOWN", body.message ?? "Request failed.");
+    }
+    const envelope = await response.json();
+    return envelope.data as T;
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new AdminApiError(408, "ADMIN_REQUEST_TIMEOUT", "The admin service did not respond within 15 seconds. Please retry.");
+    }
+    throw err;
+  } finally {
+    window.clearTimeout(timeoutId);
   }
-  const envelope = await response.json();
-  return envelope.data as T;
 }
 
 export const adminApi = {

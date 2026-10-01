@@ -83,10 +83,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
           <span className="hidden text-[13px] text-stone sm:block" aria-live="polite">Signed in as {email} — {role ? ROLE_LABELS[role] : ""}</span>
           <div className="flex items-center gap-3">
             <Avatar alt={email ?? "Admin"} size={32} />
-            <Button variant="text" onClick={logout}>
-              <Icon size={16} label=""><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5M21 12H9" /></Icon>
-              Log Out
-            </Button>
+            <Button variant="text" onClick={logout}>Log Out</Button>
           </div>
         </header>
         <main id="admin-main-content" className="flex-1 p-4 sm:p-6">{children}</main>

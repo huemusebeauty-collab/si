@@ -2,8 +2,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { AdminApiError } from "@/admin/lib/admin-api-client";
 
-// Shared admin query state. Fetchers are normalized through Promise.resolve()
-// so synchronous failures cannot leave an admin page stuck/blank.
+// Shared admin query state. Every request is settled by the API client timeout,
+// so a stalled backend/network cannot leave an admin page in an infinite loading state.
 export function useAdminQuery<T>(fetcher: () => Promise<T>, deps: unknown[]) {
   const [data, setData] = useState<T | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -13,8 +13,7 @@ export function useAdminQuery<T>(fetcher: () => Promise<T>, deps: unknown[]) {
     setIsLoading(true);
     setError(null);
 
-    Promise.resolve()
-      .then(() => fetcher())
+    void fetcher()
       .then((result) => setData(result))
       .catch((err) => {
         if (err instanceof AdminApiError) {
@@ -32,8 +31,7 @@ export function useAdminQuery<T>(fetcher: () => Promise<T>, deps: unknown[]) {
     setIsLoading(true);
     setError(null);
 
-    Promise.resolve()
-      .then(() => fetcher())
+    void fetcher()
       .then((result) => {
         if (active) setData(result);
       })
