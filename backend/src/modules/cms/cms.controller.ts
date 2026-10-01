@@ -7,6 +7,7 @@ import { Roles } from "@/common/decorators/roles.decorator";
 import { CurrentUser, type AuthenticatedUser } from "@/common/decorators/current-user.decorator";
 import type { BannerEntity } from "./entities/banner.entity";
 import type { FaqEntryEntity } from "./entities/faq-entry.entity";
+import type { SocialProfileEntity } from "./entities/social-profile.entity";
 
 @ApiTags("cms")
 @Controller({ path: "cms", version: "1" })
