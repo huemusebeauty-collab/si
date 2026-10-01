@@ -16,8 +16,8 @@ export function setToken(token: string | null): void {
   else window.localStorage.removeItem("hmb_admin_token");
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = getToken();
+async function request<T>(path: string, options: RequestInit = {}, bearerToken?: string | null): Promise<T> {
+  const token = bearerToken ?? getToken();
   const response = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers },
@@ -32,8 +32,8 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 export const adminApi = {
   login: (email: string, password: string) => request<{ sessionToken: string; role: string; expiresAt: string }>("/admin/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
-  sendOtp: (phoneNumber: string) => request<{ sent: true; devOtp?: string }>("/admin/auth/otp/send", { method: "POST", body: JSON.stringify({ phoneNumber }) }),
-  verifyOtp: (phoneNumber: string, code: string) => request<{ sessionToken: string; role: string; expiresAt: string }>("/admin/auth/otp/verify", { method: "POST", body: JSON.stringify({ phoneNumber, code }) }),
+  sendOtp: (phoneNumber: string, challengeToken: string) => request<{ sent: true; devOtp?: string }>("/admin/auth/otp/send", { method: "POST", body: JSON.stringify({ phoneNumber }) }, challengeToken),
+  verifyOtp: (phoneNumber: string, code: string, challengeToken: string) => request<{ sessionToken: string; role: string; expiresAt: string }>("/admin/auth/otp/verify", { method: "POST", body: JSON.stringify({ phoneNumber, code }) }, challengeToken),
   requestPasswordReset: (email: string, phoneNumber: string) => request<{ sent: true; phoneNumber: string; resetToken: string; devOtp?: string }>("/admin/auth/password/reset/request", { method: "POST", body: JSON.stringify({ email, phoneNumber }) }),
   confirmPasswordReset: (resetToken: string, code: string, newPassword: string) => request<{ reset: true }>("/admin/auth/password/reset/confirm", { method: "POST", body: JSON.stringify({ resetToken, code, newPassword }) }),
   getDashboardOverview: () => request<DashboardOverview>("/admin/dashboard/overview"),
