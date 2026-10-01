@@ -69,7 +69,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
           <ul className="flex flex-col gap-1">
             {NAV_ITEMS.map((item) => (
               <RoleGate key={item.href} module={item.module} level="view">
-                <li><Link href={item.href} aria-current={pathname?.startsWith(item.href) ? "page" : undefined} className={`block rounded-sm px-3 py-2 text-[15px] ${pathname?.startsWith(item.href) ? "bg-secondary-blush font-semibold text-primary-plum" : "text-charcoal hover:bg-paper"}`}><NavIcon icon={item.icon} /><span>{item.label}</span></Link></li>
+                <li><Link href={item.href} aria-current={pathname?.startsWith(item.href) ? "page" : undefined} className={`flex items-center gap-3 rounded-sm px-3 py-2 text-[15px] ${pathname?.startsWith(item.href) ? "bg-secondary-blush font-semibold text-primary-plum" : "text-charcoal hover:bg-paper"}`}><NavIcon icon={item.icon} /><span>{item.label}</span></Link></li>
               </RoleGate>
             ))}
           </ul>
