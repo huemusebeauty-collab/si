@@ -141,7 +141,6 @@ function BannersContent() {
           </div>
         </div>
       </RoleGate>
-    </div>
       {mediaOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-label="Choose Hero media">
           <div className="max-h-[85vh] w-full max-w-4xl overflow-auto rounded-xl bg-white p-6 shadow-rest">
@@ -162,6 +161,7 @@ function BannersContent() {
           </div>
         </div>
       ) : null}
+    </div>
   );
 }
 
