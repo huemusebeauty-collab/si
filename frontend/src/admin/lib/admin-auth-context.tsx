@@ -1,7 +1,7 @@
 "use client";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { adminApi, setToken, AdminApiError } from "./admin-api-client";
+import { adminApi, setToken, setRefreshToken, AdminApiError } from "./admin-api-client";
 import type { AdminRole } from "./permissions";
 
 interface AdminAuthState {
@@ -68,6 +68,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     window.localStorage.removeItem(challengeTokenKey);
     window.localStorage.removeItem(pendingEmailKey);
     setToken(result.sessionToken);
+    setRefreshToken(result.refreshToken);
     window.localStorage.setItem("hmb_admin_role", result.role);
     window.localStorage.setItem("hmb_admin_email", loginEmail);
     setRole(result.role as AdminRole);
@@ -85,6 +86,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(() => {
     setToken(null);
+    setRefreshToken(null);
     window.localStorage.removeItem("hmb_admin_role");
     window.localStorage.removeItem("hmb_admin_email");
     window.localStorage.removeItem("hmb_admin_pending_email");
