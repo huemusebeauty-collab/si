@@ -20,7 +20,7 @@ export const PERMISSION_MATRIX: Record<AdminModule, Record<AdminRole, Permission
   customers: { [AdminRole.SUPER_ADMIN]: "full", [AdminRole.STORE_MANAGER]: "view", [AdminRole.PRODUCT_MANAGER]: "none", [AdminRole.CONTENT_MANAGER]: "none", [AdminRole.CUSTOMER_SUPPORT]: "edit" },
   reviews: { [AdminRole.SUPER_ADMIN]: "full", [AdminRole.STORE_MANAGER]: "edit", [AdminRole.PRODUCT_MANAGER]: "view", [AdminRole.CONTENT_MANAGER]: "edit", [AdminRole.CUSTOMER_SUPPORT]: "edit" },
   coupons: { [AdminRole.SUPER_ADMIN]: "full", [AdminRole.STORE_MANAGER]: "full", [AdminRole.PRODUCT_MANAGER]: "none", [AdminRole.CONTENT_MANAGER]: "none", [AdminRole.CUSTOMER_SUPPORT]: "none" },
-  content: { [AdminRole.SUPER_ADMIN]: "full", [AdminRole.STORE_MANAGER]: "view", [AdminRole.PRODUCT_MANAGER]: "none", [AdminRole.CONTENT_MANAGER]: "full", [AdminRole.CUSTOMER_SUPPORT]: "view" },
+  content: { [AdminRole.SUPER_ADMIN]: "full", [AdminRole.STORE_MANAGER]: "full", [AdminRole.PRODUCT_MANAGER]: "none", [AdminRole.CONTENT_MANAGER]: "full", [AdminRole.CUSTOMER_SUPPORT]: "view" },
   settings: { [AdminRole.SUPER_ADMIN]: "full", [AdminRole.STORE_MANAGER]: "none", [AdminRole.PRODUCT_MANAGER]: "none", [AdminRole.CONTENT_MANAGER]: "none", [AdminRole.CUSTOMER_SUPPORT]: "none" },
   reports: { [AdminRole.SUPER_ADMIN]: "full", [AdminRole.STORE_MANAGER]: "full", [AdminRole.PRODUCT_MANAGER]: "view", [AdminRole.CONTENT_MANAGER]: "none", [AdminRole.CUSTOMER_SUPPORT]: "none" },
   userRoles: { [AdminRole.SUPER_ADMIN]: "full", [AdminRole.STORE_MANAGER]: "none", [AdminRole.PRODUCT_MANAGER]: "none", [AdminRole.CONTENT_MANAGER]: "none", [AdminRole.CUSTOMER_SUPPORT]: "none" },
