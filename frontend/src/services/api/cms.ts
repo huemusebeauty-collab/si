@@ -10,6 +10,22 @@ export async function getStaticPage(slug: string): Promise<StaticPage | null> {
   return apiFetch<StaticPage>(`/cms/pages/${encodeURIComponent(slug)}`);
 }
 
+export interface Banner {
+  id: string;
+  placement: string;
+  imageUrl: string;
+  imageAltText?: string;
+  headline?: string;
+  ctaUrl?: string;
+  startAt: string;
+  endAt: string;
+}
+
+export async function getBanners(placement: string): Promise<Banner[]> {
+  const banners = await apiFetch<Banner[]>(`/cms/banners?placement=${encodeURIComponent(placement)}`);
+  return banners ?? [];
+}
+
 export interface FaqEntry {
   id: string;
   category?: string;
