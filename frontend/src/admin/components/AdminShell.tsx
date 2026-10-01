@@ -88,6 +88,24 @@ export function AdminShell({ children }: { children: ReactNode }) {
             <Button variant="text" onClick={logout}>Log Out</Button>
           </div>
         </header>
+        <nav className="border-b border-fog bg-white px-2 py-2 sm:hidden overflow-x-auto" aria-label="Admin page navigation">
+          <ul className="flex min-w-max items-center gap-1">
+            {NAV_ITEMS.map((item) => (
+              <RoleGate key={item.href} module={item.module} level="view">
+                <li>
+                  <Link
+                    href={item.href}
+                    aria-current={pathname?.startsWith(item.href) ? "page" : undefined}
+                    className={`flex items-center gap-2 whitespace-nowrap rounded-sm px-3 py-2 text-[14px] ${pathname?.startsWith(item.href) ? "bg-secondary-blush font-semibold text-primary-plum" : "text-charcoal hover:bg-paper"}`}
+                  >
+                    <NavIcon icon={item.icon} />
+                    <span>{item.label}</span>
+                  </Link>
+                </li>
+              </RoleGate>
+            ))}
+          </ul>
+        </nav>
         <main id="admin-main-content" className="flex-1 p-4 sm:p-6">{children}</main>
       </div>
     </div>
