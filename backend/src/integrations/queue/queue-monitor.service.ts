@@ -1,7 +1,20 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable, ServiceUnavailableException } from "@nestjs/common";
 import { InjectQueue } from "@nestjs/bullmq";
 import { Queue } from "bullmq";
-import { QUEUE_NAMES, QueueName } from "./queue.constants";
+import { QUEUE_NAMES } from "./queue.constants";
+
+const QUEUE_OPERATION_TIMEOUT_MS = 2500;
+
+function withTimeout<T>(operation: Promise<T>, message: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new ServiceUnavailableException(message)), QUEUE_OPERATION_TIMEOUT_MS);
+  });
+
+  return Promise.race([operation, timeout]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
+}
 
 @Injectable()
 export class QueueMonitorService {
@@ -19,8 +32,24 @@ export class QueueMonitorService {
   }
 
   private async summarize(queue: Queue) {
-    const counts = await queue.getJobCounts("waiting", "active", "completed", "failed", "delayed");
-    return { name: queue.name, ...counts };
+    try {
+      const counts = await withTimeout(
+        queue.getJobCounts("waiting", "active", "completed", "failed", "delayed"),
+        "Queue backend did not respond in time.",
+      );
+      return { name: queue.name, ...counts, available: true as const };
+    } catch (error) {
+      return {
+        name: queue.name,
+        waiting: 0,
+        active: 0,
+        completed: 0,
+        failed: 0,
+        delayed: 0,
+        available: false as const,
+        error: error instanceof Error ? error.message : "Queue backend unavailable.",
+      };
+    }
   }
 
   async getAllQueueStats() {
@@ -33,7 +62,10 @@ export class QueueMonitorService {
     const queue = this.getQueue(queueName);
     if (!queue) return [];
 
-    const failed = await queue.getFailed();
+    const failed = await withTimeout(
+      queue.getFailed(),
+      "Queue backend did not respond in time.",
+    );
     return failed.map((job) => ({
       id: job.id,
       name: job.name,
@@ -49,13 +81,23 @@ export class QueueMonitorService {
       throw new BadRequestException("Unknown queue.");
     }
 
-    const job = await queue.getJob(jobId);
+    const job = await withTimeout(
+      queue.getJob(jobId),
+      "Queue backend did not respond in time.",
+    );
     if (!job) {
       throw new BadRequestException("Job not found.");
     }
 
-    if (await job.isFailed()) {
-      await job.retry();
+    const failed = await withTimeout(
+      job.isFailed(),
+      "Queue backend did not respond in time.",
+    );
+    if (failed) {
+      await withTimeout(
+        job.retry(),
+        "Queue backend did not respond in time.",
+      );
       return { retried: true, queue: queue.name, jobId: job.id };
     }
 
