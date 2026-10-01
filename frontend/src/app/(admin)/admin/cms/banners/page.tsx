@@ -26,7 +26,10 @@ function BannersContent() {
   const [startAt, setStartAt] = useState("");
   const [endAt, setEndAt] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);\n  const [mediaOpen, setMediaOpen] = useState(false);\n  const [mediaLoading, setMediaLoading] = useState(false);\n  const [mediaItems, setMediaItems] = useState<Array<{ key: string; url: string; type: "image" | "video"; contentType: string; size: number }>>([]);
+  const [saving, setSaving] = useState(false);
+  const [mediaOpen, setMediaOpen] = useState(false);
+  const [mediaLoading, setMediaLoading] = useState(false);
+  const [mediaItems, setMediaItems] = useState<Array<{ key: string; url: string; type: "image" | "video"; contentType: string; size: number }>>([]);
 
   function resetForm() {
     setEditing(null);
@@ -38,7 +41,19 @@ function BannersContent() {
     setEndAt("");
   }
 
-  async function openMediaPicker() {\n    setMediaOpen(true);\n    if (mediaItems.length) return;\n    setMediaLoading(true);\n    try {\n      const { items } = await adminApi.listMedia("cms-assets");\n      setMediaItems(items.map(({ key, url, type, contentType, size }) => ({ key, url, type, contentType, size })));\n    } finally {\n      setMediaLoading(false);\n    }\n  }\n\n  function editBanner(banner: AdminBanner) {
+  async function openMediaPicker() {
+    setMediaOpen(true);
+    if (mediaItems.length) return;
+    setMediaLoading(true);
+    try {
+      const { items } = await adminApi.listMedia("cms-assets");
+      setMediaItems(items.map(({ key, url, type, contentType, size }) => ({ key, url, type, contentType, size })));
+    } finally {
+      setMediaLoading(false);
+    }
+  }
+
+  function editBanner(banner: AdminBanner) {
     setEditing(banner.id);
     setHeadline(banner.headline ?? "");
     setImageUrl(banner.imageUrl);
@@ -109,7 +124,11 @@ function BannersContent() {
         <div className="flex flex-col gap-4 rounded-md bg-white p-6 shadow-rest">
           <h2 className="font-semibold text-ink">{editing ? "Edit Hero Banner" : "New Hero Banner"}</h2>
           <Input label="Headline" value={headline} onChange={(e) => setHeadline(e.target.value)} />
-          <div className="flex flex-col gap-2">\n            <Input label="Image URL" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} />\n            <Button variant="secondary" className="w-fit" type="button" onClick={() => void openMediaPicker()}>Choose from Media Library</Button>\n            <p className="text-xs text-stone">Use CMS Assets for production Hero images. Uploaded assets are stored and optimized by Silku.</p>\n          </div>
+          <div className="flex flex-col gap-2">
+            <Input label="Image URL" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} />
+            <Button variant="secondary" className="w-fit" type="button" onClick={() => void openMediaPicker()}>Choose from Media Library</Button>
+            <p className="text-xs text-stone">Use CMS Assets for production Hero images. Uploaded assets are stored and optimized by Silku.</p>
+          </div>
           <Input label="Alt Text" value={imageAltText} onChange={(e) => setImageAltText(e.target.value)} />
           <Input label="CTA URL" value={ctaUrl} onChange={(e) => setCtaUrl(e.target.value)} />
           <div className="grid gap-4 sm:grid-cols-2">
@@ -123,6 +142,26 @@ function BannersContent() {
         </div>
       </RoleGate>
     </div>
+      {mediaOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-label="Choose Hero media">
+          <div className="max-h-[85vh] w-full max-w-4xl overflow-auto rounded-xl bg-white p-6 shadow-rest">
+            <div className="mb-4 flex items-center justify-between gap-4">
+              <div><h2 className="font-semibold text-ink">Choose CMS Asset</h2><p className="text-xs text-stone">Select an image from Admin → Media Library → CMS Assets.</p></div>
+              <Button variant="secondary" onClick={() => setMediaOpen(false)}>Close</Button>
+            </div>
+            {mediaLoading ? <p className="py-8 text-center text-sm text-stone">Loading CMS assets…</p> : null}
+            {!mediaLoading && !mediaItems.length ? <p className="rounded-md bg-paper p-5 text-sm text-stone">No CMS assets found. Upload the Hero image in Media Library with Library = CMS Assets, then choose it here.</p> : null}
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+              {mediaItems.filter((item) => item.type === "image").map((item) => (
+                <button key={item.key} type="button" className="overflow-hidden rounded-lg border border-line bg-white text-left hover:ring-2 hover:ring-ink" onClick={() => { setImageUrl(item.url); setMediaOpen(false); }}>
+                  <img src={item.url} alt="" className="aspect-video w-full object-contain bg-paper" loading="lazy" />
+                  <span className="block truncate px-3 py-2 text-xs text-stone">{item.key}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
   );
 }
 
