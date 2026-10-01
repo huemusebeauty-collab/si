@@ -138,6 +138,10 @@ export const adminApi = {
   updateBanner: (id: string, body: Record<string, unknown>) => request<AdminBanner>(`/cms/banners/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   deleteBanner: (id: string) => request<{ deleted: boolean }>(`/cms/banners/${id}`, { method: "DELETE" }),
   listFaqs: () => request<AdminFaq[]>("/cms/faqs"),
+  listSocialProfiles: () => request<AdminSocialProfile[]>("/cms/social/admin"),
+  createSocialProfile: (body: { platform: string; profileUrl: string; enabled?: boolean; displayOrder?: number }) => request<AdminSocialProfile>("/cms/social", { method: "POST", body: JSON.stringify(body) }),
+  updateSocialProfile: (id: string, body: Partial<AdminSocialProfile>) => request<AdminSocialProfile>(`/cms/social/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  deleteSocialProfile: (id: string) => request<{ deleted: true }>(`/cms/social/${id}`, { method: "DELETE" }),
   upsertFaq: (body: Record<string, unknown>) => request<AdminFaq>("/cms/faqs", { method: "POST", body: JSON.stringify(body) }),
   listCoupons: (params: URLSearchParams) => request<SimpleList<AdminCoupon>>(`/admin/coupons?${params}`),
   createCoupon: (body: Record<string, unknown>) => request<AdminCoupon>("/admin/coupons", { method: "POST", body: JSON.stringify(body) }),
@@ -259,7 +263,7 @@ export interface AdminCustomer { id: string; email: string; firstName: string; l
 export interface AdminReview { id: string; customerId: string; variantId: string; rating: number; text: string; status: string; createdAt: string }
 export interface AdminPage { slug: string; title: string; content: string }
 export interface AdminBanner { id: string; placement: string; imageUrl: string; imageAltText?: string; headline?: string; ctaUrl?: string; startAt: string; endAt: string }
-export interface AdminFaq { id: string; question: string; answer: string; category?: string }
+export interface AdminFaq { id: string; question: string; answer: string; category?: string }\nexport interface AdminSocialProfile { id: string; platform: string; profileUrl: string; enabled: boolean; displayOrder: number }
 export interface AdminCoupon { id: string; code: string; discountType: string; discountValue: string; active: boolean; timesRedeemed: number; startAt: string; endAt: string }
 export interface OrdersReport { orderCount: number; averageOrderValue: number; totalRevenue: number; statusBreakdown: Record<string, number> }
 export interface CustomersReport { newCustomers: number; totalCustomers: number }
