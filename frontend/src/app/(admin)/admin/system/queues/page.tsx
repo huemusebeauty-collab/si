@@ -8,6 +8,7 @@ import { adminApi, DeadLetterJob } from "@/admin/lib/admin-api-client";
 import { SkeletonLoader } from "@/components/composite/SkeletonLoader";
 import { Badge } from "@/components/basic/Badge";
 import { Button } from "@/components/basic/Button";
+import { Icon } from "@/components/basic/Icon";
 
 function QueueMonitorContent() {
   const { data, isLoading, error: statusError, refetch } = useAdminQuery(() => adminApi.getIntegrationsStatus(), []);
@@ -56,7 +57,7 @@ function QueueMonitorContent() {
     }
   };
 
-  if (isLoading) return <SkeletonLoader className="h-64 w-full" />;
+  if (isLoading) return <div className="flex flex-col gap-6"><div className="flex items-center gap-3"><Icon size={24} label=""><rect x="4" y="5" width="16" height="4" rx="1" /><rect x="4" y="10" width="16" height="4" rx="1" /><rect x="4" y="15" width="16" height="4" rx="1" /></Icon><div className="flex items-center gap-3"><Icon size={24} label=""><rect x="4" y="5" width="16" height="4" rx="1" /><rect x="4" y="10" width="16" height="4" rx="1" /><rect x="4" y="15" width="16" height="4" rx="1" /></Icon><h1 className="font-display text-[32px] font-semibold text-ink">Queue Monitor</h1></div></div><SkeletonLoader className="h-64 w-full" /></div>;
 
   if (statusError) {
     return (
