@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { FOOTER_COLUMNS } from "@/constants/navigation";
 import { NewsletterForm } from "@/components/sections/NewsletterForm";
+import { getSocialProfiles } from "@/services/api/cms";
+import { SocialIcon } from "@/components/basic/SocialIcon";
 
-// Footer — Phase 4 §9 / Phase 1 §12. Ink background, White/Fog text,
-// five link columns, bottom utility row (legal, social, newsletter).
-export function Footer() {
+export async function Footer() {
+  const socialProfiles = await getSocialProfiles();
+
   return (
     <footer className="bg-ink text-white">
       <div className="mx-auto max-w-content px-4 py-12 sm:px-6">
@@ -28,10 +30,29 @@ export function Footer() {
         <div className="mt-12 flex flex-col gap-6 border-t border-white/20 pt-6 sm:flex-row sm:items-center sm:justify-between">
           <NewsletterForm />
 
-          <div className="flex gap-4 text-[13px] text-white/70">
-            <Link href="/pages/privacy">Privacy</Link>
-            <Link href="/pages/terms">Terms</Link>
-            <Link href="/pages/accessibility">Accessibility</Link>
+          <div className="flex flex-col gap-4">
+            {socialProfiles.length > 0 && (
+              <div className="flex items-center gap-3" aria-label="Social media">
+                {socialProfiles.map((profile) => (
+                  <a
+                    key={profile.id}
+                    href={profile.profileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={profile.platform}
+                    title={profile.platform}
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 text-white/80 transition hover:border-white/50 hover:text-white"
+                  >
+                    <SocialIcon platform={profile.platform} />
+                  </a>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-4 text-[13px] text-white/70">
+              <Link href="/pages/privacy">Privacy</Link>
+              <Link href="/pages/terms">Terms</Link>
+              <Link href="/pages/accessibility">Accessibility</Link>
+            </div>
           </div>
         </div>
       </div>
