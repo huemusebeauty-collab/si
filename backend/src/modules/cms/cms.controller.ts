@@ -74,4 +74,40 @@ export class CmsController {
   upsertFaq(@CurrentUser() user: AuthenticatedUser, @Body() body: Partial<FaqEntryEntity>) {
     return this.cms.upsertFaq(body, user.id);
   }
+
+  @Public()
+  @Cacheable({ ttlSeconds: 300, keyPrefix: "cms" })
+  @Get("social")
+  listSocialProfiles() {
+    return this.cms.listSocialProfiles();
+  }
+
+  @ApiBearerAuth()
+  @Roles("admin")
+  @Get("social/admin")
+  listAdminSocialProfiles() {
+    return this.cms.listAdminSocialProfiles();
+  }
+
+  @ApiBearerAuth()
+  @Roles("admin")
+  @Post("social")
+  createSocialProfile(@Body() body: Partial<SocialProfileEntity> & { platform: string; profileUrl: string }) {
+    return this.cms.upsertSocialProfile(body);
+  }
+
+  @ApiBearerAuth()
+  @Roles("admin")
+  @Patch("social/:id")
+  updateSocialProfile(@Param("id") id: string, @Body() body: Partial<SocialProfileEntity>) {
+    return this.cms.updateSocialProfile(id, body);
+  }
+
+  @ApiBearerAuth()
+  @Roles("admin")
+  @Delete("social/:id")
+  async deleteSocialProfile(@Param("id") id: string) {
+    await this.cms.deleteSocialProfile(id);
+    return { deleted: true };
+  }
 }
