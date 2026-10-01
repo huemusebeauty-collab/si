@@ -26,7 +26,7 @@ function BannersContent() {
   const [startAt, setStartAt] = useState("");
   const [endAt, setEndAt] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState(false);\n  const [mediaOpen, setMediaOpen] = useState(false);\n  const [mediaLoading, setMediaLoading] = useState(false);\n  const [mediaItems, setMediaItems] = useState<Array<{ key: string; url: string; type: "image" | "video"; contentType: string; size: number }>>([]);
 
   function resetForm() {
     setEditing(null);
@@ -38,7 +38,7 @@ function BannersContent() {
     setEndAt("");
   }
 
-  function editBanner(banner: AdminBanner) {
+  async function openMediaPicker() {\n    setMediaOpen(true);\n    if (mediaItems.length) return;\n    setMediaLoading(true);\n    try {\n      const { items } = await adminApi.listMedia("cms-assets");\n      setMediaItems(items.map(({ key, url, type, contentType, size }) => ({ key, url, type, contentType, size })));\n    } finally {\n      setMediaLoading(false);\n    }\n  }\n\n  function editBanner(banner: AdminBanner) {
     setEditing(banner.id);
     setHeadline(banner.headline ?? "");
     setImageUrl(banner.imageUrl);
@@ -109,7 +109,7 @@ function BannersContent() {
         <div className="flex flex-col gap-4 rounded-md bg-white p-6 shadow-rest">
           <h2 className="font-semibold text-ink">{editing ? "Edit Hero Banner" : "New Hero Banner"}</h2>
           <Input label="Headline" value={headline} onChange={(e) => setHeadline(e.target.value)} />
-          <Input label="Image URL" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} />
+          <div className="flex flex-col gap-2">\n            <Input label="Image URL" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} />\n            <Button variant="secondary" className="w-fit" type="button" onClick={() => void openMediaPicker()}>Choose from Media Library</Button>\n            <p className="text-xs text-stone">Use CMS Assets for production Hero images. Uploaded assets are stored and optimized by Silku.</p>\n          </div>
           <Input label="Alt Text" value={imageAltText} onChange={(e) => setImageAltText(e.target.value)} />
           <Input label="CTA URL" value={ctaUrl} onChange={(e) => setCtaUrl(e.target.value)} />
           <div className="grid gap-4 sm:grid-cols-2">
