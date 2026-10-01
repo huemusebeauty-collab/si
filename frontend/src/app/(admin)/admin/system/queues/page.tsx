@@ -114,7 +114,7 @@ function QueueMonitorContent() {
           <tbody>
             {(data?.queues ?? []).map((q) => (
               <tr key={q.name} className="border-b border-fog last:border-0">
-                <td className="px-4 py-3 font-semibold">{q.name}</td>
+                <td className="px-4 py-3 font-semibold">{q.name}{q.available === false && <Badge tone="warning">Unavailable</Badge>}</td>
                 <td className="px-4 py-3">{q.waiting}</td>
                 <td className="px-4 py-3">{q.active}</td>
                 <td className="px-4 py-3">{q.completed}</td>
@@ -130,6 +130,9 @@ function QueueMonitorContent() {
           </tbody>
         </table>
       </div>
+      {(data?.queues ?? []).some((q) => q.available === false) && (
+        <p className="text-[13px] text-stone">Some queue metrics are temporarily unavailable. The integration status API remains responsive and will retry on refresh.</p>
+      )}
 
       <div className="rounded-md bg-white p-6 shadow-rest">
         <div className="flex flex-wrap items-center justify-between gap-3">
