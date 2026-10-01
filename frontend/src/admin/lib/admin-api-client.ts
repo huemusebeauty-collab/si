@@ -263,7 +263,8 @@ export interface AdminCustomer { id: string; email: string; firstName: string; l
 export interface AdminReview { id: string; customerId: string; variantId: string; rating: number; text: string; status: string; createdAt: string }
 export interface AdminPage { slug: string; title: string; content: string }
 export interface AdminBanner { id: string; placement: string; imageUrl: string; imageAltText?: string; headline?: string; ctaUrl?: string; startAt: string; endAt: string }
-export interface AdminFaq { id: string; question: string; answer: string; category?: string }\nexport interface AdminSocialProfile { id: string; platform: string; profileUrl: string; enabled: boolean; displayOrder: number }
+export interface AdminFaq { id: string; question: string; answer: string; category?: string }
+export interface AdminSocialProfile { id: string; platform: string; profileUrl: string; enabled: boolean; displayOrder: number }
 export interface AdminCoupon { id: string; code: string; discountType: string; discountValue: string; active: boolean; timesRedeemed: number; startAt: string; endAt: string }
 export interface OrdersReport { orderCount: number; averageOrderValue: number; totalRevenue: number; statusBreakdown: Record<string, number> }
 export interface CustomersReport { newCustomers: number; totalCustomers: number }
