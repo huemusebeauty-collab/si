@@ -5,6 +5,7 @@ import { RelatedCarousel } from "@/components/patterns/RelatedCarousel";
 import { CollectionCard } from "@/components/composite/CollectionCard";
 import { TrustSignalStrip } from "@/components/patterns/TrustSignalStrip";
 import { getAllCategories, getAllCollections, getAllProducts } from "@/services/api/products";
+import { getBanners } from "@/services/api/cms";
 
 export const metadata: Metadata = {
   title: "Premium Nail Polish & Color Cosmetics | Silku",
@@ -35,12 +36,20 @@ function withCategoryCounts(
 }
 
 export default async function HomePage() {
-  const [categories, collections, products] = await Promise.all([
+  const [categories, collections, products, cmsBanners] = await Promise.all([
     getAllCategories(),
     getAllCollections(),
     getAllProducts(),
+    getBanners("homepage-hero"),
   ]);
   const categoriesWithCounts = withCategoryCounts(categories, products);
+  const managedHeroSlides = cmsBanners
+    .filter((banner) => banner.imageUrl && !banner.imageUrl.startsWith("/mock/"))
+    .map((banner) => ({
+      imageUrl: banner.imageUrl,
+      imageAlt: banner.imageAltText ?? banner.headline ?? "Silku Hero banner",
+    }));
+  const activeHeroSlides = managedHeroSlides.length > 0 ? managedHeroSlides : heroSlides;
 
   return (
     <>
@@ -60,9 +69,9 @@ export default async function HomePage() {
         subhead="Luxury nail lacquer and color cosmetics, crafted for every shade."
         ctaLabel="Shop New Arrivals"
         ctaHref="/shop"
-        imageUrl={heroSlides[0].imageUrl}
-        imageAlt={heroSlides[0].imageAlt}
-        slides={heroSlides.slice(1)}
+        imageUrl={activeHeroSlides[0].imageUrl}
+        imageAlt={activeHeroSlides[0].imageAlt}
+        slides={activeHeroSlides.slice(1)}
       />
       <CategoryDiscoveryGrid categories={categoriesWithCounts} />
       <section aria-label="Collections" className="py-8">
