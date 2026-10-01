@@ -30,7 +30,7 @@ export function RelatedCarousel({ title, products }: { title: string; products: 
           </button>
         </div>
       </div>
-      <div ref={scrollerRef} className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory scroll-smooth" tabIndex={0} aria-label={title + " products"}>
+      <div ref={scrollerRef} className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory scroll-smooth" aria-label={title + " products"}>
         {products.map((p) => (
           <div key={p.id} className="w-64 shrink-0 snap-start">
             <ProductCard product={p} />
