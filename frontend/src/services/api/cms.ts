@@ -26,7 +26,7 @@ export async function getBanners(placement: string): Promise<Banner[]> {
   return banners ?? [];
 }
 
-export interface FaqEntry {
+export interface SocialProfile { id: string; platform: string; profileUrl: string; enabled: boolean; displayOrder: number }\n\nexport async function getSocialProfiles(): Promise<SocialProfile[]> {\n  const profiles = await apiFetch<SocialProfile[]>("/cms/social");\n  return profiles ?? [];\n}\n\nexport interface FaqEntry {
   id: string;
   category?: string;
   question: string;
