@@ -24,37 +24,52 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
+  const challengeTokenKey = "hmb_admin_challenge_token";
+  const pendingEmailKey = "hmb_admin_pending_email";
+
   useEffect(() => {
     const storedRole = window.localStorage.getItem("hmb_admin_role") as AdminRole | null;
     const storedEmail = window.localStorage.getItem("hmb_admin_email");
     const token = window.localStorage.getItem("hmb_admin_token");
-    if (storedRole && token) setRole(storedRole);
-    if (storedEmail && token) setEmail(storedEmail);
+    if (storedRole && storedEmail && token) {
+      setRole(storedRole);
+      setEmail(storedEmail);
+    } else {
+      setToken(null);
+      window.localStorage.removeItem("hmb_admin_role");
+      window.localStorage.removeItem("hmb_admin_email");
+    }
     setIsLoading(false);
   }, []);
 
   const login = useCallback(async (loginEmail: string, password: string) => {
     const result = await adminApi.login(loginEmail, password);
-    setToken(result.sessionToken);
-    window.localStorage.setItem("hmb_admin_role", result.role);
-    window.localStorage.setItem("hmb_admin_email", loginEmail);
-    window.localStorage.removeItem("hmb_admin_pending_email");
-    setRole(result.role as AdminRole);
-    setEmail(loginEmail);
+    setToken(null);
+    window.localStorage.setItem(challengeTokenKey, result.sessionToken);
+    window.localStorage.setItem(pendingEmailKey, loginEmail.trim().toLowerCase());
+    window.localStorage.removeItem("hmb_admin_role");
+    window.localStorage.removeItem("hmb_admin_email");
+    setRole(null);
+    setEmail(null);
   }, []);
 
   const sendOtp = useCallback(async (phoneNumber: string) => {
-    const result = await adminApi.sendOtp(phoneNumber);
+    const challengeToken = window.localStorage.getItem(challengeTokenKey);
+    if (!challengeToken) throw new Error("Your login session has expired. Please sign in again.");
+    const result = await adminApi.sendOtp(phoneNumber, challengeToken);
     return { devOtp: result.devOtp };
   }, []);
 
   const loginWithOtp = useCallback(async (phoneNumber: string, code: string) => {
-    const result = await adminApi.verifyOtp(phoneNumber, code);
-    const loginEmail = window.localStorage.getItem("hmb_admin_pending_email") ?? "admin";
+    const challengeToken = window.localStorage.getItem(challengeTokenKey);
+    if (!challengeToken) throw new Error("Your login session has expired. Please sign in again.");
+    const result = await adminApi.verifyOtp(phoneNumber, code, challengeToken);
+    const loginEmail = window.localStorage.getItem(pendingEmailKey) ?? "admin";
+    window.localStorage.removeItem(challengeTokenKey);
+    window.localStorage.removeItem(pendingEmailKey);
     setToken(result.sessionToken);
     window.localStorage.setItem("hmb_admin_role", result.role);
     window.localStorage.setItem("hmb_admin_email", loginEmail);
-    window.localStorage.removeItem("hmb_admin_pending_email");
     setRole(result.role as AdminRole);
     setEmail(loginEmail);
     router.push("/admin/dashboard");
@@ -73,6 +88,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     window.localStorage.removeItem("hmb_admin_role");
     window.localStorage.removeItem("hmb_admin_email");
     window.localStorage.removeItem("hmb_admin_pending_email");
+    window.localStorage.removeItem("hmb_admin_challenge_token");
     setRole(null);
     setEmail(null);
     router.push("/admin/login");
