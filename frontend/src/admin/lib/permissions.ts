@@ -13,7 +13,7 @@ export const PERMISSION_MATRIX: Record<AdminModule, Record<AdminRole, Permission
   customers: { super_admin: "full", store_manager: "view", product_manager: "none", content_manager: "none", customer_support: "edit" },
   reviews: { super_admin: "full", store_manager: "edit", product_manager: "view", content_manager: "edit", customer_support: "edit" },
   coupons: { super_admin: "full", store_manager: "full", product_manager: "none", content_manager: "none", customer_support: "none" },
-  content: { super_admin: "full", store_manager: "view", product_manager: "none", content_manager: "full", customer_support: "view" },
+  content: { super_admin: "full", store_manager: "full", product_manager: "none", content_manager: "full", customer_support: "view" },
   settings: { super_admin: "full", store_manager: "none", product_manager: "none", content_manager: "none", customer_support: "none" },
   reports: { super_admin: "full", store_manager: "full", product_manager: "view", content_manager: "none", customer_support: "none" },
   userRoles: { super_admin: "full", store_manager: "none", product_manager: "none", content_manager: "none", customer_support: "none" },
