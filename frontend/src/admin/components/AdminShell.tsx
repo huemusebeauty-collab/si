@@ -9,7 +9,9 @@ import { Avatar } from "@/components/basic/Avatar";
 import { Button } from "@/components/basic/Button";
 import { Icon } from "@/components/basic/Icon";
 
-type NavIcon = "dashboard" | "products" | "inventory" | "categories" | "collections" | "orders" | "billing" | "logistics" | "customers" | "reviews" | "coupons" | "cms" | "media" | "reports" | "audit" | "import" | "queue" | "integration";\n\nconst NAV_ITEMS: { href: string; label: string; module: AdminModule; icon: NavIcon }[] = [
+type NavIcon = "dashboard" | "products" | "inventory" | "categories" | "collections" | "orders" | "billing" | "logistics" | "customers" | "reviews" | "coupons" | "cms" | "media" | "reports" | "audit" | "import" | "queue" | "integration";
+
+const NAV_ITEMS: { href: string; label: string; module: AdminModule; icon: NavIcon }[] = [
   { href: "/admin/dashboard", label: "Dashboard", module: "dashboard", icon: "dashboard" },
   { href: "/admin/products", label: "Products", module: "products", icon: "products" },
   { href: "/admin/inventory", label: "Inventory", module: "products", icon: "inventory" },
