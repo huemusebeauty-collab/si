@@ -16,7 +16,8 @@ export function setToken(token: string | null): void {
   else window.localStorage.removeItem("hmb_admin_token");
 }
 
-const ADMIN_REQUEST_TIMEOUT_MS = 15000;
+// Admin system endpoints may cold-start on Render Free; allow enough time for a legitimate response.
+const ADMIN_REQUEST_TIMEOUT_MS = 30000;
 
 async function request<T>(path: string, options: RequestInit = {}, bearerToken?: string | null): Promise<T> {
   const token = bearerToken ?? getToken();
@@ -37,7 +38,7 @@ async function request<T>(path: string, options: RequestInit = {}, bearerToken?:
     return envelope.data as T;
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {
-      throw new AdminApiError(408, "ADMIN_REQUEST_TIMEOUT", "The admin service did not respond within 15 seconds. Please retry.");
+      throw new AdminApiError(408, "ADMIN_REQUEST_TIMEOUT", "The admin service did not respond within 30 seconds. Please retry.");
     }
     throw err;
   } finally {
