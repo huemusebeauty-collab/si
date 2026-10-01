@@ -23,6 +23,14 @@ export class AdminAuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @HttpCode(HttpStatus.OK)
+  @Post("refresh")
+  refresh(@Body() body: { refreshToken: string }) {
+    return this.adminAuth.refreshSession(body.refreshToken);
+  }
+
+  @Public()
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @Post("otp/send")
