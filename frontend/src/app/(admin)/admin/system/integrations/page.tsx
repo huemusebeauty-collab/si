@@ -11,7 +11,22 @@ import { Icon } from "@/components/basic/Icon";
 function IntegrationStatusContent() {
   const { data, isLoading, error, refetch } = useAdminQuery(() => adminApi.getIntegrationsStatus(), []);
 
-  if (isLoading) return <div className="flex flex-col gap-6"><div className="flex items-center gap-3"><Icon size={24} label=""><circle cx="7" cy="12" r="3" /><circle cx="17" cy="7" r="3" /><circle cx="17" cy="17" r="3" /><path d="M9.5 10.5l5-2M9.5 13.5l5 2" /></Icon><div className="flex items-center gap-3"><Icon size={24} label=""><circle cx="7" cy="12" r="3" /><circle cx="17" cy="7" r="3" /><circle cx="17" cy="17" r="3" /><path d="M9.5 10.5l5-2M9.5 13.5l5 2" /></Icon><h1 className="font-display text-[32px] font-semibold text-ink">Integration Status</h1></div></div><SkeletonLoader className="h-64 w-full" /></div>;
+  if (isLoading) return (
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center gap-3">
+        <Icon size={24} label="Integration Status"><circle cx="7" cy="12" r="3" /><circle cx="17" cy="7" r="3" /><circle cx="17" cy="17" r="3" /><path d="M9.5 10.5l5-2M9.5 13.5l5 2" /></Icon>
+        <h1 className="font-display text-[32px] font-semibold text-ink">Integration Status</h1>
+      </div>
+      <div className="rounded-md bg-white p-6 shadow-rest" role="status" aria-live="polite">
+        <div className="flex items-center gap-3">
+          <Icon size={20} label=""><circle cx="12" cy="12" r="8" /></Icon>
+          <p className="font-semibold text-ink">Loading integration status…</p>
+        </div>
+        <p className="mt-2 text-[13px] text-stone">Connecting to the integration service. This page will remain visible while data loads.</p>
+        <SkeletonLoader className="mt-4 h-3 w-full" />
+      </div>
+    </div>
+  );
 
   return (
     <div className="flex flex-col gap-6">

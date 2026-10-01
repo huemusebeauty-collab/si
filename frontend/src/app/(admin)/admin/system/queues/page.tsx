@@ -57,7 +57,22 @@ function QueueMonitorContent() {
     }
   };
 
-  if (isLoading) return <div className="flex flex-col gap-6"><div className="flex items-center gap-3"><Icon size={24} label=""><rect x="4" y="5" width="16" height="4" rx="1" /><rect x="4" y="10" width="16" height="4" rx="1" /><rect x="4" y="15" width="16" height="4" rx="1" /></Icon><div className="flex items-center gap-3"><Icon size={24} label=""><rect x="4" y="5" width="16" height="4" rx="1" /><rect x="4" y="10" width="16" height="4" rx="1" /><rect x="4" y="15" width="16" height="4" rx="1" /></Icon><h1 className="font-display text-[32px] font-semibold text-ink">Queue Monitor</h1></div></div><SkeletonLoader className="h-64 w-full" /></div>;
+  if (isLoading) return (
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center gap-3">
+        <Icon size={24} label="Queue Monitor"><rect x="4" y="5" width="16" height="4" rx="1" /><rect x="4" y="10" width="16" height="4" rx="1" /><rect x="4" y="15" width="16" height="4" rx="1" /></Icon>
+        <h1 className="font-display text-[32px] font-semibold text-ink">Queue Monitor</h1>
+      </div>
+      <div className="rounded-md bg-white p-6 shadow-rest" role="status" aria-live="polite">
+        <div className="flex items-center gap-3">
+          <Icon size={20} label=""><circle cx="12" cy="12" r="8" /></Icon>
+          <p className="font-semibold text-ink">Loading queue data…</p>
+        </div>
+        <p className="mt-2 text-[13px] text-stone">Connecting to the queue monitor service. This page will remain visible while data loads.</p>
+        <SkeletonLoader className="mt-4 h-3 w-full" />
+      </div>
+    </div>
+  );
 
   if (statusError) {
     return (
@@ -107,6 +122,11 @@ function QueueMonitorContent() {
                 <td className="px-4 py-3">{q.delayed}</td>
               </tr>
             ))}
+            {(data?.queues ?? []).length === 0 && (
+              <tr>
+                <td className="px-4 py-6 text-stone" colSpan={6}>No queue data was returned by the integration service.</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
