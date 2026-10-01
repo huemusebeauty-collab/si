@@ -98,6 +98,8 @@ export const adminApi = {
   updatePage: (slug: string, content: string) => request<AdminPage>(`/cms/pages/${slug}`, { method: "PATCH", body: JSON.stringify({ content }) }),
   listBanners: (placement: string) => request<AdminBanner[]>(`/cms/banners?placement=${placement}`),
   createBanner: (body: Record<string, unknown>) => request<AdminBanner>("/cms/banners", { method: "POST", body: JSON.stringify(body) }),
+  updateBanner: (id: string, body: Record<string, unknown>) => request<AdminBanner>(`/cms/banners/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  deleteBanner: (id: string) => request<{ deleted: boolean }>(`/cms/banners/${id}`, { method: "DELETE" }),
   listFaqs: () => request<AdminFaq[]>("/cms/faqs"),
   upsertFaq: (body: Record<string, unknown>) => request<AdminFaq>("/cms/faqs", { method: "POST", body: JSON.stringify(body) }),
   listCoupons: (params: URLSearchParams) => request<SimpleList<AdminCoupon>>(`/admin/coupons?${params}`),
@@ -219,7 +221,7 @@ export interface AdminInvoice {
 export interface AdminCustomer { id: string; email: string; firstName: string; lastName: string; phone?: string; gstin?: string; addresses?: Array<{ id?: string; line1: string; line2?: string; city: string; region: string; stateCode?: string; postalCode: string; country: string; isDefault?: boolean }>; createdAt: string }
 export interface AdminReview { id: string; customerId: string; variantId: string; rating: number; text: string; status: string; createdAt: string }
 export interface AdminPage { slug: string; title: string; content: string }
-export interface AdminBanner { id: string; placement: string; imageUrl: string; headline?: string; startAt: string; endAt: string }
+export interface AdminBanner { id: string; placement: string; imageUrl: string; imageAltText?: string; headline?: string; ctaUrl?: string; startAt: string; endAt: string }
 export interface AdminFaq { id: string; question: string; answer: string; category?: string }
 export interface AdminCoupon { id: string; code: string; discountType: string; discountValue: string; active: boolean; timesRedeemed: number; startAt: string; endAt: string }
 export interface OrdersReport { orderCount: number; averageOrderValue: number; totalRevenue: number; statusBreakdown: Record<string, number> }
