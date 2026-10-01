@@ -85,7 +85,7 @@ export class AdminAuthService {
     return { sent: true, phoneNumber: this.maskPhone(requestedPhone), ...(devMode ? { devOtp: code } : {}) };
   }
 
-  async verifyOtp(challengeToken: string, code: string): Promise<{ sessionToken: string; role: string; expiresAt: Date }> {
+  async verifyOtp(challengeToken: string, code: string): Promise<{ sessionToken: string; refreshToken: string; role: string; expiresAt: Date }> {
     let payload: { sub?: string; purpose?: string };
     try { payload = await this.jwt.verifyAsync(challengeToken, { secret: this.config.get<string>("jwt.secret") }); }
     catch { throw new UnauthorizedException("Your login step has expired. Please sign in again."); }
@@ -109,7 +109,34 @@ export class AdminAuthService {
       { sub: user.id, email: user.email, role: user.role },
       { secret: this.config.get<string>("jwt.secret"), expiresIn: this.config.get<any>("jwt.accessTokenTtl") },
     );
-    return { sessionToken, role: user.role, expiresAt: new Date(Date.now() + 15 * 60 * 1000) };
+    const refreshToken = await this.jwt.signAsync(
+      { sub: user.id, email: user.email, role: user.role, purpose: "admin_refresh" },
+      { secret: this.config.get<string>("jwt.secret"), expiresIn: this.config.get<any>("jwt.refreshTokenTtl") },
+    );
+    return { sessionToken, refreshToken, role: user.role, expiresAt: new Date(Date.now() + 15 * 60 * 1000) };
+  }
+
+  async refreshSession(refreshToken: string): Promise<{ sessionToken: string; refreshToken: string; role: string; expiresAt: Date }> {
+    let payload: { sub?: string; email?: string; role?: string; purpose?: string };
+    try {
+      payload = await this.jwt.verifyAsync(refreshToken, { secret: this.config.get<string>("jwt.secret") });
+    } catch {
+      throw new UnauthorizedException("Admin refresh session has expired. Please sign in again.");
+    }
+    if (payload.purpose !== "admin_refresh" || !payload.sub || !payload.email || !payload.role) {
+      throw new UnauthorizedException("Invalid admin refresh session.");
+    }
+    const user = await this.adminUsers.findOne({ where: { id: payload.sub, email: payload.email } });
+    if (!user?.active || user.role !== payload.role) throw new UnauthorizedException("Admin account is inactive.");
+    const sessionToken = await this.jwt.signAsync(
+      { sub: user.id, email: user.email, role: user.role },
+      { secret: this.config.get<string>("jwt.secret"), expiresIn: this.config.get<any>("jwt.accessTokenTtl") },
+    );
+    const nextRefreshToken = await this.jwt.signAsync(
+      { sub: user.id, email: user.email, role: user.role, purpose: "admin_refresh" },
+      { secret: this.config.get<string>("jwt.secret"), expiresIn: this.config.get<any>("jwt.refreshTokenTtl") },
+    );
+    return { sessionToken, refreshToken: nextRefreshToken, role: user.role, expiresAt: new Date(Date.now() + 15 * 60 * 1000) };
   }
 
   async requestPasswordReset(email: string, phoneNumber: string): Promise<{ sent: true; phoneNumber: string; resetToken: string; devOtp?: string }> {

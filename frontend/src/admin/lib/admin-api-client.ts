@@ -16,6 +16,17 @@ export function setToken(token: string | null): void {
   else window.localStorage.removeItem("hmb_admin_token");
 }
 
+function getRefreshToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem("hmb_admin_refresh_token");
+}
+
+export function setRefreshToken(token: string | null): void {
+  if (typeof window === "undefined") return;
+  if (token) window.localStorage.setItem("hmb_admin_refresh_token", token);
+  else window.localStorage.removeItem("hmb_admin_refresh_token");
+}
+
 // Admin system endpoints may cold-start on Render Free; allow enough time for a legitimate response.
 const ADMIN_REQUEST_TIMEOUT_MS = 30000;
 
@@ -30,6 +41,20 @@ async function request<T>(path: string, options: RequestInit = {}, bearerToken?:
       signal: controller.signal,
       headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers },
     });
+    if (!response.ok && response.status === 401 && !bearerToken && path !== "/admin/auth/refresh") {
+      const refreshToken = getRefreshToken();
+      if (refreshToken) {
+        try {
+          const refreshed = await refreshAdminSession(refreshToken);
+          setToken(refreshed.sessionToken);
+          setRefreshToken(refreshed.refreshToken);
+          return await request<T>(path, options, refreshed.sessionToken);
+        } catch {
+          setToken(null);
+          setRefreshToken(null);
+        }
+      }
+    }
     if (!response.ok) {
       const body = await response.json().catch(() => ({ errorCode: "UNKNOWN", message: response.statusText }));
       throw new AdminApiError(response.status, body.errorCode ?? "UNKNOWN", body.message ?? "Request failed.");
@@ -46,10 +71,22 @@ async function request<T>(path: string, options: RequestInit = {}, bearerToken?:
   }
 }
 
+async function refreshAdminSession(refreshToken: string): Promise<{ sessionToken: string; refreshToken: string; role: string; expiresAt: string }> {
+  const response = await fetch(`${API_BASE}/admin/auth/refresh`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refreshToken }),
+  });
+  if (!response.ok) throw new Error("Admin refresh failed.");
+  const envelope = await response.json();
+  return envelope.data as { sessionToken: string; refreshToken: string; role: string; expiresAt: string };
+}
+
 export const adminApi = {
   login: (email: string, password: string) => request<{ sessionToken: string; role: string; expiresAt: string }>("/admin/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
   sendOtp: (phoneNumber: string, challengeToken: string) => request<{ sent: true; devOtp?: string }>("/admin/auth/otp/send", { method: "POST", body: JSON.stringify({ phoneNumber }) }, challengeToken),
-  verifyOtp: (phoneNumber: string, code: string, challengeToken: string) => request<{ sessionToken: string; role: string; expiresAt: string }>("/admin/auth/otp/verify", { method: "POST", body: JSON.stringify({ phoneNumber, code }) }, challengeToken),
+  verifyOtp: (phoneNumber: string, code: string, challengeToken: string) => request<{ sessionToken: string; refreshToken: string; role: string; expiresAt: string }>("/admin/auth/otp/verify", { method: "POST", body: JSON.stringify({ phoneNumber, code }) }, challengeToken),
+  refreshSession: (refreshToken: string) => refreshAdminSession(refreshToken),
   requestPasswordReset: (email: string, phoneNumber: string) => request<{ sent: true; phoneNumber: string; resetToken: string; devOtp?: string }>("/admin/auth/password/reset/request", { method: "POST", body: JSON.stringify({ email, phoneNumber }) }),
   confirmPasswordReset: (resetToken: string, code: string, newPassword: string) => request<{ reset: true }>("/admin/auth/password/reset/confirm", { method: "POST", body: JSON.stringify({ resetToken, code, newPassword }) }),
   getDashboardOverview: () => request<DashboardOverview>("/admin/dashboard/overview"),
