@@ -24,6 +24,7 @@ const NAV_ITEMS: { href: string; label: string; module: AdminModule; icon: NavIc
   { href: "/admin/reviews", label: "Reviews", module: "reviews", icon: "reviews" },
   { href: "/admin/coupons", label: "Coupons", module: "coupons", icon: "coupons" },
   { href: "/admin/cms/pages", label: "CMS", module: "content", icon: "cms" },
+  { href: "/admin/cms/banners", label: "Hero Banners", module: "content", icon: "cms" },
   { href: "/admin/media", label: "Media Library", module: "content", icon: "media" },
   { href: "/admin/reports", label: "Reports", module: "reports", icon: "reports" },
   { href: "/admin/audit-logs", label: "Audit Log", module: "dashboard", icon: "audit" },
