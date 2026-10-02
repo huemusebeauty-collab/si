@@ -64,15 +64,17 @@ export class S3MediaStorageAdapter implements MediaStorageAdapter {
 export const createMediaStorageAdapter = (): MediaStorageAdapter => {
   if (process.env.MEDIA_STORAGE_MODE === "memory") return new MemoryMediaStorageAdapter();
   if (process.env.MEDIA_STORAGE_MODE !== "s3") return new UnavailableMediaStorageAdapter();
-  const bucket = process.env.MEDIA_STORAGE_BUCKET?.trim();
+  const bucket = (process.env.MEDIA_STORAGE_BUCKET || process.env.AWS_S3_BUCKET || "").trim();
   if (!bucket) return new UnavailableMediaStorageAdapter();
+  const region = process.env.MEDIA_STORAGE_REGION || process.env.AWS_REGION || "auto";
+  const endpoint = process.env.MEDIA_STORAGE_ENDPOINT || process.env.AWS_ENDPOINT_URL_S3 || undefined;
+  const forcePathStyle = process.env.MEDIA_STORAGE_FORCE_PATH_STYLE === "true" || process.env.AWS_S3_FORCE_PATH_STYLE === "true";
+  const accessKeyId = process.env.MEDIA_STORAGE_ACCESS_KEY || process.env.AWS_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.MEDIA_STORAGE_SECRET_KEY || process.env.AWS_SECRET_ACCESS_KEY;
   return new S3MediaStorageAdapter(new S3Client({
-    region: process.env.MEDIA_STORAGE_REGION || "auto",
-    endpoint: process.env.MEDIA_STORAGE_ENDPOINT || undefined,
-    forcePathStyle: process.env.MEDIA_STORAGE_FORCE_PATH_STYLE === "true",
-    credentials: process.env.MEDIA_STORAGE_ACCESS_KEY && process.env.MEDIA_STORAGE_SECRET_KEY ? {
-      accessKeyId: process.env.MEDIA_STORAGE_ACCESS_KEY,
-      secretAccessKey: process.env.MEDIA_STORAGE_SECRET_KEY,
-    } : undefined,
+    region,
+    endpoint,
+    forcePathStyle,
+    credentials: accessKeyId && secretAccessKey ? { accessKeyId, secretAccessKey } : undefined,
   }), bucket);
 };
