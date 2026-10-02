@@ -10,8 +10,11 @@ const to = 'const social = new social_center_1.SocialCenter(persistence ? new so
 if (source.includes(from)) source = source.replace(from, to);
 else if (!source.includes(to)) throw new Error('Social Center initialization marker not found');
 const hydrationWithCreators = 'Promise.all([security.hydrate(), domainStore.hydrate(), creators.hydrate()])';
+const hydrationWithImage = 'Promise.all([security.hydrate(), domainStore.hydrate(), creators.hydrate(), image_studio_persistence_1.hydrateImageStudioMedia()])';
 const hydrationWithSocial = 'Promise.all([security.hydrate(), domainStore.hydrate(), creators.hydrate(), social.hydrate()])';
+const hydrationWithImageAndSocial = 'Promise.all([security.hydrate(), domainStore.hydrate(), creators.hydrate(), image_studio_persistence_1.hydrateImageStudioMedia(), social.hydrate()])';
 if (source.includes(hydrationWithCreators)) source = source.replace(hydrationWithCreators, hydrationWithSocial);
+else if (source.includes(hydrationWithImage)) source = source.replace(hydrationWithImage, hydrationWithImageAndSocial);
 else if (!source.includes('social.hydrate()')) throw new Error('Social Center startup hydration marker not found');
 fs.writeFileSync(file, source);
 console.log('Social Center persistence wiring patched');
