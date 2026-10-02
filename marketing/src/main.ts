@@ -17,6 +17,7 @@ import { buildWebsiteActionRecommendations } from "./website-opportunity-actions
 import { runWebsiteIntelligenceE2e } from "./website-intelligence-e2e";
 import { SocialCenter, socialCenterHtml } from "./social-center";
 import { CreatorCollaborationEngine } from "./creator-collaboration";
+import { hydrateImageStudioMedia } from "./image-studio-persistence";
 
 const startedAt = new Date().toISOString();
 const port = Number(process.env.PORT ?? 10000);
@@ -91,7 +92,7 @@ const server = createServer(async (request, response) => {
 
 server.listen(port, hostname, () => {
   console.log(`Silku Marketing HQ listening on ${hostname}:${port}`);
-  Promise.all([security.hydrate(), domainStore.hydrate(), creators.hydrate()]).catch((error) => { console.error("[marketing-persistence] startup hydration failed", error); process.exitCode = 1; });
+  Promise.all([security.hydrate(), domainStore.hydrate(), creators.hydrate(), hydrateImageStudioMedia()]).catch((error) => { console.error("[marketing-persistence] startup hydration failed", error); process.exitCode = 1; });
   if (durableWorker) {
     const intervalMs = Number(process.env.MARKETING_WORKER_INTERVAL_MS ?? 15000);
     const runWorker = async () => { try { const result = await durableWorker.runOnce(); if (result.processed) console.log(`[durable-worker] ${result.jobId}: ${result.status}`); } catch (error) { console.error("[durable-worker] tick failed", error); } };
