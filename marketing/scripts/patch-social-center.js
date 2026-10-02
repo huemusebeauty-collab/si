@@ -15,11 +15,10 @@ const hydrationWithImage = 'Promise.all([security.hydrate(), domainStore.hydrate
 const hydrationWithImageAndSocial = 'Promise.all([security.hydrate(), domainStore.hydrate(), creators.hydrate(), image_studio_persistence_1.hydrateImageStudioMedia(), social.hydrate()])';
 if (source.includes(hydrationWithCreators)) source = source.replace(hydrationWithCreators, hydrationWithSocial);
 else if (source.includes(hydrationWithImage)) source = source.replace(hydrationWithImage, hydrationWithImageAndSocial);
-else {
-  const startup = source.match(/Promise\\.all\\(\\[security\\.hydrate\\(\\), domainStore\\.hydrate\\(\\), creators\\.hydrate\\(\\), ([^\\]]+)\\]\\)/);
-  if (startup && !source.includes('social.hydrate()')) {
-    source = source.replace(startup[0], startup[0].replace('])', ', social.hydrate()])'));
-  } else if (!source.includes('social.hydrate()')) throw new Error('Social Center startup hydration marker not found');
+else if (!source.includes('social.hydrate()')) {
+  const marker = 'creators.hydrate(), ';
+  if (source.includes(marker)) source = source.replace(marker, 'creators.hydrate(), social.hydrate(), ');
+  else throw new Error('Social Center startup hydration marker not found');
 }
 fs.writeFileSync(file, source);
 console.log('Social Center persistence wiring patched');
