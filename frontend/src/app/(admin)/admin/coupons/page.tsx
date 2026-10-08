@@ -18,7 +18,7 @@ function CouponsContent() {
 
   const columns: Column<AdminCoupon>[] = [
     { header: "Code", render: (c) => <span className="font-semibold">{c.code}</span> },
-    { header: "Discount", render: (c) => (c.discountType === "percentage" ? `${c.discountValue}%` : `$${c.discountValue}`) },
+    { header: "Discount", render: (c) => (c.discountType === "percentage" ? `${c.discountValue}%` : `₹${c.discountValue}`) },
     { header: "Redeemed", render: (c) => c.timesRedeemed },
     { header: "Active", render: (c) => <Badge tone={c.active ? "success" : "error"}>{c.active ? "Active" : "Inactive"}</Badge> },
     {
