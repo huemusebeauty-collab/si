@@ -13,7 +13,7 @@ interface AdminAuthState {
   loginWithOtp: (phoneNumber: string, code: string) => Promise<void>;
   requestPasswordReset: (email: string, phoneNumber: string) => Promise<{ resetToken: string; devOtp?: string; phoneNumber: string }>;
   confirmPasswordReset: (resetToken: string, code: string, newPassword: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 export const AdminAuthContext = createContext<AdminAuthState | undefined>(undefined);
@@ -84,16 +84,23 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     await adminApi.confirmPasswordReset(resetToken, code, newPassword);
   }, []);
 
-  const logout = useCallback(() => {
-    setToken(null);
-    setRefreshToken(null);
-    window.localStorage.removeItem("hmb_admin_role");
-    window.localStorage.removeItem("hmb_admin_email");
-    window.localStorage.removeItem("hmb_admin_pending_email");
-    window.localStorage.removeItem("hmb_admin_challenge_token");
-    setRole(null);
-    setEmail(null);
-    router.push("/admin/login");
+  const logout = useCallback(async () => {
+    try {
+      // Revoke the server-side refresh session before clearing local credentials.
+      await adminApi.logout();
+    } catch {
+      // Always complete local logout, even if the backend is temporarily unavailable.
+    } finally {
+      setToken(null);
+      setRefreshToken(null);
+      window.localStorage.removeItem("hmb_admin_role");
+      window.localStorage.removeItem("hmb_admin_email");
+      window.localStorage.removeItem("hmb_admin_pending_email");
+      window.localStorage.removeItem("hmb_admin_challenge_token");
+      setRole(null);
+      setEmail(null);
+      router.push("/admin/login");
+    }
   }, [router]);
 
   return (
