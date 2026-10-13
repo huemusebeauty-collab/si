@@ -87,6 +87,7 @@ export const adminApi = {
   sendOtp: (phoneNumber: string, challengeToken: string) => request<{ sent: true; devOtp?: string }>("/admin/auth/otp/send", { method: "POST", body: JSON.stringify({ phoneNumber }) }, challengeToken),
   verifyOtp: (phoneNumber: string, code: string, challengeToken: string) => request<{ sessionToken: string; refreshToken: string; role: string; expiresAt: string }>("/admin/auth/otp/verify", { method: "POST", body: JSON.stringify({ phoneNumber, code }) }, challengeToken),
   refreshSession: (refreshToken: string) => refreshAdminSession(refreshToken),
+  logout: () => request<{ loggedOut: true }>("/admin/auth/logout", { method: "POST" }),
   requestPasswordReset: (email: string, phoneNumber: string) => request<{ sent: true; phoneNumber: string; resetToken: string; devOtp?: string }>("/admin/auth/password/reset/request", { method: "POST", body: JSON.stringify({ email, phoneNumber }) }),
   confirmPasswordReset: (resetToken: string, code: string, newPassword: string) => request<{ reset: true }>("/admin/auth/password/reset/confirm", { method: "POST", body: JSON.stringify({ resetToken, code, newPassword }) }),
   getDashboardOverview: () => request<DashboardOverview>("/admin/dashboard/overview"),
