@@ -157,7 +157,7 @@ export class AdminAuthService {
   }
 
   async logout(adminId: string): Promise<{ loggedOut: true }> {
-    await this.adminUsers.update({ id: adminId }, { refreshTokenHash: null as unknown as string });
+    await this.adminUsers.update({ id: adminId }, { refreshTokenHash: null });
     await this.auditLog.record({ actorId: adminId, module: "auth", action: "logout" });
     return { loggedOut: true };
   }
