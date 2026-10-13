@@ -203,7 +203,7 @@ export class AdminAuthService {
     }
 
     user.passwordHash = await hashPassword(newPassword);
-    user.refreshTokenHash = null as unknown as string;
+    user.refreshTokenHash = null;
     user.otpHash = undefined;
     user.otpExpiresAt = undefined;
     user.otpAttempts = 0;
@@ -218,7 +218,7 @@ export class AdminAuthService {
     if (!user?.active) throw new UnauthorizedException("Admin account is inactive.");
     if (!(await verifyPassword(currentPassword, user.passwordHash))) throw new UnauthorizedException("Current password is incorrect.");
     user.passwordHash = await hashPassword(newPassword);
-    user.refreshTokenHash = null as unknown as string;
+    user.refreshTokenHash = null;
     user.otpHash = undefined;
     user.otpExpiresAt = undefined;
     user.otpAttempts = 0;
@@ -232,7 +232,7 @@ export class AdminAuthService {
     const user = await this.adminUsers.findOne({ where: { email: email.trim().toLowerCase() } });
     if (!user?.active) throw new UnauthorizedException("Admin account not found.");
     user.passwordHash = await hashPassword(newPassword);
-    user.refreshTokenHash = null as unknown as string;
+    user.refreshTokenHash = null;
     user.otpHash = undefined;
     user.otpExpiresAt = undefined;
     user.otpAttempts = 0;
