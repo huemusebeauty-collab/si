@@ -41,7 +41,7 @@ export class AdminUserEntity {
   lastLoginAt?: Date;
 
   @Column({ type: "varchar", nullable: true, select: false })
-  refreshTokenHash?: string;
+  refreshTokenHash?: string | null;
 
   @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;
