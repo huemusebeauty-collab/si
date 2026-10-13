@@ -91,6 +91,7 @@ export class OrdersController {
 
   @Get(":orderId/tracking")
   async tracking(@Param("orderId") orderId: string, @CurrentUser() user: AuthenticatedUser) {
+    await this.requireOwner(orderId, user);
     return this.orders.getTrackingStatus(orderId);
   }
 
