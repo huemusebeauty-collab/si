@@ -1,0 +1,40 @@
+name: Admin Auth Security CI
+
+on:
+  pull_request:
+    paths:
+      - "backend/src/admin/auth/**"
+      - "backend/src/admin/audit/**"
+      - "backend/src/database/migrations/**"
+      - ".github/workflows/admin-auth-security-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "backend/src/admin/auth/**"
+      - "backend/src/admin/audit/**"
+      - "backend/src/database/migrations/**"
+      - ".github/workflows/admin-auth-security-ci.yml"
+  workflow_dispatch:
+
+jobs:
+  admin-auth-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package.json
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Run admin auth refresh-token security tests
+        run: npx jest src/admin/auth/admin-auth.service.spec.ts --runInBand --coverage=false

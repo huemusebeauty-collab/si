@@ -31,6 +31,10 @@ export class AdminAuthService {
     return createHash("sha256").update(code).digest("hex");
   }
 
+  private hashRefreshToken(token: string): string {
+    return createHash("sha256").update(token).digest("hex");
+  }
+
   private verifyRecoveryToken(provided: string): boolean {
     const configured = this.config.get<string>("adminRecoveryToken") || process.env.ADMIN_RECOVERY_TOKEN;
     if (!configured || !provided) return false;
@@ -113,6 +117,8 @@ export class AdminAuthService {
       { sub: user.id, email: user.email, role: user.role, purpose: "admin_refresh" },
       { secret: this.config.get<string>("jwt.secret"), expiresIn: this.config.get<any>("jwt.refreshTokenTtl") },
     );
+    user.refreshTokenHash = this.hashRefreshToken(refreshToken);
+    await this.adminUsers.save(user);
     return { sessionToken, refreshToken, role: user.role, expiresAt: new Date(Date.now() + 15 * 60 * 1000) };
   }
 
@@ -126,8 +132,14 @@ export class AdminAuthService {
     if (payload.purpose !== "admin_refresh" || !payload.sub || !payload.email || !payload.role) {
       throw new UnauthorizedException("Invalid admin refresh session.");
     }
-    const user = await this.adminUsers.findOne({ where: { id: payload.sub, email: payload.email } });
-    if (!user?.active || user.role !== payload.role) throw new UnauthorizedException("Admin account is inactive.");
+    const user = await this.adminUsers.createQueryBuilder("admin")
+      .addSelect("admin.refreshTokenHash")
+      .where("admin.id = :id AND admin.email = :email", { id: payload.sub, email: payload.email })
+      .getOne();
+    if (!user?.active || user.role !== payload.role || !user.refreshTokenHash ||
+      user.refreshTokenHash !== this.hashRefreshToken(refreshToken)) {
+      throw new UnauthorizedException("Admin refresh session is invalid or has already been used.");
+    }
     const sessionToken = await this.jwt.signAsync(
       { sub: user.id, email: user.email, role: user.role },
       { secret: this.config.get<string>("jwt.secret"), expiresIn: this.config.get<any>("jwt.accessTokenTtl") },
@@ -136,7 +148,20 @@ export class AdminAuthService {
       { sub: user.id, email: user.email, role: user.role, purpose: "admin_refresh" },
       { secret: this.config.get<string>("jwt.secret"), expiresIn: this.config.get<any>("jwt.refreshTokenTtl") },
     );
+    const rotation = await this.adminUsers.update(
+      { id: user.id, refreshTokenHash: user.refreshTokenHash },
+      { refreshTokenHash: this.hashRefreshToken(nextRefreshToken) },
+    );
+    if (rotation.affected !== 1) throw new UnauthorizedException("Admin refresh session has already been used.");
     return { sessionToken, refreshToken: nextRefreshToken, role: user.role, expiresAt: new Date(Date.now() + 15 * 60 * 1000) };
+  }
+
+  async logout(adminId: string): Promise<{ loggedOut: true }> {
+    const user = await this.adminUsers.findOne({ where: { id: adminId } });
+    if (!user) throw new UnauthorizedException("Admin session is invalid.");
+    await this.adminUsers.update({ id: adminId }, { refreshTokenHash: null });
+    await this.auditLog.record({ actorId: user.id, actorEmail: user.email, module: "auth", action: "logout" });
+    return { loggedOut: true };
   }
 
   async requestPasswordReset(email: string, phoneNumber: string): Promise<{ sent: true; phoneNumber: string; resetToken: string; devOtp?: string }> {
@@ -180,6 +205,7 @@ export class AdminAuthService {
     }
 
     user.passwordHash = await hashPassword(newPassword);
+    user.refreshTokenHash = null;
     user.otpHash = undefined;
     user.otpExpiresAt = undefined;
     user.otpAttempts = 0;
@@ -194,6 +220,7 @@ export class AdminAuthService {
     if (!user?.active) throw new UnauthorizedException("Admin account is inactive.");
     if (!(await verifyPassword(currentPassword, user.passwordHash))) throw new UnauthorizedException("Current password is incorrect.");
     user.passwordHash = await hashPassword(newPassword);
+    user.refreshTokenHash = null;
     user.otpHash = undefined;
     user.otpExpiresAt = undefined;
     user.otpAttempts = 0;
@@ -207,6 +234,7 @@ export class AdminAuthService {
     const user = await this.adminUsers.findOne({ where: { email: email.trim().toLowerCase() } });
     if (!user?.active) throw new UnauthorizedException("Admin account not found.");
     user.passwordHash = await hashPassword(newPassword);
+    user.refreshTokenHash = null;
     user.otpHash = undefined;
     user.otpExpiresAt = undefined;
     user.otpAttempts = 0;

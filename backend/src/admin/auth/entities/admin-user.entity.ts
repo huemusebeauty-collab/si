@@ -40,6 +40,9 @@ export class AdminUserEntity {
   @Column({ type: "timestamptz", nullable: true })
   lastLoginAt?: Date;
 
+  @Column({ type: "varchar", nullable: true, select: false })
+  refreshTokenHash?: string | null;
+
   @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;
 }

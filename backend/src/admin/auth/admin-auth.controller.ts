@@ -62,6 +62,14 @@ export class AdminAuthController {
     return this.adminAuth.resetPassword(dto.resetToken, dto.code, dto.newPassword);
   }
 
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @HttpCode(HttpStatus.OK)
+  @Post("logout")
+  async logout(@Headers("authorization") authorization: string | undefined) {
+    const payload = await this.adminAuth.verifyAccessToken(this.extractBearer(authorization));
+    return this.adminAuth.logout(payload.sub);
+  }
+
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @Post("password/change")
