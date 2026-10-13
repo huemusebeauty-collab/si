@@ -157,8 +157,10 @@ export class AdminAuthService {
   }
 
   async logout(adminId: string): Promise<{ loggedOut: true }> {
+    const user = await this.adminUsers.findOne({ where: { id: adminId } });
+    if (!user) throw new UnauthorizedException("Admin session is invalid.");
     await this.adminUsers.update({ id: adminId }, { refreshTokenHash: null });
-    await this.auditLog.record({ actorId: adminId, module: "auth", action: "logout" });
+    await this.auditLog.record({ actorId: user.id, actorEmail: user.email, module: "auth", action: "logout" });
     return { loggedOut: true };
   }
 
